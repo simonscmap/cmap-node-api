@@ -1,0 +1,9 @@
+node_modules/
+client/
+*.zip
+config/UNSAFE_dbConfig.js
+config/UNSAFE_jwtConfig.js
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
