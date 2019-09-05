@@ -31,10 +31,15 @@ app.use((req, res, next) => {
     next();
 })
 
-// Routes
+// Routes - DEPRECATED
 app.use('/user', userRoutes);
 app.use('/dataretrieval', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
 app.use('/catalog', catalogRoutes);
+
+// API Routes
+app.use('/api/user', userRoutes);
+app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
+app.use('/api/catalog', catalogRoutes);
 
 // Usage metrics logging
 app.use((req, res, next) => {
@@ -43,8 +48,7 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-    if(!res.headersSent) {
-        console.log('Hit catch-all');
+    if(!res.headersSent && !res.cmapSkipCatchAll) {
         res.sendFile(__dirname + '/public/index.html', null, (err) => {
             if(err) next(err);
             else next();
@@ -53,7 +57,7 @@ app.use((req, res, next) => {
 })
 
 app.use((err, req, res, next) => {
-    if(!res.headersSent) res.status(500).send();
+    if(!res.headersSent && !res.cmapSkipCatchAll) res.status(500).send();
 })
 
 var server = app.listen(port, ()=>{console.log(`listening on port ${port}`)});

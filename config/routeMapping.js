@@ -4,6 +4,7 @@ let routeMapping = {
     '' : 2,
     // 1xx for catalog
     '/catalog' : 101,
+    '/api/catalog' : 101,
 
     // 2xx for users
     '/user/signup' : 201,
@@ -12,9 +13,20 @@ let routeMapping = {
     '/user/signout': 204,
     '/user/generateapikey':205,
 
+    '/api/user/signup' : 201,
+    '/api/user/signin' : 202,
+    '/api/user/validate': 203,
+    '/api/user/signout': 204,
+    '/api/user/generateapikey':205,
+
     // 3xx for dataretrieval
     '/dataretrieval/query' : 301,
     '/dataretrieval/sp' : 302,
+    '/dataretrieval/tablestats': 303,
+
+    '/api/dataretrieval/query' : 301,
+    '/api/dataretrieval/sp' : 302,
+    '/api/dataretrieval/tablestats': 303,
 }
 
 module.exports = (path) => {
