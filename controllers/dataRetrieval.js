@@ -89,7 +89,7 @@ exports.implicit = async (req, res, next) => {
 
     request.on('error', err => res.json({error: err.originalError.info.message}));
 
-    // let spExecutionQuery = `EXEC ${argSet.spName} '${argSet.tableName}', '${argSet.fields}', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-    let spExecutionQuery = `EXEC uspSpaceTime 'tblPisces_NRT', 'Fe', '2012-05-05', '2012-05-05', '32', '34', '-68', '-66', '0', '3'`;
+    let spExecutionQuery = `EXEC ${argSet.spName} '${argSet.tableName}', '${argSet.fields}', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
+    // let spExecutionQuery = `EXEC uspSpaceTime 'tblPisces_NRT', 'Fe', '2012-05-05', '2012-05-05', '32', '34', '-68', '-66', '0', '3'`;
     request.query(spExecutionQuery);    
 }
