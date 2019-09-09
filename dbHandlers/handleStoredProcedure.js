@@ -22,15 +22,6 @@ module.exports =  async (argSet, res, next) => {
         'Content-Encoding': 'gzip'        
     })
 
-    // ndjsonStream.once('data', () => {
-    //     res.writeHead(200, {
-    //         'Transfer-Encoding': 'chunked',
-    //         'charset' : 'utf-8',
-    //         'Content-Type': 'application/json',
-    //         'Content-Encoding': 'gzip'        
-    //     })
-    // })
-
     ndjsonStream.on('error', err => {
         next(err);
     })
