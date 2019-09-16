@@ -1,4 +1,9 @@
-const handleCustomQuery = require('../dbHandlers/handleCustomQuery');    
+var pools = require('../dbHandlers/dbPools');
+const sql = require('mssql');
+
+const CSVStream = require('../utility/CSVStream');
+const handleCustomQuery = require('../dbHandlers/handleCustomQuery');
+const queryHandler = require('../utility/queryHandler');
 
 function catalogQuery() {
     let query = "SELECT RTRIM(LTRIM(Short_Name)) AS variable, ";
@@ -67,10 +72,14 @@ function catalogQuery() {
 // };
 
 
-exports.retrieve = async (req, res, next)=>{
+exports.retrieve = async (req, res, next) => {
     // Retrieve the variable catalog from the db and return it as json.
     // await handleCustomQuery('SELECT * FROM dbo.udfCatalog()', res, next);
     let query = catalogQuery();
     await handleCustomQuery(query, res, next);
     next();
 };
+
+exports.new = async (req, res, next) => {
+    queryHandler(req, res, next, 'SELECT * from dbo.udfCatalog()');
+}

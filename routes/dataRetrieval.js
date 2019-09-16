@@ -12,7 +12,8 @@ router.get('/sp', asyncControllerWrapper(dataRetrievalController.storedProcedure
 // Table stats endpoint
 router.get('/tablestats', asyncControllerWrapper(dataRetrievalController.tableStats));
 
-// Table stats endpoint
-router.get('/implicit', asyncControllerWrapper(dataRetrievalController.implicit));
+// router.get('/implicit', asyncControllerWrapper(dataRetrievalController.implicit));
+
+router.get('/csv', asyncControllerWrapper(dataRetrievalController.csv));
 
 module.exports = router;

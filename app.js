@@ -7,6 +7,7 @@ const passport = require('./middleware/passport');
 var useragent = require('express-useragent');
 
 const userRoutes = require('./routes/user');
+const dataRoutes = require('./routes/data');
 const dataRetrievalRoutes = require('./routes/dataRetrieval');
 const catalogRoutes = require('./routes/catalog');
 
@@ -38,7 +39,7 @@ app.use('/catalog', catalogRoutes);
 
 // API Routes
 app.use('/api/user', userRoutes);
-app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
+app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
 app.use('/api/catalog', catalogRoutes);
 
 // Usage metrics logging

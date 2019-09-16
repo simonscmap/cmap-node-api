@@ -1,9 +1,10 @@
 const router = require('express').Router();
-const ctrCatalog = require('../controllers/catalog');
+const catalogController = require('../controllers/catalog');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 
 /////////////////// catalog root route  ///////////////////
-router.get('/', asyncControllerWrapper(ctrCatalog.retrieve));
+router.get('/', asyncControllerWrapper(catalogController.retrieve));
+router.get('/new', asyncControllerWrapper(catalogController.new));
 
 module.exports = router;
