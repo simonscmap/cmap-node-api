@@ -14,6 +14,7 @@ module.exports = class CSVStream extends Transform {
     }
 
     _transform(chunk, encoding, done) {
+        console.log(chunk);
         let rowArray = [];
         this.columns.forEach(column => rowArray.push(column === 'time' ? chunk[column].toISOString().slice(0,10) : chunk[column]));
         this._customBuffer.push(rowArray.join(','));

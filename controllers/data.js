@@ -1,10 +1,7 @@
+const queryHandler = require('../utility/queryHandler');
+
 var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
-const stringify = require('csv-stringify')
-
-const errors = require('../errorHandling/errorsStrings');
-const CSVStream = require('../utility/CSVStream');
-const queryHandler = require('../utility/queryHandler');
 
 exports.customQuery = async (req, res, next)=>{
     queryHandler(req, res, next, req.query.query);
@@ -16,3 +13,21 @@ exports.storedProcedure = async (req, res, next)=>{
 
     queryHandler(req, res, next, spExecutionQuery);
 };
+
+exports.cruiseTrajectory = async (req, res, next) => {
+    let cruiseID = req.query.id;
+    let query = `EXEC uspCruiseTrajectory ${cruiseID}`;
+
+    queryHandler(req, res, next, query);
+}
+
+exports.cruiseList = async (req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    let query =  'SELECT * FROM udfCruises()';
+    let result = await request.query(query);
+    let cruiseList = result.recordset;
+    cruiseList.forEach(cruise => delete cruise.Chief_Email);
+    res.json(cruiseList);
+}
