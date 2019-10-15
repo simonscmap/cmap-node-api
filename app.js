@@ -35,7 +35,6 @@ app.use((req, res, next) => {
 // Routes - DEPRECATED
 app.use('/user', userRoutes);
 app.use('/dataretrieval', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
-app.use('/catalog', catalogRoutes);
 
 // API Routes
 app.use('/api/user', userRoutes);
