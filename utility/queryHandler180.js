@@ -46,6 +46,8 @@ module.exports = async(req, res, next) => {
     let accumulator1 = new Accumulator();
     let spExecutionQuery1 = `EXEC ${argSet.spName} '${argSet.tableName}', '${argSet.fields}', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '180', '${argSet.depth1}', '${argSet.depth2}'`;
 
+    let recordLength;
+
     request1.on('recordset', recordset => {
         if(!res.headersSent){
             res.writeHead(200, {
@@ -53,6 +55,7 @@ module.exports = async(req, res, next) => {
                 'Content-Type': 'text/plain',
                 'Cache-Control': 'max-age=86400'
             })
+            recordLength = Object.keys(recordset).length;
             request1
             .pipe(csvStream1)
             .pipe(accumulator1)
@@ -72,7 +75,11 @@ module.exports = async(req, res, next) => {
     request1.query(spExecutionQuery1);
 
     await query1Resolution;
+
     // Execute query 2  with lon transformation and manually close stream
+    let nextIndicator = new Array(recordLength).fill('next').join(',') + '\n';
+    res.write(nextIndicator);
+    
     let request2 = await new sql.Request(pool);
 
     req.on('close', () => {
