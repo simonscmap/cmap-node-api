@@ -1,5 +1,4 @@
 const queryHandler = require('../utility/queryHandler');
-const queryHandler180 = require('../utility/queryHandler180');
 
 var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
@@ -26,7 +25,7 @@ exports.cruiseList = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let query =  'SELECT * FROM udfCruises()';
+    let query =  'EXEC uspCruises';
     let result = await request.query(query);
     let cruiseList = result.recordset;
     cruiseList.forEach(cruise => delete cruise.Chief_Email);

@@ -76,7 +76,7 @@ module.exports = async(req, res, next) => {
 
     await query1Resolution;
 
-    // Execute query 2  with lon transformation and manually close stream
+    // Execute query 2 with lon transformation and manually close stream
     let nextIndicator = new Array(recordLength).fill('next').join(',') + '\n';
     res.write(nextIndicator);
     
