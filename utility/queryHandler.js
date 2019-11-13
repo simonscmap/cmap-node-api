@@ -59,6 +59,5 @@ module.exports = async (req, res, next, query) => {
         else res.status(400).end(generateError(err));
     });
 
-    console.log(query);
     request.query(query);
 }

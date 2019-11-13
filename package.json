@@ -1,13 +1,13 @@
 {
   "name": "test",
   "version": "0.0.1",
-  "description": "test project (reminder)",
+  "description": "CMAP Web API",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app"
+    "start": "./node_modules/pm2/bin/pm2-runtime app.js"
   },
-  "author": "mohammad",
+  "author": "Mike D from New York",
   "license": "ISC",
   "devDependencies": {
     "nodemon": "^1.18.9"
@@ -32,6 +32,7 @@
     "passport-headerapikey": "^1.1.0",
     "passport-jwt": "^4.0.0",
     "passport-local": "^1.0.0",
+    "pm2": "^4.1.2",
     "uuid": "^3.3.2",
     "winston": "^3.2.1"
   }

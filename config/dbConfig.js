@@ -9,7 +9,7 @@ module.exports.dataRetrievalConfig = {
     requestTimeout: 86000000,
     pool: {
         idleTimeoutMillis: 86000000,
-        max: 100
+        max: 1000
     }
 }
 

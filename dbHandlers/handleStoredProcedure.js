@@ -61,6 +61,6 @@ module.exports =  async (argSet, res, next) => {
     // request.execute(argSet.spName);
 
     let spExecutionQuery = `EXEC ${argSet.spName} '${argSet.tableName}', '${argSet.fields}', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-    console.log(spExecutionQuery);
+    // console.log(spExecutionQuery);
     request.query(spExecutionQuery);
 };

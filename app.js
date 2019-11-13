@@ -40,6 +40,11 @@ app.use('/dataretrieval', passport.authenticate(['headerapikey', 'jwt'], {sessio
 app.use('/api/user', userRoutes);
 app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/throw', (req, res, next) => {
+    setTimeout(function () {
+        throw new Error('We crashed!!!!!');
+  }, 10);
+});
 
 // Usage metrics logging
 app.use((req, res, next) => {
