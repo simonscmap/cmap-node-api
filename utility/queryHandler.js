@@ -19,11 +19,6 @@ module.exports = async (req, res, next, query) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    // cancel sql request if client closes connection
-    req.on('close', () => {
-        request.cancel();
-    })
-
     request.stream = true;
 
     res.cmapSkipCatchAll = true;
@@ -40,24 +35,40 @@ module.exports = async (req, res, next, query) => {
         else res.end();
     });
 
+    let accumulator = new Accumulator();
+
+    csvStream
+    .pipe(accumulator)
+    .pipe(res);
+    
+    const headers = {
+        'Transfer-Encoding': 'chunked',
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'max-age=86400'
+    }
+
     request.on('recordset', recordset => {
         if(!res.headersSent){
-            res.writeHead(200, {
-                'Transfer-Encoding': 'chunked',
-                'Content-Type': 'text/plain',
-                'Cache-Control': 'max-age=86400'
+            res.writeHead(200, headers);
+            request.on('row', row => {
+                if(csvStream.write(row) === false) request.pause();
             })
-            request
-            .pipe(csvStream)
-            .pipe(new Accumulator())
-            .pipe(res);
         }
     })
 
+    csvStream.on('drain', () => request.resume());
+    request.on('done', () => csvStream.end());
+
+    // cancel sql request if client closes connection
+    req.on('close', () => {
+        request.cancel();
+    })
+
     request.on('error', err => {
+        console.log(err);
         if(res.headersSent) res.end();
         else res.status(400).end(generateError(err));
     });
 
-    request.query(query);
+    await request.query(query);
 }

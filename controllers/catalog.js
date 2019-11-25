@@ -3,7 +3,7 @@ var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
 
 exports.retrieve = async (req, res, next) => {
-    queryHandler(req, res, next, 'SELECT * from dbo.udfCatalog()');
+    queryHandler(req, res, next, 'EXEC uspCatalog');
 }
 
 exports.description = async (req, res, next) => {

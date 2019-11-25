@@ -8,7 +8,7 @@ module.exports = class AccumulatorStream extends Transform {
 
     _transform(chunk, encoding, done) {
         this._customBuffer.push(chunk);
-        if(this._customBuffer.length >= 200){
+        if(this._customBuffer.length >= 100){
             this.push(this._customBuffer.join(''));
             this._customBuffer = [];
         }
