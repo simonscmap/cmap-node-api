@@ -6,7 +6,7 @@ const userDBConfig = require('../config/dbConfig').userTableConfig;
 const apiCallsTable = "tblApi_Calls";
 const apiCallDetailsTable = "tblApi_Call_Details";
 
-module.exports = class ApiCallRecord{
+module.exports = class ApiCallDetail{
     constructor(req){
         // let xf = req.headers['x-forwarded-for'];
         this.ip = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip || 'None';
@@ -28,6 +28,7 @@ module.exports = class ApiCallRecord{
     async save(){
 
         if(this.ignore) return;
+        if(this.clientBrowser === 'ELB-HealthChecker') return;
 
         let pool = await new sql.ConnectionPool(userDBConfig).connect();
         let request = await new sql.Request(pool);

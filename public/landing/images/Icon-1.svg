@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100px" height="100px" viewBox="0 0 100 100" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 53 (72520) - https://sketchapp.com -->
+    <title>Icon 1</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="100%" y1="50%" x2="-2.22044605e-14%" y2="50%" id="linearGradient-1">
+            <stop stop-color="#D2D2D2" offset="0%"></stop>
+            <stop stop-color="#EAEAEA" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="100%" y1="50%" x2="0%" y2="50%" id="linearGradient-2">
+            <stop stop-color="#CECDCD" offset="0%"></stop>
+            <stop stop-color="#E6E6E6" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="-2.48949813e-15%" x2="50%" y2="100%" id="linearGradient-3">
+            <stop stop-color="#D2D2D2" offset="0%"></stop>
+            <stop stop-color="#EAEAEA" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Wireframes-+-Mobile" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Icon-1">
+            <rect id="Rectangle-Copy-37" fill="#EEEEEE" fill-rule="nonzero" x="0" y="0" width="100" height="100" rx="10"></rect>
+            <g id="store-shapes-placeholder-1" transform="translate(25.000000, 25.000000)">
+                <rect id="Rectangle-Copy-33" fill="url(#linearGradient-1)" opacity="0.699999988" x="0" y="14.5247813" width="30.2469136" height="30.2857143" rx="4"></rect>
+                <rect id="Rectangle-Copy-33" fill="url(#linearGradient-2)" opacity="0.5" x="5.24691358" y="0" width="44.7530864" height="44.8104956" rx="4"></rect>
+                <rect id="Rectangle-Copy-33" fill="url(#linearGradient-3)" opacity="0.698084113" x="21.9135802" y="36.6209913" width="16.3580247" height="16.3790087" rx="4"></rect>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -6,6 +6,10 @@ exports.retrieve = async (req, res, next) => {
     queryHandler(req, res, next, 'EXEC uspCatalog');
 }
 
+exports.datasets = async (req,res,next) => {
+    queryHandler(req, res, next, 'SELECT * FROM tblDatasets');
+}
+
 exports.description = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);

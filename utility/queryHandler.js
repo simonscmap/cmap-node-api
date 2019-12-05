@@ -69,6 +69,7 @@ module.exports = async (req, res, next, query) => {
         if(res.headersSent) res.end();
         else res.status(400).end(generateError(err));
     });
-
+    let start = new Date();
     await request.query(query);
+    next();
 }

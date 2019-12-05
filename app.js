@@ -36,6 +36,14 @@ app.use((req, res, next) => {
 app.use('/user', userRoutes);
 app.use('/dataretrieval', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
 
+app.get('/', (req, res, next) => {
+    res.cmapSkipCatchAll = true;
+    res.sendFile(__dirname + '/public/landing/landing.html', null, (err) => {
+        if(err) next(err);
+        else next();
+    });
+})
+
 // API Routes
 app.use('/api/user', userRoutes);
 app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
@@ -49,7 +57,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
     if(!res.headersSent && !res.cmapSkipCatchAll) {
-        res.sendFile(__dirname + '/public/index.html', null, (err) => {
+        res.sendFile(__dirname + '/public/app.html', null, (err) => {
             if(err) next(err);
             else next();
         });
@@ -57,6 +65,7 @@ app.use((req, res, next) => {
 })
 
 app.use((err, req, res, next) => {
+    console.log(err);
     if(!res.headersSent && !res.cmapSkipCatchAll) res.status(500).send();
 })
 

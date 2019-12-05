@@ -15,4 +15,7 @@ router.get('/cruiselist', asyncControllerWrapper(dataController.cruiseList));
 // Get cruise trajectory
 router.get('/cruisetrajectory', asyncControllerWrapper(dataController.cruiseTrajectory));
 
+// Table stats
+router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
+
 module.exports = router;
