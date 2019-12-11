@@ -4,8 +4,7 @@ var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
 
 exports.customQuery = async (req, res, next)=>{
-    console.log('query path')
-    console.log(req.query.query)
+    req.cmapApiCallDetails.query = req.query.query;
     queryHandler(req, res, next, req.query.query);
 };
 
