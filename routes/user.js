@@ -22,4 +22,19 @@ router.get('/generateapikey', passport.authenticate('jwt', {session:false}), asy
 // Route to retrieve current API keys
 router.get('/retrieveapikeys', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.retrieveApiKeys));
 
+// Route to update user information
+router.post('/updateinfo', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.updateInfo));
+
+// Route used for Google SSO
+router.post('/googleauth', asyncControllerWrapper(userController.googleAuth));
+
+// Route for handling forgotten password requests
+router.post('/forgotpassword', asyncControllerWrapper(userController.forgotPassword));
+
+// Route for sending confirmation email
+router.post('/confirmemail', asyncControllerWrapper(userController.confirmEmail));
+
+// Route for accepting password changes
+router.post('/choosepassword', asyncControllerWrapper(userController.choosePassword));
+
 module.exports = router;

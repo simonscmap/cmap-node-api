@@ -14,13 +14,15 @@ module.exports = class UnsafeUser {
         this.firstName = userInfo.firstName || userInfo.FirstName;
         this.lastName = userInfo.lastName || userInfo.FamilyName;
         this.userName = userInfo.userName || userInfo.Username || userInfo.username;
-        this.password = userInfo.password || userInfo.Password;
+        this.password = userInfo.password || userInfo.Password || 'NoPass';
         this.email = userInfo.email || userInfo.Email;
-        this.institute = userInfo.institute || null;
-        this.department = userInfo.department || null;
-        this.country = userInfo.country || null;
+        this.institute = userInfo.institute || userInfo.Institute || null;
+        this.department = userInfo.department || userInfo.Department || null;
+        this.country = userInfo.country || userInfo.Country || null;
 
-        this.id = userInfo.UserID || null;
+        this.googleID = userInfo.googleID || userInfo.GoogleID || null;
+
+        this.id = userInfo.UserID || userInfo.id || null;
 
         this.apiKey = userInfo.Api_Key || null;
         this.apiKeyID = userInfo.Api_Key_ID || null;
@@ -57,6 +59,18 @@ module.exports = class UnsafeUser {
         return result.recordset[0];
     }
 
+    static async getUserByGoogleID(id){
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+        request.input('id', sql.VarChar, id);
+        request.on('error', err => console.log(err));
+        let result = await request.query(`SELECT * FROM ${userTable} WHERE GoogleID = @id`);
+        
+        if(!result.recordset.length) return false;
+        
+        return result.recordset[0];
+    }
+
     static async getApiKeysByUserID(id){
         let pool = await pools.userReadAndWritePool;
         let request = await new sql.Request(pool);
@@ -70,15 +84,15 @@ module.exports = class UnsafeUser {
         let safeUser = {
             firstName: this.firstName,
             lastName: this.lastName,
-            email: this.email
+            email: this.email,
+            department: this.department,
+            institute: this.institute,
+            country: this.country,
+            id: this.id
+
         }
         return safeUser;
     }
-
-    // async validateNewUser(){
-    //     // if(await this.constructor.getUserByUsername(this.userName)) throw 'This username is already in use.';
-    //     return true;
-    // }
 
     async validateUsernameAndEmail(){
         let pool = await pools.userReadAndWritePool;
@@ -95,23 +109,67 @@ module.exports = class UnsafeUser {
 
     async saveAsNew(){ 
         // Validates and saves user to db. 
-        
-            // await this.validateNewUser(); 
 
-            let pool = await pools.userReadAndWritePool;
-            let request = await new sql.Request(pool);
-            let hashedPassword = await bcrypt.hash(this.password, 10)
-            let query = `INSERT INTO ${userTable} (FirstName, FamilyName, Username, Password, Email, Institute, Department, Country) VALUES (@firstname, @lastname, @username, @password, @email, @institute, @department, @country)`;
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+        let hashedPassword = this.password === 'NoPass' ? 'NoPass' : await bcrypt.hash(this.password, 10);
+        let query = `INSERT INTO ${userTable} (FirstName, FamilyName, Username, Password, Email, Institute, Department, Country, GoogleID) VALUES (@firstname, @lastname, @username, @password, @email, @institute, @department, @country, @googleid)`;
 
-            request.input('firstname', sql.NVarChar, this.firstName);
-            request.input('lastname', sql.NVarChar, this.lastName);
-            request.input('username', sql.NVarChar, this.userName);
-            request.input('password', sql.NVarChar, hashedPassword);
-            request.input('email', sql.NVarChar, this.email);
-            request.input('institute', sql.NVarChar, this.institute);
-            request.input('department', sql.NVarChar, this.department);
-            request.input('country', sql.NVarChar, this.country);
+        request.input('firstname', sql.NVarChar, this.firstName);
+        request.input('lastname', sql.NVarChar, this.lastName);
+        request.input('username', sql.NVarChar, this.userName);
+        request.input('password', sql.NVarChar, hashedPassword);
+        request.input('email', sql.NVarChar, this.email);
+        request.input('institute', sql.NVarChar, this.institute);
+        request.input('department', sql.NVarChar, this.department);
+        request.input('country', sql.NVarChar, this.country);
+        request.input('googleid', sql.VarChar, this.googleID);
 
-            return await request.query(query);
+        return await request.query(query);
+    }
+
+    // Use to associate a google ID with an existing account for first time google sign-on
+    async attachGoogleIDToExistingUser(){
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+
+        let query = `UPDATE ${userTable} SET GoogleID = @googleid WHERE UserID = @id`;
+
+        request.input('googleid', sql.VarChar, this.googleID);
+        request.input('id', sql.VarChar, this.id);
+
+        return await request.query(query);
+    }
+
+    // Update method for less-sensitive information shown on the front end user profile
+    async updateUserProfile(){
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+
+        let query = `UPDATE ${userTable} SET FirstName = @firstname, FamilyName = @familyname, Institute = @institute, Department = @department, Country = @country WHERE UserID = @id`;
+
+        request.input('firstname', sql.NVarChar, this.firstName);
+        request.input('familyname', sql.NVarChar, this.lastName);
+        request.input('institute', sql.NVarChar, this.institute);
+        request.input('department', sql.NVarChar, this.department);
+        request.input('country', sql.NVarChar, this.country);
+        request.input('id', sql.VarChar, this.id);
+
+        return await request.query(query);
+    }
+
+    async updatePassword(){
+        // Updates password based on email
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+
+        let hashedPassword = await bcrypt.hash(this.password, 10);
+
+        let query = `UPDATE ${userTable} SET Password = @password WHERE Email = @email`;
+
+        request.input('password', sql.NVarChar, hashedPassword);
+        request.input('email', sql.NVarChar, this.email);
+
+        return await request.query(query);
     }
 }

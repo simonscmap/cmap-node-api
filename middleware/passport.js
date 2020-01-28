@@ -53,7 +53,7 @@ passport.use(new JwtStrategy(jwtExtractorOpts,
         try {
             let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByEmail(jwtPayload.sub));
             req.cmapApiCallDetails.userID = unsafeUser.id;
-            return done(null, unsafeUser.makeSafe());
+            return done(null, unsafeUser);
         } catch {
             return done(null, false)
         }

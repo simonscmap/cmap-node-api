@@ -18,4 +18,7 @@ router.get('/cruisetrajectory', asyncControllerWrapper(dataController.cruiseTraj
 // Table stats
 router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
 
+// Protobuf test
+router.get('/proto', asyncControllerWrapper(dataController.testProto));
+
 module.exports = router;
