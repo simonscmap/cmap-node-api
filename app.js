@@ -10,6 +10,7 @@ const userRoutes = require('./routes/user');
 const dataRoutes = require('./routes/data');
 const dataRetrievalRoutes = require('./routes/dataRetrieval');
 const catalogRoutes = require('./routes/catalog');
+const communityRoutes = require('./routes/community');
 
 const ApiCallDetails = require('./models/ApiCallDetail');
 

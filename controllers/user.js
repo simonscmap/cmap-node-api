@@ -186,7 +186,7 @@ exports.forgotPassword = async(req, res, next) => {
     let token = await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn: 60 * 30});
 
     let emailClient = await awaitableEmailClient;
-    let content = emailTemplates.forgotPassword(token, user.userName);
+    let content = emailTemplates.forgotPassword(token, user.username);
     let message =
         "From: 'me'\r\n" +
         "To: " + user.email + "\r\n" +
@@ -208,37 +208,37 @@ exports.forgotPassword = async(req, res, next) => {
     return next();
 }
 
-// exports.confirmEmail = async(req, res, next) => {
-//     // Accept post with email address, check for user, send confirm email with jwt to set password
-//     let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
-//     if(!user) {
-//         return res.sendStatus(200);
-//     }
+exports.contactUs = async(req, res, next) => {
+    let payload = req.body;
+    console.log(payload);
 
-//     let jwtPayload = {iss, sub: user.email};
-//     let token = await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn: 6 * 60 * 24});
-//     console.log(token);
-//     let content = emailTemplates.confirmEmail(token);
-//     let message =
-//         "From: 'me'\r\n" +
-//         "To: " + req.body.email + "\r\n" +
-//         "Subject: Simons CMAP\r\n" +
-//         "Content-Type: text/html; charset='UTF-8'\r\n" +
-//         "Content-Transfer-Encoding: base64\r\n\r\n" +
-//         content;
+    let emailClient = await awaitableEmailClient;
+    let content = emailTemplates.contactUs(payload);
+    let message =
+        "From: 'me'\r\n" +
+        "To: simonscmap@uw.edu\r\n" +
+        "Subject: Message from Simons CMAP User\r\n" +
+        // "Content-Type: text/html; charset='UTF-8'\r\n" +
+        // "Content-Transfer-Encoding: base64\r\n\r\n" +
+        content;
 
-//     let raw = base64url.encode(message);
+    let raw = base64url.encode(message);
 
-//     let result = await emailClient.users.messages.send({
-//         userId: 'me',
-//         resource: {
-//             raw
-//         }
-//     })
+    try {
+        let result = await emailClient.users.messages.send({
+            userId: 'me',
+            resource: {
+                raw
+            }
+        })
+    
+        res.sendStatus(200);
+    } catch(e) {
+        res.sendStatus(400);
+    }
 
-//     res.sendStatus(200);
-//     return next();
-// }
+    return next();
+}
 
 exports.choosePassword = async(req, res, next) => {
     // Accept post with jwt and new pass, has and set password

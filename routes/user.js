@@ -37,4 +37,7 @@ router.post('/confirmemail', asyncControllerWrapper(userController.confirmEmail)
 // Route for accepting password changes
 router.post('/choosepassword', asyncControllerWrapper(userController.choosePassword));
 
+// Route for transmitted submitted contact us forms
+router.post('/contactus', asyncControllerWrapper(userController.contactUs));
+
 module.exports = router;

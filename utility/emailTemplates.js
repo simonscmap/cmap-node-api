@@ -179,3 +179,14 @@ module.exports.confirmEmail = (jwt) => (
     </html>
     `
 );
+
+module.exports.contactUs = ({name, email, subject, message}) => (
+  `
+  Name: ${name}
+  Email: ${email}
+  Subject: ${subject}
+  Message:
+  ${message}
+
+  `
+);

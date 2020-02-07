@@ -13,7 +13,7 @@ module.exports = class UnsafeUser {
     constructor(userInfo){
         this.firstName = userInfo.firstName || userInfo.FirstName;
         this.lastName = userInfo.lastName || userInfo.FamilyName;
-        this.userName = userInfo.userName || userInfo.Username || userInfo.username;
+        this.username = userInfo.userName || userInfo.Username || userInfo.username;
         this.password = userInfo.password || userInfo.Password || 'NoPass';
         this.email = userInfo.email || userInfo.Email;
         this.institute = userInfo.institute || userInfo.Institute || null;
@@ -88,7 +88,8 @@ module.exports = class UnsafeUser {
             department: this.department,
             institute: this.institute,
             country: this.country,
-            id: this.id
+            id: this.id,
+            username: this.username
 
         }
         return safeUser;
@@ -97,7 +98,7 @@ module.exports = class UnsafeUser {
     async validateUsernameAndEmail(){
         let pool = await pools.userReadAndWritePool;
         let request = await new sql.Request(pool);
-        request.input('username', sql.NVarChar, this.userName);
+        request.input('username', sql.NVarChar, this.username);
         request.input('email', sql.NVarChar, this.email);
 
         let query = `SELECT * FROM ${userTable} WHERE Username = @username OR Email = @email`;
@@ -117,7 +118,7 @@ module.exports = class UnsafeUser {
 
         request.input('firstname', sql.NVarChar, this.firstName);
         request.input('lastname', sql.NVarChar, this.lastName);
-        request.input('username', sql.NVarChar, this.userName);
+        request.input('username', sql.NVarChar, this.username);
         request.input('password', sql.NVarChar, hashedPassword);
         request.input('email', sql.NVarChar, this.email);
         request.input('institute', sql.NVarChar, this.institute);
