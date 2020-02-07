@@ -18,13 +18,13 @@ const emailClientInit = async () => {
       client_secret, 
       redirect_uris[0]
     );
-
-    const token = await readFileAsync(TOKEN_PATH);
-
+    
     try{
-        let parsed = JSON.parse(token);
-        oAuth2Client.setCredentials(parsed);
+      const token = await readFileAsync(TOKEN_PATH);
+      let parsed = JSON.parse(token);
+      oAuth2Client.setCredentials(parsed);
     } catch(e) {
+        console.log('HI')
         return getNewToken(oAuth2Client, emailClientInit);
     }
 
@@ -45,6 +45,7 @@ function getNewToken(oAuth2Client, callback) {
     output: process.stdout,
   });
   
+  console.log('Authorize this app by visiting this url:', authUrl);
   rl.question('Enter the code from that page here: ', (code) => {
     rl.close();
     oAuth2Client.getToken(code, (err, token) => {

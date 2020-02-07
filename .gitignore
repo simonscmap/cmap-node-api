@@ -8,3 +8,5 @@ config/UNSAFE_jwtConfig.js
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 /keys.json
+/credentials.json
+/token.json
