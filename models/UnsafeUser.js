@@ -4,6 +4,8 @@ const sql = require('mssql');
 const userTable = 'tblUsers'
 const apiKeyTable = 'tblApi_Keys'
 
+const iss = "Simons CMAP";
+
 var pools = require('../dbHandlers/dbPools');
 
 // Instances of this class contain sensitive information
@@ -34,7 +36,16 @@ module.exports = class UnsafeUser {
         request.input('username', sql.NVarChar, username);
         request.on('error', err => console.log(err));
         let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE username = @username`);
-        return result.recordset.length ? result.recordset[0] : false;
+        return result.recordset.length ? new this(result.recordset[0]) : false;
+    }
+
+    static async getUserByID(id){
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+        request.input('id', sql.Int, id);
+        request.on('error', err => console.log(err));
+        let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE UserId = @id`);
+        return result.recordset.length ?  new this(result.recordset[0]) : false;
     }
 
     static async getUserByEmail(email){
@@ -43,7 +54,7 @@ module.exports = class UnsafeUser {
         request.input('email', sql.NVarChar, email);
         request.on('error', err => console.log(err));
         let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE email = @email`);
-        return result.recordset.length ? result.recordset[0] : false;
+        return result.recordset.length ? new this(result.recordset[0]) : false;
     }
 
     static async getUserByApiKey(key){
@@ -56,7 +67,7 @@ module.exports = class UnsafeUser {
         //Throw not found error if no results
         if(!result.recordset.length) throw new Error('API Key not found');
         
-        return result.recordset[0];
+        return new this(result.recordset[0]);
     }
 
     static async getUserByGoogleID(id){
@@ -68,7 +79,7 @@ module.exports = class UnsafeUser {
         
         if(!result.recordset.length) return false;
         
-        return result.recordset[0];
+        return new this(result.recordset[0]);
     }
 
     static async getApiKeysByUserID(id){
@@ -114,7 +125,7 @@ module.exports = class UnsafeUser {
         let pool = await pools.userReadAndWritePool;
         let request = await new sql.Request(pool);
         let hashedPassword = this.password === 'NoPass' ? 'NoPass' : await bcrypt.hash(this.password, 10);
-        let query = `INSERT INTO ${userTable} (FirstName, FamilyName, Username, Password, Email, Institute, Department, Country, GoogleID) VALUES (@firstname, @lastname, @username, @password, @email, @institute, @department, @country, @googleid)`;
+        let query = `INSERT INTO ${userTable} (FirstName, FamilyName, Username, Password, Email, Institute, Department, Country, GoogleID) VALUES (@firstname, @lastname, @username, @password, @email, @institute, @department, @country, @googleid) SELECT SCOPE_IDENTITY()`;
 
         request.input('firstname', sql.NVarChar, this.firstName);
         request.input('lastname', sql.NVarChar, this.lastName);
@@ -159,6 +170,7 @@ module.exports = class UnsafeUser {
         return await request.query(query);
     }
 
+    // Password update
     async updatePassword(){
         // Updates password based on email
         let pool = await pools.userReadAndWritePool;
@@ -166,11 +178,31 @@ module.exports = class UnsafeUser {
 
         let hashedPassword = await bcrypt.hash(this.password, 10);
 
-        let query = `UPDATE ${userTable} SET Password = @password WHERE Email = @email`;
+        let query = `UPDATE ${userTable} SET Password = @password WHERE UserID = @id`;
 
         request.input('password', sql.NVarChar, hashedPassword);
-        request.input('email', sql.NVarChar, this.email);
+        request.input('id', sql.Int, this.id);
 
         return await request.query(query);
+    }
+
+    async updateEmail(){
+        // Updates password based on email
+        let pool = await pools.userReadAndWritePool;
+        let request = await new sql.Request(pool);
+
+        let query = `UPDATE ${userTable} SET Email = @email WHERE UserID = @id`;
+
+        request.input('email', sql.NVarChar, this.email);
+        request.input('id', sql.Int, this.id);
+
+        return await request.query(query);
+    }
+
+    getJWTPayload(){
+        return {
+            iss,
+            sub: this.id
+        };
     }
 }

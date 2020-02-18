@@ -18,8 +18,6 @@ const standardCookieOptions = {
     // secure: true,
 }
 
-const iss = "Simons CMAP";
-
 const jwtCookieOptions = {
     ...standardCookieOptions,
     httpOnly: true
@@ -33,8 +31,12 @@ exports.signup = async (req, res, next) => {
         res.sendStatus(400);
         return next();
     }
+
+    let signedUpUser = await UnsafeUser.getUserByEmail(req.body.email);
+
     let emailClient = await awaitableEmailClient;
-    let token = jwt.sign({sub: newUser.email}, jwtConfig.secret, {expiresIn: 60 * 60 * 24});
+    
+    let token = jwt.sign(signedUpUser.getJWTPayload(), jwtConfig.secret, {expiresIn: 60 * 60 * 24});
     
     let content = emailTemplates.confirmEmail(token);
     let message =
@@ -61,12 +63,9 @@ exports.signup = async (req, res, next) => {
  exports.signin = async (req, res, next) => {
     // If requests authenticates we sent a cookie with basic user info, and
     // and httpOnly cookie with the JWT.
-    const jwtPayload = {
-        iss,
-        sub: req.user.email,
-    }
+    let user = new UnsafeUser(req.user);
     res.cookie('UserInfo', JSON.stringify(new UnsafeUser(req.user).makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-    res.cookie('jwt', await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+    res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
     res.json(true);
     next();
 }
@@ -103,10 +102,7 @@ exports.retrieveApiKeys = async(req, res, next) => {
 }
 
 exports.googleAuth = async(req, res, next) => {
-    // const jwtPayload = {
-    //     iss: "Simons CMAP",
-    //     sub: req.user.email,
-    // }
+
     const client = new OAuth2Client(cmapClientID);
     const { userIDToken } = req.body;
     const ticket = await client.verifyIdToken({
@@ -127,9 +123,8 @@ exports.googleAuth = async(req, res, next) => {
     
     if(googleIDUser) {
         let user = new UnsafeUser(googleIDUser);
-        let jwtPayload = {iss, sub: user.email};
         res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-        res.cookie('jwt', await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+        res.cookie('jwt', await jwt.sign(googleIDUser.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
         res.json(true);
         return next();
     }
@@ -141,13 +136,11 @@ exports.googleAuth = async(req, res, next) => {
         let user = new UnsafeUser({...existingUser, googleID});
         let result = await user.attachGoogleIDToExistingUser();
 
-        let jwtPayload = {iss, sub: user.email};
         res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-        res.cookie('jwt', await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+        res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
         res.json(true);
         return next();
     }
-
     // New user
     let user = new UnsafeUser({
         googleID,
@@ -158,10 +151,9 @@ exports.googleAuth = async(req, res, next) => {
     });
 
     let result = await user.saveAsNew();
-    let jwtPayload = {iss, sub: user.email};
 
     res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-    res.cookie('jwt', await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+    res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
     res.json(true);
 
     return next();
@@ -170,9 +162,11 @@ exports.googleAuth = async(req, res, next) => {
 exports.updateInfo = async(req, res, next) => {
     let user = new UnsafeUser({...req.user, ...req.body.userInfo});
     let result = await user.updateUserProfile();
-    
+    if(!result.rowsAffected || !result.rowsAffected[0]) {
+        return res.sendStatus(400);
+    }
     res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-    res.json(true);
+    return res.sendStatus(200);
 }
 
 exports.forgotPassword = async(req, res, next) => {
@@ -182,8 +176,7 @@ exports.forgotPassword = async(req, res, next) => {
         return res.sendStatus(200);
     }
 
-    let jwtPayload = {iss, sub: user.email};
-    let token = await jwt.sign(jwtPayload, jwtConfig.secret, {expiresIn: 60 * 30});
+    let token = await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn: 60 * 30});
 
     let emailClient = await awaitableEmailClient;
     let content = emailTemplates.forgotPassword(token, user.username);
@@ -210,7 +203,6 @@ exports.forgotPassword = async(req, res, next) => {
 
 exports.contactUs = async(req, res, next) => {
     let payload = req.body;
-    console.log(payload);
 
     let emailClient = await awaitableEmailClient;
     let content = emailTemplates.contactUs(payload);
@@ -241,24 +233,48 @@ exports.contactUs = async(req, res, next) => {
 }
 
 exports.choosePassword = async(req, res, next) => {
-    // Accept post with jwt and new pass, has and set password
+    // Accept post with jwt and new pass, hash and set password
     let payload;
     try{
         payload = await jwt.verify(req.body.token, jwtConfig.secret);
+        console.log(payload)
     } catch {
         res.sendStatus(400);
         return next();
     }
-    console.log(payload);
+
     let password = req.body.password;
-    let user = new UnsafeUser({email: payload.sub, password});
+    let user = new UnsafeUser({id: payload.sub, password});
     let result = await user.updatePassword();
-    console.log(result);
+
     if(result.rowsAffected && result.rowsAffected[0] > 0){
         res.sendStatus(200);
         return next();
     } else {
+        console.log('rowsAffected fail')
         res.sendStatus(400);
         return next();
     }
+}
+
+exports.changeEmail = async(req, res, next) => {
+    let user = new UnsafeUser({...req.user, email: req.body.email});
+    try{
+        let result = await user.updateEmail();
+        res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+        return res.sendStatus(200);
+    } catch(e) {
+        if(e.code === 'EREQUEST'){
+            return res.sendStatus(409);
+        }
+        res.sendStatus(400);
+    }
+    // if(!result.rowsAffected || !result.rowsAffected[0]) return res.sendStatus(400);
+}
+
+exports.changePassword = async(req, res, next) => {
+    let user = new UnsafeUser({...req.user, password: req.body.newPassword});
+    let result = await user.updatePassword();
+    if(!result.rowsAffected || !result.rowsAffected[0]) return res.sendStatus(400);
+    return res.sendStatus(200);
 }

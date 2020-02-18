@@ -46,12 +46,13 @@ passport.use(new LocalStrategy(localStrategyOptions,
     }
   ));
 
-passport.use(new JwtStrategy(jwtExtractorOpts,
+passport.use(new JwtStrategy(
+    jwtExtractorOpts,
     async function(req, jwtPayload, done){
         req.cmapApiCallDetails.authMethod = authMethodMapping.jwt;
 
         try {
-            let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByEmail(jwtPayload.sub));
+            let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByID(jwtPayload.sub));
             req.cmapApiCallDetails.userID = unsafeUser.id;
             return done(null, unsafeUser);
         } catch {

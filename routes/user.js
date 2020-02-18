@@ -40,4 +40,10 @@ router.post('/choosepassword', asyncControllerWrapper(userController.choosePassw
 // Route for transmitted submitted contact us forms
 router.post('/contactus', asyncControllerWrapper(userController.contactUs));
 
+// Route for transmitted submitted contact us forms
+router.post('/changeemail', passport.authenticate('local', {session:false}), asyncControllerWrapper(userController.changeEmail));
+
+// Route for transmitted submitted contact us forms
+router.post('/changepassword', passport.authenticate('local', {session:false}), asyncControllerWrapper(userController.changePassword));
+
 module.exports = router;
