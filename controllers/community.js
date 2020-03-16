@@ -5,7 +5,6 @@ const emailTemplates = require('../utility/emailTemplates');
 
 exports.contactUs = async(req, res, next) => {
     let payload = req.body;
-    console.log(payload);
 
     let emailClient = await awaitableEmailClient;
     let content = emailTemplates.contactUs(payload);

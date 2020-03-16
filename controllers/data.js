@@ -14,7 +14,6 @@ exports.customQuery = async (req, res, next)=>{
 exports.storedProcedure = async (req, res, next)=>{
     let argSet = req.query;
     let spExecutionQuery = `EXEC ${argSet.spName} '${argSet.tableName}', '${argSet.fields}', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-    console.log(spExecutionQuery);
     req.cmapApiCallDetails.query = spExecutionQuery;
 
     queryHandler(req, res, next, spExecutionQuery);

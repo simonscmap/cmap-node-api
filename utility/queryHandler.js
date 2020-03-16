@@ -65,11 +65,13 @@ module.exports = async (req, res, next, query) => {
     })
 
     request.on('error', err => {
+        console.log('Query failure:');
+        console.log(req.cmapApiCallDetails.query);
+        console.log(req.cmapApiCallDetails.authMethod === 3 ? 'API Key Auth' : 'JWT Auth');
         console.log(err);
         if(res.headersSent) res.end();
         else res.status(400).end(generateError(err));
     });
-    let start = new Date();
     await request.query(query);
     next();
 }

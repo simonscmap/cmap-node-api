@@ -56,6 +56,8 @@ exports.signup = async (req, res, next) => {
         }
     })
 
+    console.log(result);
+
     res.sendStatus(200);
     return next();
  }
@@ -114,7 +116,6 @@ exports.googleAuth = async(req, res, next) => {
     const { aud, sub: googleID, email, given_name: firstName, family_name: lastName } = ticket.payload;
 
     if(aud !== cmapClientID){
-        console.log('aud mismatch');
         return next();
     }
 
@@ -237,7 +238,6 @@ exports.choosePassword = async(req, res, next) => {
     let payload;
     try{
         payload = await jwt.verify(req.body.token, jwtConfig.secret);
-        console.log(payload)
     } catch {
         res.sendStatus(400);
         return next();

@@ -1,1 +1,307 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png?v=2"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2"><link rel="manifest" href="/site.webmanifest?v=2"><link rel="mask-icon" href="/safari-pinned-tab.svg?v=2" color="#5bbad5"><meta name="msapplication-TileColor" content="#da532c"><meta name="theme-color" content="#ffffff"><meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no"/><meta name="Description" content="Simons Collaborative Marine Atlas Project is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data."><meta name="theme-color" content="#000000"/><meta name="google-site-verification" content="sbn3azRXCc2yYuIuKJTiSWkc0IWnHjdLFPtLTDkz6Yo"/><link rel="manifest" href="/manifest.json"/><link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/themes/dark/main.css"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.10.1/css/all.css" integrity="sha384-wxqG4glGB3nlqX0bi23nmgwCSjWIW13BdLUEYC4VIMehfbcro/ATkyDsF/AbIOVe" crossorigin="anonymous"><script src="https://apis.google.com/js/platform.js"></script><meta name="google-signin-client_id" content="YOUR_CLIENT_ID.apps.googleusercontent.com"><script>window.gapi.load('auth2', () => window.gapi.auth2.init({client_id: '739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com'}));</script><title>Simons Collaborative Marine Atlas Project</title><link href="/static/css/2.5cf593bd.chunk.css" rel="stylesheet"><link href="/static/css/main.26fa20cd.chunk.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div><script>!function(c){function e(e){for(var r,t,n=e[0],o=e[1],u=e[2],a=0,l=[];a<n.length;a++)t=n[a],Object.prototype.hasOwnProperty.call(f,t)&&f[t]&&l.push(f[t][0]),f[t]=0;for(r in o)Object.prototype.hasOwnProperty.call(o,r)&&(c[r]=o[r]);for(s&&s(e);l.length;)l.shift()();return i.push.apply(i,u||[]),p()}function p(){for(var e,r=0;r<i.length;r++){for(var t=i[r],n=!0,o=1;o<t.length;o++){var u=t[o];0!==f[u]&&(n=!1)}n&&(i.splice(r--,1),e=a(a.s=t[0]))}return e}var t={},f={1:0},i=[];function a(e){if(t[e])return t[e].exports;var r=t[e]={i:e,l:!1,exports:{}};return c[e].call(r.exports,r,r.exports,a),r.l=!0,r.exports}a.m=c,a.c=t,a.d=function(e,r,t){a.o(e,r)||Object.defineProperty(e,r,{enumerable:!0,get:t})},a.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},a.t=function(r,e){if(1&e&&(r=a(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var t=Object.create(null);if(a.r(t),Object.defineProperty(t,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var n in r)a.d(t,n,function(e){return r[e]}.bind(null,n));return t},a.n=function(e){var r=e&&e.__esModule?function(){return e.default}:function(){return e};return a.d(r,"a",r),r},a.o=function(e,r){return Object.prototype.hasOwnProperty.call(e,r)},a.p="/";var r=this.webpackJsonpcmap_react=this.webpackJsonpcmap_react||[],n=r.push.bind(r);r.push=e,r=r.slice();for(var o=0;o<r.length;o++)e(r[o]);var s=n;p()}([])</script><script src="/static/js/2.532a1761.chunk.js"></script><script src="/static/js/main.e0b733fa.chunk.js"></script></body></html>
+<!DOCTYPE html>
+<!--  This site was created in Webflow. http://www.webflow.com  -->
+<!--  Last Published: Wed Feb 19 2020 01:12:26 GMT+0000 (Coordinated Universal Time)  -->
+<html data-wf-page="5e41a0c0f1eab650456d43a3" data-wf-site="5e3ca5cc7a1cb724118586b5">
+<head>
+  <meta charset="utf-8">
+  <title>Simons Collaborative Marine Atlas Project</title>
+  <meta name="Description" content="Simons Collaborative Marine Atlas Project is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <meta content="Webflow" name="generator">
+  <link href="landing/css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="landing/css/webflow.css" rel="stylesheet" type="text/css">
+  <link href="landing/css/cmap-2-9ff91f669c5bebfb7f4031e8b7e6f098.webflow.css" rel="stylesheet" type="text/css">
+  <style>@media (min-width:992px) {html.w-mod-js:not(.w-mod-ix) [data-w-id="306e8cbd-77d1-61ef-6172-b564d5d1b910"] {-webkit-transform:translate3d(0, -161PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, -161PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, -161PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, -161PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);opacity:0.7;}html.w-mod-js:not(.w-mod-ix) [data-w-id="cd5908ab-7564-8f21-d421-cdec023c695e"] {-webkit-transform:translate3d(0, 483PX, 0) scale3d(0.5, 0.5, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, 483PX, 0) scale3d(0.5, 0.5, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, 483PX, 0) scale3d(0.5, 0.5, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, 483PX, 0) scale3d(0.5, 0.5, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);opacity:0.29;}html.w-mod-js:not(.w-mod-ix) [data-w-id="b36a20d8-c269-ef87-89ab-c538f328bec3"] {-webkit-transform:translate3d(0PX, 0PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0PX, 0PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0PX, 0PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0PX, 0PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);}html.w-mod-js:not(.w-mod-ix) [data-w-id="800c46bf-23e4-1b6e-313c-d9ff09bf2339"] {-webkit-transform:translate3d(100PX, -500PX, 0) scale3d(0.2, 0.2, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(100PX, -500PX, 0) scale3d(0.2, 0.2, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(100PX, -500PX, 0) scale3d(0.2, 0.2, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(100PX, -500PX, 0) scale3d(0.2, 0.2, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);opacity:0.15;}}</style>
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
+  <script type="text/javascript">WebFont.load({  google: {    families: ["Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic"]  }});</script>
+  <!-- [if lt IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" type="text/javascript"></script><![endif] -->
+  <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
+  <link href="landing/images/favicon.png" rel="shortcut icon" type="image/x-icon">
+  <link href="landing/images/webclip.png" rel="apple-touch-icon">
+  <style>       
+    canvas { display: block; vertical-align: bottom; } 
+    /* ---- particles.js container ---- */ 
+    #particles-js{ 
+      position:absolute; 
+      width: 100%; 
+      height: 100%; 
+      background-color: #3d3d3d00; 
+      background-image: url(""); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: 50% 50%; } 
+    /* ---- stats.js ---- */ 
+    .count-particles { 
+      background: #000022; 
+      position: absolute; 
+      top: 48px; 
+      left: 0; 
+      width: 80px; 
+      color: #13E8E9; 
+      font-size: .8em; 
+      text-align: left; 
+      text-indent: 4px; 
+      line-height: 14px; 
+      padding-bottom: 2px; 
+      font-family: Helvetica, Arial, sans-serif; 
+      font-weight: bold; 
+    } 
+    .js-count-particles{ 
+      font-size: 1.1em; 
+    } 
+</style>
+</head>
+<body class="body-2">
+  <div data-collapse="small" data-animation="default" data-duration="400" class="navigation w-nav">
+    <div class="navigation-wrap"><a href="/" class="logo-link w-nav-brand"><img src="landing/images/CMAP-white-logo-2.png" width="50" srcset="landing/images/CMAP-white-logo-2-p-500.png 500w, landing/images/CMAP-white-logo-2.png 512w" sizes="(max-width: 479px) 30px, (max-width: 767px) 40px, (max-width: 991px) 100vw, 6vw" alt="" class="logo-image"></a>
+      <div class="menu">
+        <nav role="navigation" class="navigation-items w-nav-menu"><a href="/visualization" class="navigation-item w-nav-link">Visualization</a><a href="/catalog" class="navigation-item w-nav-link">Catalog</a>
+          <div class="vertdivider"></div><a href="/register" class="navigation-item w-nav-link">Register</a><a href="/login" class="navigation-item w-nav-link">Login</a></nav>
+        <div class="menu-button w-nav-button"><img src="landing/images/hamburger-cmap_1hamburger-cmap.png" width="22" alt="" class="menu-icon"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mobilelayout">
+    <div class="cmap-big-logo w-container">
+      <div class="motto-wrap"></div>
+    </div>
+    <div class="container homecontainer fixedlayout">
+      <div class="home-content-wrap">
+        <div class="dataacqblock">
+          <div class="home-section-wrap">
+            <h2 class="section-heading seafoam">Data Acquisition</h2>
+            <p class="paragraph-light">Simons Collaborative Marine Atlas Project (Simons CMAP) is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.</p>
+          </div>
+          <a href="/catalog" class="button w-inline-block w--current">
+            <div>Learn More</div>
+          </a>
+        </div>
+        <div class="dataacqblock">
+          <div class="w-layout-grid _2colgrid">
+            <div id="w-node-b2645c2380f0-456d43a3" class="w-layout-grid grid-5">
+              <div class="home-section-wrap left">
+                <h2 id="dataviz" class="section-heading seafoam left">Data Visualization</h2>
+                <p class="paragraph-light left">Three steps: pick a variable, set the dates, and select a region. That is all it takes to visualize the data, regardless of the size and resolution of the underlying data sets. It is that simple!</p>
+              </div>
+              <a href="/visualization" id="w-node-536eaa9b6acc-456d43a3" class="button w-inline-block">
+                <div>Data Visualizer</div>
+              </a>
+            </div>
+            <div id="w-node-536eaa9b6ac5-456d43a3" class="html-embed-3 w-embed"><img src="landing/images/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div>
+          </div>
+        </div>
+        <div class="dataacqblock">
+          <div class="home-section-wrap">
+            <h2 class="section-heading seafoam">Community</h2>
+            <div class="w-layout-grid grid-6"><a id="w-node-88aee8eacf6c-456d43a3" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-88aee8eacf6e-456d43a3" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-88aee8eacf70-456d43a3" href="#" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-88aee8eacf72-456d43a3" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-Matlab-COLORED.png" alt=""></a></div>
+            <p class="paragraph-light">Simons CMAP is a community-based project intending to further cultivate the collaborative efforts at ocean sciences. It supports popular programming languages used for data analysis and seamlessly blends into your existing codebase. Review the documentation to discover how to retrieve, visualize, and analyze the CMAP data sets using your preferred language. Finally, please join us and contribute to growing the CMAP data and software ecosystem.</p>
+          </div>
+          <a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button buttonright w-inline-block">
+            <div>API Acess</div>
+          </a>
+          <a href="https://docs.simonscmap.com" target="_blank" class="button buttonright w-inline-block">
+            <div>Documentation</div>
+          </a>
+          <div class="followusblock">
+            <div class="followusblock">
+              <a href="#" class="button leftbutton followusunbutton w-inline-block">
+                <div>Follow us:</div>
+              </a><a href="https://github.com/simonscmap" target="_blank" class="button leftbutton githubicon w-inline-block"><img src="landing/images/github-icon.png" width="55" srcset="landing/images/github-icon-p-500.png 500w, landing/images/github-icon.png 512w" sizes="(max-width: 479px) 62vw, (max-width: 991px) 55px, 100vw" alt=""></a><a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button slackbutton w-inline-block"><img src="landing/images/slack-icon.png" width="55" srcset="landing/images/slack-icon-p-500.png 500w, landing/images/slack-icon.png 600w" sizes="(max-width: 479px) 100vw, (max-width: 991px) 55px, 100vw" alt=""></a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="parallwrapper">
+    <div class="layer0-bg"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda898" class="layer1-logo"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda899" class="layer2-clouds"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89a" class="layer3"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89c" class="layer4-backboat"></div>
+    <div data-w-id="77013acd-d606-0a8b-467c-3c94ce38e48a" class="layer5" data-ix="new-interaction"></div>
+    <div data-w-id="80cc5a68-0e66-2f8d-e3fd-e56466e14ff8" class="layer5front" data-ix="new-interaction"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89d" class="layer6-frontboat" data-ix="new-interaction"></div>
+    <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89e" class="layer7-topfront"></div>
+    <div class="layerfront">
+      <div data-w-id="b36a20d8-c269-ef87-89ab-c538f328bec3" class="algal-bloom">
+        <div style="-webkit-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)" class="algal-zoooom"><img src="landing/images/phytoplankton.png" width="310" srcset="landing/images/phytoplankton-p-500.png 500w, landing/images/phytoplankton.png 538w" sizes="100vw" alt="" class="imagealagalzoom"></div><img src="landing/images/algal-bloom-for-zoom.png" srcset="landing/images/algal-bloom-for-zoom-p-500.png 500w, landing/images/algal-bloom-for-zoom-p-800.png 800w, landing/images/algal-bloom-for-zoom-p-1080.png 1080w, landing/images/algal-bloom-for-zoom.png 1117w" sizes="(max-width: 1117px) 100vw, 1117px" alt="" class="image-12"></div>
+    </div>
+  </div>
+  <div class="underwater-section">
+    <div class="html-embed-2 w-embed">
+      <!--  particles.js container  -->
+      <div id="particles-js"></div>
+    </div>
+    <div data-w-id="306e8cbd-77d1-61ef-6172-b564d5d1b910" class="argo-float1"><img src="landing/images/Argo-float2.png" width="27" alt=""></div>
+    <div data-w-id="cd5908ab-7564-8f21-d421-cdec023c695e" class="argo-float2"><img src="landing/images/Argo-float2.png" width="27" alt=""></div>
+    <div data-w-id="800c46bf-23e4-1b6e-313c-d9ff09bf2339" class="glider-incoming"><img src="landing/images/glider-semi-trans.png" alt="" class="glider-image"></div>
+    <div data-w-id="16ffc35f-543a-51af-0a7d-db6467f1b946" style="-webkit-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);opacity:0.62" class="profilerdown"></div>
+    <div id="DataAccessAnchor" data-w-id="178be16a-ef5f-d70d-de89-72c85a3b736c" class="dataaccesscontainer w-container">
+      <h2 id="dataaccess" class="section-heading seafoam">Data Access</h2>
+      <p class="paragraph-light whiteparagraph">Simons Collaborative Marine Atlas Project (Simons CMAP) is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.</p>
+      <a href="/catalog" class="button w-inline-block w--current">
+        <div>Catalog</div>
+      </a>
+    </div>
+    <div id="DataVizAnchor" data-w-id="88352421-abd0-9374-e789-0aa680523b40" class="dataviscontainer w-container">
+      <div class="w-layout-grid _2colgrid">
+        <div id="w-node-604082d2e8dc-456d43a3" class="w-embed"><img src="landing/images/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div>
+        <div id="w-node-604082d2e8dd-456d43a3">
+          <div class="home-section-wrap left">
+            <h2 id="dataviz" class="section-heading seafoam">Data Visualization</h2>
+            <p class="paragraph-light">Three steps: pick a variable, set the dates, and select a region. That is all it takes to visualize the data, regardless of the size and resolution of the underlying data sets. It is that simple!</p>
+          </div>
+          <a href="/visualization" class="button w-inline-block">
+            <div>Data Visualizer</div>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div id="CommunityAnchor" data-w-id="d29187bb-118f-d405-4242-57c269ff6c34" class="communitycontainer w-container">
+      <h2 id="community" class="section-heading seafoam centered">Community</h2>
+      <div class="w-layout-grid grid-6"><a id="w-node-dfc839b22f20-456d43a3" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-2a3bd7136caa-456d43a3" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-c96a476d8229-456d43a3" href="#" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-601b200e4253-456d43a3" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="landing/images/cmap-sdk-Matlab-COLORED.png" alt=""></a></div>
+      <div class="div-block">
+        <div class="home-section-wrap communitybuttons">
+          <p class="paragraph-light">Simons CMAP is a community-based project intending to further cultivate the collaborative efforts at ocean sciences. It supports popular programming languages used for data analysis and seamlessly blends into your existing codebase. Review the documentation to discover how to retrieve, visualize, and analyze the CMAP data sets using your preferred language. Finally, please join us and contribute to growing the CMAP data and software ecosystem.</p>
+          <a href="/apikeymanagement" target="_blank" class="button buttonright w-inline-block">
+            <div>API Access</div>
+          </a>
+          <a href="https://docs.simonscmap.com" target="_blank" class="button buttonright w-inline-block">
+            <div>Documentation</div>
+          </a>
+        </div>
+        <div class="followusblock">
+          <div class="followusblock">
+            <a href="#" class="button leftbutton followusunbutton w-inline-block">
+              <div>Follow us:</div>
+            </a><a href="https://github.com/simonscmap" target="_blank" class="button leftbutton githubicon w-inline-block"><img src="landing/images/github-icon.png" width="55" srcset="landing/images/github-icon-p-500.png 500w, landing/images/github-icon.png 512w" sizes="(max-width: 991px) 100vw, 55px" alt=""></a><a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button slackbutton w-inline-block"><img src="landing/images/slack-icon.png" width="55" srcset="landing/images/slack-icon-p-500.png 500w, landing/images/slack-icon.png 600w" sizes="(max-width: 991px) 100vw, 55px" alt=""></a></div>
+        </div>
+      </div>
+    </div><img src="landing/images/bottom-beamer.png" width="285" srcset="landing/images/bottom-beamer-p-500.png 500w, landing/images/bottom-beamer.png 793w" sizes="100vw" alt="" class="image-7"></div>
+  <div class="section footer-section">
+    <div class="container footercontainer">
+      <div class="w-layout-grid grid-7">
+        <h3 id="w-node-a53d0c468b14-51e627e8" class="footertitle">Sponsor</h3><a id="w-node-e3e4e75d92ce-51e627e8" href="https://www.simonsfoundation.org/" target="_blank" class="sponsorlinkblock w-inline-block"><img src="landing/images/cmap-sponsor-SIMONS-COLORED.png" width="298" alt="" class="image-8"></a>
+        <h3 id="w-node-a499b938fb55-51e627e8" class="footertitle leftsmidge">Partners</h3><a id="w-node-a92bb48a0493-51e627e8" href="https://cbiomes.org/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="landing/images/cmap-sponsor-CBIOMES-COLORED.png" width="200" alt="" class="image-11"></a><a id="w-node-0cd991cb3267-51e627e8" href="https://www.washington.edu/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="landing/images/cmap-sponsor-UW.png" width="163" alt="" class="image-11"></a><a id="w-node-a3d4152668a8-51e627e8" href="http://scope.soest.hawaii.edu/" target="_blank" class="scope-linkblock w-inline-block"><img src="landing/images/cmap-sponsor-SCOPE-COLORED.png" width="263" alt="" class="image-10"></a></div>
+    </div>
+  </div>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.4.1.min.220afd743d.js" type="text/javascript" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+  <script src="landing/js/webflow.js" type="text/javascript"></script>
+  <!-- [if lte IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/placeholders/3.0.2/placeholders.min.js"></script><![endif] -->
+  <!--   particles.js lib - https://github.com/VincentGarreau/particles.js   -->
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  <!--   stats.js lib   -->
+  <script>
+  particlesJS("particles-js", {
+  "particles": {
+    "number": {
+      "value": 66,
+      "density": {
+        "enable": true,
+        "value_area": 2604.1923551171394
+      }
+    },
+    "color": {
+      "value": "#2a5372"
+    },
+    "shape": {
+      "type": "circle",
+      "stroke": {
+        "width": 0,
+        "color": "#000000"
+      },
+      "polygon": {
+        "nb_sides": 5
+      },
+      "image": {
+        "src": "img/github.svg",
+        "width": 100,
+        "height": 100
+      }
+    },
+    "opacity": {
+      "value": 0.5,
+      "random": true,
+      "anim": {
+        "enable": false,
+        "speed": 1,
+        "opacity_min": 0.1,
+        "sync": false
+      }
+    },
+    "size": {
+      "value": 3.945745992601726,
+      "random": true,
+      "anim": {
+        "enable": false,
+        "speed": 40,
+        "size_min": 0.1,
+        "sync": false
+      }
+    },
+    "line_linked": {
+      "enable": false,
+      "distance": 150,
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "width": 1
+    },
+    "move": {
+      "enable": true,
+      "speed": 1.5782983970406905,
+      "direction": "top",
+      "random": true,
+      "straight": false,
+      "out_mode": "out",
+      "bounce": false,
+      "attract": {
+        "enable": false,
+        "rotateX": 600,
+        "rotateY": 1200
+      }
+    }
+  },
+  "interactivity": {
+    "detect_on": "canvas",
+    "events": {
+      "onhover": {
+        "enable": false,
+        "mode": "repulse"
+      },
+      "onclick": {
+        "enable": false,
+        "mode": "push"
+      },
+      "resize": true
+    },
+    "modes": {
+      "grab": {
+        "distance": 400,
+        "line_linked": {
+          "opacity": 1
+        }
+      },
+      "bubble": {
+        "distance": 400,
+        "size": 40,
+        "duration": 2,
+        "opacity": 8,
+        "speed": 3
+      },
+      "repulse": {
+        "distance": 200,
+        "duration": 0.4
+      },
+      "push": {
+        "particles_nb": 4
+      },
+      "remove": {
+        "particles_nb": 2
+      }
+    }
+  },
+  "retina_detect": true
+});var count_particles, stats, update; stats = new Stats; stats.setMode(0); stats.domElement.style.position = 'absolute'; stats.domElement.style.left = '0px'; stats.domElement.style.top = '0px'; document.body.appendChild(stats.domElement); count_particles = document.querySelector('.js-count-particles'); update = function() { stats.begin(); stats.end(); if (window.pJSDom[0].pJS.particles && window.pJSDom[0].pJS.particles.array) { count_particles.innerText = window.pJSDom[0].pJS.particles.array.length; } requestAnimationFrame(update); }; requestAnimationFrame(update);;
+</script>
+</body>
+</html>

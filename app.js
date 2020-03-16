@@ -66,6 +66,7 @@ app.use((req, res, next) => {
 })
 
 app.use((err, req, res, next) => {
+    console.log('an error occurred in the catch-all')
     console.log(err);
     if(!res.headersSent && !res.cmapSkipCatchAll) res.status(500).send();
 })

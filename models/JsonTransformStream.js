@@ -1,3 +1,5 @@
+// Not currently in use. Retained for reference.
+
 const Transform = require('stream').Transform
 
 // Class for a transform stream which converts database responses to
