@@ -104,7 +104,6 @@ exports.retrieveApiKeys = async(req, res, next) => {
 }
 
 exports.googleAuth = async(req, res, next) => {
-
     const client = new OAuth2Client(cmapClientID);
     const { userIDToken } = req.body;
     const ticket = await client.verifyIdToken({
