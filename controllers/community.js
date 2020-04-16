@@ -12,8 +12,6 @@ exports.contactUs = async(req, res, next) => {
         "From: 'me'\r\n" +
         "To: simonscmap@uw.edu\r\n" +
         "Subject: Message from Simons CMAP User\r\n" +
-        // "Content-Type: text/html; charset='UTF-8'\r\n" +
-        // "Content-Transfer-Encoding: base64\r\n\r\n" +
         content;
 
     let raw = base64url.encode(message);

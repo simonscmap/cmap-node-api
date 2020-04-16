@@ -49,6 +49,7 @@ app.get('/', (req, res, next) => {
 app.use('/api/user', userRoutes);
 app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/community', communityRoutes);
 
 // Usage metrics logging
 app.use((req, res, next) => {

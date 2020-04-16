@@ -68,6 +68,7 @@ exports.signup = async (req, res, next) => {
     let user = new UnsafeUser(req.user);
     res.cookie('UserInfo', JSON.stringify(new UnsafeUser(req.user).makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
     res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+    
     res.json(true);
     next();
 }

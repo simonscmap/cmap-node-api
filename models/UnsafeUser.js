@@ -27,7 +27,7 @@ module.exports = class UnsafeUser {
         this.id = userInfo.UserID || userInfo.id || null;
 
         this.apiKey = userInfo.Api_Key || null;
-        this.apiKeyID = userInfo.Api_Key_ID || null;
+        this.apiKeyID = userInfo.Api_Key_ID || userInfo.apiKeyID || null;
     }
 
     static async getUserByUsername(username){
@@ -66,7 +66,6 @@ module.exports = class UnsafeUser {
         
         //Throw not found error if no results
         if(!result.recordset.length) throw new Error('API Key not found');
-        
         return new this(result.recordset[0]);
     }
 
