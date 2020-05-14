@@ -4,6 +4,8 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const passport = require('./middleware/passport');
+const multer = require('multer');
+const upload = multer();
 var useragent = require('express-useragent');
 
 const userRoutes = require('./routes/user');
@@ -11,6 +13,7 @@ const dataRoutes = require('./routes/data');
 const dataRetrievalRoutes = require('./routes/dataRetrieval');
 const catalogRoutes = require('./routes/catalog');
 const communityRoutes = require('./routes/community');
+const dataSubmissionRoutes = require('./routes/dataSubmission');
 
 const ApiCallDetails = require('./models/ApiCallDetail');
 
@@ -50,6 +53,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/community', communityRoutes);
+// app.use('/api/datasubmission', passport.authenticate(['jwt']), dataSubmissionRoutes);
+app.use('/api/datasubmission', passport.authenticate(['headerapikey', 'jwt'], {session: false}), upload.any(), dataSubmissionRoutes);
 
 // Usage metrics logging
 app.use((req, res, next) => {

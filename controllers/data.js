@@ -6,7 +6,7 @@ const sql = require('mssql');
 
 const Transform = require('stream').Transform
 
-exports.customQuery = async (req, res, next)=>{
+exports.customQuery = async (req, res, next)=> {
     req.cmapApiCallDetails.query = req.query.query;
     queryHandler(req, res, next, req.query.query);
 };
@@ -18,7 +18,6 @@ exports.storedProcedure = async (req, res, next)=>{
     let tableName = argSet.tableName.replace(/[\[\]']/g,'' );
 
     let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-    console.log(spExecutionQuery);
     req.cmapApiCallDetails.query = spExecutionQuery;
 
     queryHandler(req, res, next, spExecutionQuery);
@@ -48,7 +47,14 @@ exports.tableStats = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let result = await request.query(`SELECT JSON_stats from tblDataset_Stats where Dataset_Name = '${req.query.table}'`);
+    let query =
+    `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
+    (select tblD.ID, tblV.Table_Name FROM tblVariables tblV
+    inner join tblDatasets tblD on tblV.Dataset_ID = tblD.ID) tblDV
+    on tblS.Dataset_ID= tblDV.ID
+    where tblDV.Table_Name = '${req.query.table}'`
+
+    let result = await request.query(query);
 
     if(result.recordset.length < 1) {
         res.json({error: 'Table not found'});

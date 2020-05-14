@@ -28,6 +28,7 @@ module.exports = class UnsafeUser {
 
         this.apiKey = userInfo.Api_Key || null;
         this.apiKeyID = userInfo.Api_Key_ID || userInfo.apiKeyID || null;
+        this.isDataSubmissionAdmin = Boolean(userInfo.Is_Data_Submission_Admin) || Boolean(userInfo.isDataSubmissionAdmin);
     }
 
     static async getUserByUsername(username){
@@ -99,9 +100,10 @@ module.exports = class UnsafeUser {
             institute: this.institute,
             country: this.country,
             id: this.id,
-            username: this.username
-
+            username: this.username,
+            isDataSubmissionAdmin: this.isDataSubmissionAdmin
         }
+
         return safeUser;
     }
 

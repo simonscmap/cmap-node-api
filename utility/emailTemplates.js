@@ -188,3 +188,27 @@ module.exports.contactUs = ({name, email, message}) => (
   ${message}
   `
 );
+
+//TODO add links
+module.exports.dataSubmissionAdminNotification = (datasetName) => (
+  `
+  A user has submitted data.
+  Dataset: ${datasetName}
+  In the future a link will go here.
+  `
+);
+
+module.exports.dataSubmissionUserNotification = () => (
+  `
+  Thank you for your submission. An administrator will review and get back to you shortly.
+  You can view the status of your submission here <---- future link.
+  `
+);
+
+module.exports.dataSubmissionAdminFeedback = ({datasetName, adminMessage}) => {
+  `
+    There is a new comment on your data submission, ${datasetName}:
+    ${adminMessage}
+    You can view the status of your submission here <---- future link.
+  `
+};

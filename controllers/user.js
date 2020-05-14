@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const uuidv1 = require('uuid/v1');
 const sql = require('mssql');
 const {OAuth2Client} = require('google-auth-library');
-const base64url = require('base64-url')
+const base64url = require('base64-url');
 
 const jwtConfig = require('../config/jwtConfig');
 const UnsafeUser = require('../models/UnsafeUser');

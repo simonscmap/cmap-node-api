@@ -38,11 +38,19 @@ exports.tableStats = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let result = await request.query(`SELECT JSON_stats from tblDataset_Stats where Dataset_Name = '${req.query.table}'`);
+    let query =
+    `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
+    (select tblD.ID, tblV.Table_Name FROM tblVariables tblV
+    inner join tblDatasets tblD on tblV.Dataset_ID = tblD.ID) tblDV
+    on tblS.Dataset_ID= tblDV.ID
+    where tblDV.Table_Name = '${req.query.table}'`
+
+    let result = await request.query(query);
 
     if(result.recordset.length < 1) {
         res.json({error: 'Table not found'});
         return;
     }
+    console.log(result.recordset[0]);
     res.send(result.recordset[0].JSON_stats);
 }
