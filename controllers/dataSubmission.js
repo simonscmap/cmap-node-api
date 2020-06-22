@@ -37,7 +37,7 @@ exports.commitUpload = async(req, res, next) => {
                 offset
             },
             commit: {
-                path: `/${fileName}_${currentTime}`,
+                path: `/${fileName}/${fileName}_${currentTime}.xlsx`,
                 mode: "add",
                 autorename: true,
                 mute: false
@@ -68,7 +68,7 @@ exports.commitUpload = async(req, res, next) => {
                 const dataSubmissionsInsertQuery = `
                 INSERT INTO [dbo].[tblData_Submissions] 
                 (Filename_Root, Submitter_ID)
-                VALUES (@filename, 1)
+                VALUES (@filename, ${req.user.id})
                 SELECT SCOPE_IDENTITY() AS ID
                 `;
 
@@ -195,7 +195,7 @@ exports.uploadFilePart = async(req, res, next) => {
 
 exports.submissions = async(req, res, next) => {
     // TODO Phase ID may need to be updated
-    let pool = await dataReadOnlyPool;
+    let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
     // let includeCompleted = req.query.includeCompleted;    
 
@@ -204,9 +204,11 @@ exports.submissions = async(req, res, next) => {
             [dbo].[tblData_Submissions].[Filename_Root] as Dataset, 
             [dbo].[tblData_Submissions].[ID] as Submission_ID, 
             [dbo].[tblData_Submission_Phases].[Phase],
-            [dbo].[tblData_Submissions].[Phase_ID]
+            [dbo].[tblData_Submissions].[Phase_ID],
+            CONCAT([dbo].[tblUsers].[FirstName], ' ', [dbo].[tblUsers].[FamilyName]) as Name
         FROM [dbo].[tblData_Submissions]
         JOIN [dbo].[tblData_Submission_Phases] ON [tblData_Submissions].[Phase_ID] = [tblData_Submission_Phases].[ID]
+        JOIN [dbo].[tblUsers] on [tblData_Submissions].[Submitter_ID] = [dbo].[tblUsers].UserID
         ORDER BY [dbo].[tblData_Submissions].[Phase_ID]
         `;
         // ${includeCompleted ? '' : " WHERE NOT [tblData_Submissions].[Phase_ID]=6"}
@@ -220,8 +222,8 @@ exports.addComment = async(req, res, next) => {
     let request = await new sql.Request(pool);
 
     let { submissionID, comment } = req.body;
-    //TO-DO send notification to either admin or user
-    //commenter id from req.user
+    //TODO send notification to either admin or user
+    //TODO make this check a re-usable function / middleware
 
     if(!req.user.isDataSubmissionAdmin){
         try {
@@ -382,13 +384,13 @@ exports.setPhase = async(req, res, next) => {
     }
 
     catch(e) {
-        console.log('Failed tp update phase ID');
+        console.log('Failed to update phase ID');
         console.log(e);
         return res.sendStatus(500);
     }
 }
 
-exports.viewLatestUpload = async(req, res, next) => {
+exports.retrieveMostRecentFile = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
 
@@ -407,7 +409,20 @@ exports.viewLatestUpload = async(req, res, next) => {
 
     let result = await request.query(query);
 
-    let record = result.recordset[0];
-    let appendString = record.Filename_Root.trim() + '_' + record.Timestamp.trim();
-    res.redirect('https://www.dropbox.com/home/Simons%20CMAP/Apps/Simons%20CMAP%20Web%20Data%20Submission?preview=' + appendString);
+    //TODO trim before entry so we don't need to do it everywhere else    
+    const dataset = result.recordset[0].Filename_Root.trim();
+    const timestamp = result.recordset[0].Timestamp.trim();
+    let path = `/${dataset}/${dataset}_${timestamp}.xlsx`;
+
+    try {
+        let boxResponse = await dropbox.filesGetTemporaryLink({path});
+        return res.json({link: boxResponse.link, dataset});
+    }
+
+    catch(e) {
+        console.log('Failed to get temporary download link');
+        console.log(e);
+        return res.sendStatus(500);
+    }
+
 }

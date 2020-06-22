@@ -19,6 +19,6 @@ router.get('/commenthistory', asyncControllerWrapper(dataSubmissionController.co
 
 router.post('/setphase', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.setPhase));
 
-router.get('/viewlatestupload', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.viewLatestUpload));
+router.get('/retrievemostrecentfile', asyncControllerWrapper(dataSubmissionController.retrieveMostRecentFile));
 
 module.exports = router;

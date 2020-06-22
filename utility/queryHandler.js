@@ -19,8 +19,6 @@ module.exports = async (req, res, next, query) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    console.log(query);
-
     request.stream = true;
 
     res.cmapSkipCatchAll = true;

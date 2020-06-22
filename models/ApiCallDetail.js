@@ -3,12 +3,13 @@ const sql = require('mssql');
 const mapPathToRouteId = require('../config/routeMapping');
 const userDBConfig = require('../config/dbConfig').userTableConfig;
 
+var pools = require('../dbHandlers/dbPools');
+
 const apiCallsTable = "tblApi_Calls";
 const apiCallDetailsTable = "tblApi_Call_Details";
 
 module.exports = class ApiCallDetail{
     constructor(req){
-        // let xf = req.headers['x-forwarded-for'];
         this.ip = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip || 'None';
         this.clientHostName = req.headers.host;
         this.routeID = mapPathToRouteId(req.path);
@@ -30,7 +31,7 @@ module.exports = class ApiCallDetail{
         if(this.ignore) return;
         if(this.clientBrowser === 'ELB-HealthChecker') return;
 
-        let pool = await new sql.ConnectionPool(userDBConfig).connect();
+        let pool = await pools.userReadAndWritePool;
         let request = await new sql.Request(pool);
 
         request.input('Ip_Address',sql.VarChar, this.ip);

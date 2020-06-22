@@ -9,7 +9,7 @@ module.exports.dataRetrievalConfig = {
     requestTimeout: 86000000,
     pool: {
         idleTimeoutMillis: 86000000,
-        max: 200
+        max: 2000
     }
 }
 
@@ -23,6 +23,6 @@ module.exports.userTableConfig = {
     requestTimeout: 50000,
     pool: {
         idleTimeoutMillis: 50000,
-        max: 100
+        max: 2000
     }
 }
