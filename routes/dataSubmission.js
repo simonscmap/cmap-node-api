@@ -4,7 +4,7 @@ const dataSubmissionController = require('../controllers/dataSubmission');
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 const checkAdminAuth = require('../middleware/checkAdminAuth');
 
-router.get('/beginuploadsession', asyncControllerWrapper(dataSubmissionController.beginUploadSession)); // TODO review auth
+router.post('/beginuploadsession', asyncControllerWrapper(dataSubmissionController.beginUploadSession));
 router.post('/uploadfilepart', asyncControllerWrapper(dataSubmissionController.uploadFilePart));
 router.post('/commitupload', asyncControllerWrapper(dataSubmissionController.commitUpload));
 
@@ -20,5 +20,10 @@ router.get('/commenthistory', asyncControllerWrapper(dataSubmissionController.co
 router.post('/setphase', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.setPhase));
 
 router.get('/retrievemostrecentfile', asyncControllerWrapper(dataSubmissionController.retrieveMostRecentFile));
+
+router.post('/newoption', asyncControllerWrapper(dataSubmissionController.newOption));
+router.get('/newoptionsrequests', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.newOptionRequests));
+router.post('/approvenewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.approveNewOptions));
+router.post('/rejectnewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.rejectNewOption));
 
 module.exports = router;

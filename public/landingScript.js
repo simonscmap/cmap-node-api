@@ -110,7 +110,7 @@ async function submitLoginForm(e){
 }
 
 document.querySelector('#logout-button').addEventListener("click", logOut);
-document.querySelector('#contact-us-form').addEventListener('submit', submitContactForm);
-document.querySelector('#login-form').addEventListener('submit', submitLoginForm);
+document.querySelector('#email-form').addEventListener('submit', submitContactForm);
+document.querySelector('#email-form-2').addEventListener('submit', submitLoginForm);
 
 checkCookies();

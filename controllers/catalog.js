@@ -55,3 +55,42 @@ exports.auditCatalogVariableNames = async(req, res, next) => {
 
     res.json(response);
 }
+
+exports.submissionOptions = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+
+    let request = await new sql.Request(pool);
+    let query = `
+        SELECT Make FROM tblMakes
+        SELECT Sensor FROM tblSensors
+        SELECT Study_Domain FROM tblStudy_Domains
+        SELECT Temporal_Resolution FROM tblTemporal_Resolutions
+        SELECT Spatial_Resolution FROM tblSpatial_Resolutions
+    `
+
+    try {
+        let result = await request.query(query);
+    
+        let response = {};
+
+        result.recordsets.forEach(recordset => {
+            recordset.forEach(record => {
+                let key = Object.keys(record)[0];
+
+                if(!response[key]){
+                    response[key] = [];
+                }
+
+                response[key].push(record[key]);
+            })
+        })
+    
+        res.json(response); 
+        next();
+    }
+
+    catch {
+        return res.sendStatus(500);
+    }
+
+}

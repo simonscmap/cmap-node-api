@@ -1,6 +1,10 @@
 const url = 'https://simonscmap.com';
 // const url = 'http://localhost:3000';
 
+const doiHelpURL = 'https://cmap.readthedocs.io/en/latest/faq_and_contributing/FAQ.html?highlight=doi#what-is-a-doi-and-how-do-i-get-one-for-my-dataset';
+const catalogURL = 'https://simonscmap.com/catalog';
+const visualizationURL = 'https://simonscmap.com/visualization';
+
 module.exports.forgotPassword = (jwt, username) => (
 `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -189,26 +193,50 @@ module.exports.contactUs = ({name, email, message}) => (
   `
 );
 
-//TODO add links
-module.exports.dataSubmissionAdminNotification = (datasetName) => (
+module.exports.dataSubmissionAdminNotification = (datasetName, user, type) => (
   `
-  A user has submitted data.
-  Dataset: ${datasetName}
-  In the future a link will go here.
-  `
-);
-
-module.exports.dataSubmissionUserNotification = () => (
-  `
-  Thank you for your submission. An administrator will review and get back to you shortly.
-  You can view the status of your submission here <---- future link.
+  User ${user.firstName} ${user.lastName} has submitted a new file.<br>
+  Dataset: ${datasetName}<br>
+  <a href="${url}/datasubmission/admindashboard?datasetName=${encodeURI(datasetName)}" target="_blank">View Submission</a>
   `
 );
 
-module.exports.dataSubmissionAdminFeedback = ({datasetName, adminMessage}) => {
+module.exports.dataSubmissionUserNotification = (datasetName) => (
   `
-    There is a new comment on your data submission, ${datasetName}:
-    ${adminMessage}
-    You can view the status of your submission here <---- future link.
+  Thank you for contributing to Simons CMAP! Our data curation team will review your submission shortly.<br>
+  You can view the status of your submission <a href="${url}/datasubmission/userdashboard?datasetName=${encodeURI(datasetName)}" target="_blank">here</a>.
   `
-};
+);
+
+module.exports.dataSubmissionAdminComment = (datasetName, adminMessage) => (
+  'There is a new comment on your data submission, ' +
+  datasetName +
+  ':<br><br>' +
+  adminMessage +
+  '<br><br>' +
+  `You can view the status of your submission <a href="${url}/datasubmission/userdashboard?datasetName=${encodeURI(datasetName)}" target="_blank">here</a>.`
+);
+
+module.exports.dataSubmissionUserComment = (datasetName, userMessage) => (
+  `There is a new comment on data submission, ${datasetName}:<br><br>` +
+  userMessage +
+  '<br><br>' +
+  `You can view the status of this submission <a href="${url}/datasubmission/admindashboard?datasetName=${encodeURI(datasetName)}" target="_blank">here</a>.`
+);
+
+module.exports.awaitingDOINotification = (datasetName) => (`
+  Your submission, ${datasetName} has been approved for ingestion!<br>
+  The next step is obtain and submit a DOI for this data. More information on DOIs is available <a href="${doiHelpURL}}" target="_blank">here</a>.<br><br>
+  Once you've obtained a DOI please submit it using the messaging feature on the <a href="${url}/datasubmission/userdashboard?datasetName=${encodeURI(datasetName)}" target="_blank">dashboard</a>.
+`);
+
+// module.exports.awaitingIngestionNotification = (datasetName) => (`
+//   Your submission, ${datasetName} is now ready for ingestion!<br>
+
+// `);
+
+module.exports.ingestionCompleteNotification = (datasetName) => (`
+  Your submission, ${datasetName} has been ingested into the CMAP database!<br>
+  You can now view your dataset in the <a href=${catalogURL} target="_blank">Data Catalog</a><br>
+  Thank you for contributing to Simons CMAP!
+`);

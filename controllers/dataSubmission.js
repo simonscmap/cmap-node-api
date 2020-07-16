@@ -6,8 +6,39 @@ const awaitableEmailClient = require('../utility/emailAuth');
 const emailTemplates = require('../utility/emailTemplates');
 const base64url = require('base64-url');
 
+let emailSubjectRoot = 'CMAP Data Submission - ';
+
 // Begin upload session and return ID
 exports.beginUploadSession = async(req, res, next) => {
+    const { datasetName } = req.body;
+    let pool = await userReadAndWritePool;
+
+    if(!req.user.isDataSubmissionAdmin){
+        try {
+            let checkOwnerRequest = new sql.Request(pool);
+            checkOwnerRequest.input('root', sql.VarChar, datasetName);
+    
+            let checkOwnerQuery = `
+                SELECT Submitter_ID from tblData_Submissions
+                WHERE Filename_Root = @root
+            `
+    
+            let checkOwnerResult = await checkOwnerRequest.query(checkOwnerQuery);
+            if(checkOwnerResult.recordset && checkOwnerResult.recordset.length){
+                let owner = checkOwnerResult.recordset[0].Submitter_ID;
+    
+                if(req.user.id !== owner){
+                    return res.status(401).send('wrongUser');
+                }
+            }
+        }
+
+        catch(e) {
+            console.log(e);
+            return res.sendStatus(500);
+        }
+    }
+
     try {
         let startResponse = await dropbox.filesUploadSessionStart({
             close: false
@@ -26,9 +57,12 @@ exports.beginUploadSession = async(req, res, next) => {
 exports.commitUpload = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     
-    const { sessionID, fileName } = req.body;
+    const { sessionID } = req.body;
+    let fileName = req.body.fileName.trim();
     const offset = parseInt(req.body.offset);
     const currentTime = Date.now();
+
+    let submissionType;
 
     try {
         let finishedResponse = await dropbox.filesUploadSessionFinish({
@@ -48,13 +82,14 @@ exports.commitUpload = async(req, res, next) => {
         let checkFilenameQuery = `
             SELECT ID FROM tblData_Submissions
             WHERE Filename_Root = '${fileName}'
-        `
+        `;
 
         let checkFilenameResult = await checkFilenameRequest.query(checkFilenameQuery);
 
         var dataSubmissionID;
         if(checkFilenameResult.recordset && checkFilenameResult.recordset.length){
             dataSubmissionID = checkFilenameResult.recordset[0].ID;
+            submissionType = 'Update';
         }
 
         const transaction = new sql.Transaction(pool);
@@ -63,6 +98,7 @@ exports.commitUpload = async(req, res, next) => {
             await transaction.begin();
 
             if(dataSubmissionID === undefined){
+                submissionType = 'New';
                 const dataSubmissionsInsert = new sql.Request(transaction);
                 dataSubmissionsInsert.input('filename', sql.NVarChar, fileName);
                 const dataSubmissionsInsertQuery = `
@@ -74,6 +110,17 @@ exports.commitUpload = async(req, res, next) => {
 
                 const dataSubmissionsInsertQueryResult = await dataSubmissionsInsert.query(dataSubmissionsInsertQuery);
                 dataSubmissionID = dataSubmissionsInsertQueryResult.recordset[0].ID;
+            }
+
+            else {
+                let dataSubmissionPhaseChange = new sql.Request(transaction);
+                dataSubmissionPhaseChange.input('filename', sql.NVarChar, fileName);
+                let dataSubmissionPhaseChangeQuery = `
+                    UPDATE [dbo].[tblData_Submissions]
+                    SET Phase_ID = 2
+                    WHERE Filename_Root = @filename
+                `;
+                const dataSubmissionPhaseChangeQueryResult = await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
             }
 
             dataSubmissionFilesInsert = new sql.Request(transaction);
@@ -95,7 +142,6 @@ exports.commitUpload = async(req, res, next) => {
             }
 
             catch(err) {
-                //TODO send email notification
                 console.log('Rollback failed');
                 console.log(err);
             }
@@ -112,15 +158,14 @@ exports.commitUpload = async(req, res, next) => {
 
     res.sendStatus(200);
 
-    // Send confirmation email to user and notification email to admin email
     let emailClient = await awaitableEmailClient;
 
-    let notifyAdminContent = emailTemplates.dataSubmissionAdminNotification(fileName);
+    let notifyAdminContent = emailTemplates.dataSubmissionAdminNotification(fileName, req.user, submissionType);
 
     let notifyAdminMessage =
         "From: 'me'\r\n" +
         "To: " + 'cmap-data-submission@uw.edu' + "\r\n" +
-        "Subject: New Web App Data Submission\r\n" +
+        `Subject: ${submissionType === 'New' ? emailSubjectRoot + fileName : 'Re: ' + emailSubjectRoot + fileName}\r\n` +
         "Content-Type: text/html; charset='UTF-8'\r\n" +
         "Content-Transfer-Encoding: base64\r\n\r\n" +
         notifyAdminContent;
@@ -141,12 +186,11 @@ exports.commitUpload = async(req, res, next) => {
         console.log(e);
     }
 
-    let notifyUserContent = emailTemplates.dataSubmissionUserNotification();
+    let notifyUserContent = emailTemplates.dataSubmissionUserNotification(fileName);
     let notifyUserMessage =
         "From: 'me'\r\n" +
-        // "To: " + req.user.email + "\r\n" +
-        "To: " + 'denholtz@uw.edu' + "\r\n" +
-        "Subject: Your CMAP Data Submission\r\n" +
+        "To: " + req.user.email + "\r\n" +
+        `Subject: ${submissionType === 'New' ? emailSubjectRoot + fileName : 'Re: ' + emailSubjectRoot + fileName}\r\n` +
         "Content-Type: text/html; charset='UTF-8'\r\n" +
         "Content-Transfer-Encoding: base64\r\n\r\n" +
         notifyUserContent;
@@ -194,7 +238,6 @@ exports.uploadFilePart = async(req, res, next) => {
 }
 
 exports.submissions = async(req, res, next) => {
-    // TODO Phase ID may need to be updated
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
     // let includeCompleted = req.query.includeCompleted;    
@@ -222,9 +265,9 @@ exports.addComment = async(req, res, next) => {
     let request = await new sql.Request(pool);
 
     let { submissionID, comment } = req.body;
-    //TODO send notification to either admin or user
-    //TODO make this check a re-usable function / middleware
+    let ownerID;
 
+    //TODO make this check a re-usable function / middleware
     if(!req.user.isDataSubmissionAdmin){
         try {
             let checkOwnerRequest = new sql.Request(pool);
@@ -240,7 +283,6 @@ exports.addComment = async(req, res, next) => {
 
             if(req.user.id !== owner){
                 return res.sendStatus(401);
-                //TODO review 401 behavior in React
             }
         }
 
@@ -257,21 +299,75 @@ exports.addComment = async(req, res, next) => {
         INSERT INTO [dbo].[tblData_Submission_Comments]
         (Data_Submission_ID, Commenter_ID, Comment)
         VALUES (@ID, ${req.user.id}, @comment)
+
+        SELECT [dbo].[tblData_Submissions].[Filename_Root],
+        [dbo].[tblUsers].[Email]
+        FROM [dbo].[tblData_Submissions]
+        JOIN [dbo].[tblUsers] on [dbo].[tblData_Submissions].[Submitter_ID] = UserID
+        WHERE ID = @ID
     `;
 
     try {
         let result = await request.query(addCommentQuery);
+        var datasetName = result.recordset[0].Filename_Root;
+        var userEmail = result.recordset[0].Email;
         res.sendStatus(200);
-    }
 
+        let emailClient = await awaitableEmailClient;
+
+        var notificationContent;
+        var notificationDestination;
+
+        if(!req.user.isDataSubmissionAdmin){
+            notificationContent = emailTemplates.dataSubmissionUserComment(datasetName, comment);
+            notificationDestination = 'cmap-data-submission@uw.edu';
+
+            let dataSubmissionPhaseChange = new sql.Request(pool);
+            dataSubmissionPhaseChange.input('filename', sql.NVarChar, datasetName);
+            
+            let dataSubmissionPhaseChangeQuery = `
+                UPDATE [dbo].[tblData_Submissions]
+                SET Phase_ID = 2
+                WHERE Filename_Root = @filename
+            `;
+            const dataSubmissionPhaseChangeQueryResult = await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
+        }
+        
+        else {
+            notificationContent = emailTemplates.dataSubmissionAdminComment(datasetName, comment);
+            notificationDestination = userEmail;
+        }
+        
+        let notification =
+        "From: 'me'\r\n" +
+        "To: " + notificationDestination + "\r\n" +
+        `Subject: Re: ${emailSubjectRoot + datasetName}\r\n` +
+        "Content-Type: text/html; charset='UTF-8'\r\n" +
+        "Content-Transfer-Encoding: base64\r\n\r\n" +
+        notificationContent;
+
+        let rawNotification = base64url.encode(notification);
+
+        try {
+            await emailClient.users.messages.send({
+                userId: 'me',
+                resource: {
+                    raw: rawNotification
+                }
+            })
+        } 
+
+        catch(e) {
+            console.log('Failed to enter new comment');
+            console.log(e);
+            return res.sendStatus(500);
+        }
+    }
     catch(e) {
         console.log('Failed to enter new comment');
         console.log(e);
         return res.sendStatus(500);
     }
-
-    // If comment not left by submitter send email to submitter
-
 }
 
 exports.submissionsByUser = async(req, res, next) => {
@@ -329,7 +425,6 @@ exports.commentHistory = async(req, res, next) => {
 
             if(req.user.id !== owner){
                 return res.sendStatus(401);
-                //TODO review 401 behavior in React
             }
         }
 
@@ -376,11 +471,57 @@ exports.setPhase = async(req, res, next) => {
         UPDATE [tblData_Submissions]
         SET Phase_ID = @phaseID
         WHERE ID = @submissionID;
+
+        SELECT [dbo].[tblData_Submissions].[Filename_Root],
+        [dbo].[tblUsers].[Email]
+        FROM [dbo].[tblData_Submissions]
+        JOIN [dbo].[tblUsers] on [dbo].[tblData_Submissions].[Submitter_ID] = UserID
+        WHERE ID = @submissionID
     `;
 
     try {
         let result = await request.query(query);
         res.sendStatus(200);
+
+        let datasetName = result.recordset[0].Filename_Root;
+        let email = result.recordset[0].Email;
+
+        let emailClient = await awaitableEmailClient;
+        let notificationContent;
+
+        if(phaseID === 4 || phaseID === 6){
+            if(phaseID === 4){
+                notificationContent = emailTemplates.awaitingDOINotification(datasetName);
+            }
+
+            else if(phaseID === 6){
+                notificationContent = emailTemplates.ingestionCompleteNotification(datasetName);
+            }
+
+            let notification =
+            "From: 'me'\r\n" +
+            "To: " + email + "\r\n" +
+            `Subject: Re: ${emailSubjectRoot + datasetName}\r\n` +
+            "Content-Type: text/html; charset='UTF-8'\r\n" +
+            "Content-Transfer-Encoding: base64\r\n\r\n" +
+            notificationContent;
+
+            let rawNotification = base64url.encode(notification);
+
+            try {
+                await emailClient.users.messages.send({
+                    userId: 'me',
+                    resource: {
+                        raw: rawNotification
+                    }
+                })
+            } 
+    
+            catch(e) {
+                console.log('Data submission notify admin failed:')
+                console.log(e);
+            }
+        }
     }
 
     catch(e) {
@@ -425,4 +566,20 @@ exports.retrieveMostRecentFile = async(req, res, next) => {
         return res.sendStatus(500);
     }
 
+}
+
+exports.newOption = async(req, res, next) => {
+    // Insert into option request table, notify admin
+}
+
+exports.newOptionsRequests = async(req, res, next) => {
+    // Query and send a list of the requests
+}
+
+exports.approveNewOption = async(req, res, next) => {
+    // Add to table?
+}
+
+exports.rejectNewOption = async(req, res, next) => {
+    // delete from table or flag as rejected?
 }

@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <!--  This site was created in Webflow. http://www.webflow.com  -->
-<!--  Last Published: Thu Apr 09 2020 20:28:14 GMT+0000 (Coordinated Universal Time)  -->
-<html data-wf-page="5e41a0c0f1eab650456d43a3" data-wf-site="5e3ca5cc7a1cb724118586b5">
+<!--  Last Published: Thu Jun 18 2020 17:22:18 GMT+0000 (Coordinated Universal Time)  -->
+<html data-wf-page="5ee92c76c1297d52114f1c56" data-wf-site="5e3ca5cc7a1cb724118586b5">
 <head>
   <meta charset="utf-8">
   <title>Simons Collaborative Marine Atlas Project</title>
   <meta content="Simons Collaborative Marine Atlas Project is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data." name="description">
   <meta content="Simons Collaborative Marine Atlas Project" property="og:title">
   <meta content="Simons Collaborative Marine Atlas Project is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data." property="og:description">
-  <meta content="summary" name="twitter:card">
+  <meta content="Simons Collaborative Marine Atlas Project" property="twitter:title">
+  <meta content="Simons Collaborative Marine Atlas Project is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data." property="twitter:description">
+  <meta property="og:type" content="website">
+  <meta content="summary_large_image" name="twitter:card">
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <meta content="Webflow" name="generator">
   <link href="css/normalize.css" rel="stylesheet" type="text/css">
@@ -79,18 +82,40 @@
 </style>
   <script src="https://apis.google.com/js/platform.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
-  <script src="landingScript.js" async defer></script>
+  <script src="landingScript.js" async="" defer=""></script>
 </head>
 <body class="body-2">
-  <div data-collapse="small" data-animation="default" data-duration="400" class="navigation w-nav">
-    <div class="navigation-wrap w-clearfix"><a href="/" class="logo-link w-nav-brand"><img src="images/CMAP-white-logo-2.png" width="50" srcset="images/CMAP-white-logo-2-p-500.png 500w, images/CMAP-white-logo-2.png 512w" sizes="(max-width: 767px) 100vw, (max-width: 991px) 50px, 60px" alt="" class="logo-image"></a>
+  <div data-collapse="none" data-animation="default" data-duration="400" role="banner" class="navladderdesktop w-nav">
+    <div class="w-container">
+      <nav role="navigation" class="section-navigation w-nav-menu"><a href="#Home" class="sectionlink w-nav-link"></a>
+        <div class="vertline"></div><a href="#DataAccessAnchor" class="sectionlinkda w-nav-link"></a>
+        <div class="vertline"></div><a href="#DataVizAnchor" class="sectionlinkdv w-nav-link"></a>
+        <div class="vertline"></div><a href="#CommunityAnchor" class="sectionlinkcom w-nav-link"></a></nav>
+      <div class="w-nav-button">
+        <div class="w-icon-nav-menu"></div>
+      </div>
+    </div>
+  </div>
+  <div data-collapse="none" data-animation="default" data-duration="400" role="banner" class="navladdertablet w-nav">
+    <div class="w-container">
+      <nav role="navigation" class="section-navigation w-nav-menu"><a href="#HomeTab" class="sectionlink w-nav-link"></a>
+        <div class="vertline"></div><a href="#DataAcTab" class="sectionlinkda w-nav-link"></a>
+        <div class="vertline"></div><a href="#DataVizTablet" class="sectionlinkdv w-nav-link"></a>
+        <div class="vertline"></div><a href="#CommunityTablet" class="sectionlinkcom w-nav-link"></a></nav>
+      <div class="w-nav-button">
+        <div class="w-icon-nav-menu"></div>
+      </div>
+    </div>
+  </div>
+  <div data-collapse="small" data-animation="default" data-duration="400" id="HomeTablet" role="banner" class="navigation w-nav">
+    <div class="navigation-wrap w-clearfix"><a href="/" aria-current="page" class="logo-link w-nav-brand w--current"><img src="images/CMAP-white-logo-2.png" width="50" srcset="images/CMAP-white-logo-2-p-500.png 500w, images/CMAP-white-logo-2.png 512w" sizes="(max-width: 767px) 100vw, (max-width: 991px) 50px, 60px" alt="" class="logo-image"></a>
       <div class="menuright">
         <nav role="navigation" class="navigation-items leftitems w-nav-menu"><a href="https://simonscmap.com/catalog" class="navigation-item w-nav-link">Catalog</a><a href="https://simonscmap.com/visualization" class="navigation-item w-nav-link">Visualization</a><a href="/community" class="navigation-item w-nav-link">Community</a><a href="/datasubmission" class="navigation-item w-nav-link">Data Submission</a></nav>
         <nav role="navigation" class="navigation-items rightitems w-nav-menu"><a href="https://simonscmap.com/register" id="navbar-register" class="navigation-item w-nav-link">Register</a><a href="#" id="navbar-login" data-w-id="4eb6bde5-6851-3273-2194-396575c30447" class="navigation-item w-nav-link">Login</a>
-          <div id="navbar-user-dropdown" data-hover="" data-delay="0" class="loggedin-dropdown w-dropdown">
-            <div class="dropdown-toggle w-dropdown-toggle">
+          <div data-hover="" data-delay="0" id="navbar-user-dropdown" class="loggedin-dropdown w-dropdown">
+            <div id="user-email" class="dropdown-toggle w-dropdown-toggle">
               <div class="w-icon-dropdown-toggle"></div>
-              <div id="user-email">Logged In Email State</div>
+              <div>Logged In Email State</div>
             </div>
             <nav class="dropdown-list w-dropdown-list"><a href="https://simonscmap.com/profile" class="dropdown-link w-dropdown-link">Profile</a><a href="https://simonscmap.com/apikeymanagement" class="dropdown-link w-dropdown-link">API Access</a><a href="#" id="logout-button" class="dropdown-link w-dropdown-link">Logout</a></nav>
           </div>
@@ -99,16 +124,17 @@
       </div>
     </div>
   </div>
-  <div data-collapse="small" data-animation="default" data-duration="400" class="navigation-mobile w-nav">
-    <div class="navigation-wrap w-clearfix"><a href="/" class="logo-link w-nav-brand"><img src="images/CMAP-white-logo-2.png" width="50" srcset="images/CMAP-white-logo-2-p-500.png 500w, images/CMAP-white-logo-2.png 512w" sizes="(max-width: 479px) 40vw, (max-width: 767px) 40px, 100vw" alt="" class="logo-image"></a>
+  <div id="HomeTab" class="homemarker"></div>
+  <div data-collapse="small" data-animation="default" data-duration="400" role="banner" class="navigation-mobile w-nav">
+    <div class="navigation-wrap w-clearfix"><a href="/" aria-current="page" class="logo-link w-nav-brand w--current"><img src="images/CMAP-white-logo-2.png" width="50" srcset="images/CMAP-white-logo-2-p-500.png 500w, images/CMAP-white-logo-2.png 512w" sizes="(max-width: 479px) 40vw, (max-width: 767px) 40px, 100vw" alt="" class="logo-image"></a>
       <div class="menuright">
-        <nav role="navigation" class="navigation-items rightitems w-nav-menu"><a href="https://simonscmap.com/catalog" class="navigation-item w-nav-link">Catalog</a><a href="https://simonscmap.com/visualization" class="navigation-item w-nav-link">Visualization</a><a href="/community" class="navigation-item w-nav-link">Community</a><a href="/datasubmission" class="navigation-item w-nav-link">Data Submission</a><a href="https://simonscmap.com/register" id="navbar-register" class="navigation-item w-nav-link">Register</a><a href="#" id="navbar-login" data-w-id="637a57c0-f87e-a6ca-06bf-65af8853702e" class="navigation-item w-nav-link">Login</a>
-          <div data-hover="" data-delay="0" class="loggedin-dropdown w-dropdown">
+        <nav role="navigation" class="navigation-items rightitems w-nav-menu"><a href="https://simonscmap.com/catalog" class="navigation-item w-nav-link">Catalog</a><a href="https://simonscmap.com/visualization" class="navigation-item w-nav-link">Visualization</a><a href="#communityMobile" class="navigation-item w-nav-link">Community</a><a href="datasubmission" class="navigation-item w-nav-link">Data Submission</a><a href="https://simonscmap.com/register" id="navbar-register" class="navigation-item w-nav-link">Register</a><a href="#" id="navbar-login" data-w-id="637a57c0-f87e-a6ca-06bf-65af8853702e" class="navigation-item w-nav-link">Login</a>
+          <div data-hover="" data-delay="0" id="navbar-user-dropdown" class="loggedin-dropdown w-dropdown">
             <div id="user-email" class="dropdown-toggle w-dropdown-toggle">
               <div class="w-icon-dropdown-toggle"></div>
               <div>Logged In Email State</div>
             </div>
-            <nav id="navbar-user-dropdown" class="dropdown-list w-dropdown-list"><a href="https://simonscmap.com/profile" class="dropdown-link w-dropdown-link">Profile</a><a href="https://simonscmap.com/apikeymanagement" class="dropdown-link w-dropdown-link">API Access</a><a href="#" id="logout-button" class="dropdown-link w-dropdown-link">Logout</a></nav>
+            <nav class="dropdown-list w-dropdown-list"><a href="https://simonscmap.com/profile" class="dropdown-link w-dropdown-link">Profile</a><a href="https://simonscmap.com/apikeymanagement" class="dropdown-link w-dropdown-link">API Access</a><a href="#" id="logout-button" class="dropdown-link w-dropdown-link">Logout</a></nav>
           </div>
         </nav>
         <div class="menu-button w-nav-button"><img src="images/hamburger-cmap_1hamburger-cmap.png" width="22" alt="" class="menu-icon"></div>
@@ -121,33 +147,33 @@
     </div>
     <div class="container homecontainer fixedlayout">
       <div class="home-content-wrap">
-        <div class="dataacqblock">
+        <div id="DataAcTab" class="dataacqblock dablock">
           <div class="home-section-wrap">
-            <h2 class="section-heading seafoam">Data Acquisition</h2>
-            <p class="paragraph-light">Simons Collaborative Marine Atlas Project (Simons CMAP) is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.</p>
+            <h2 class="section-heading seafoam datitletablet">Data Acquisition</h2>
+            <p id="dataAcq-text" class="paragraph-light">Simons Collaborative Marine Atlas Project (Simons CMAP) is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.</p>
           </div>
-          <a href="index.html" aria-current="page" class="button w-inline-block w--current">
+          <a href="/" id="DA-Tab" aria-current="page" class="button w-inline-block w--current">
             <div>Learn More</div>
           </a>
         </div>
-        <div class="dataacqblock">
+        <div id="DataVizTablet" class="dataacqblock datavizblock">
           <div class="w-layout-grid _2colgrid">
-            <div id="w-node-b2645c2380f0-456d43a3" class="w-layout-grid grid-5">
+            <div id="w-node-b2645c2380f0-114f1c56" class="w-layout-grid grid-5">
               <div class="home-section-wrap left">
-                <h2 id="dataviz" class="section-heading seafoam left">Data Visualization</h2>
+                <h2 id="dataviz" class="section-heading seafoam left dvtab">Data Visualization</h2>
                 <p class="paragraph-light left">Three steps: pick a variable, set the dates, and select a region. That is all it takes to visualize the data, regardless of the size and resolution of the underlying data sets. It is that simple!</p>
               </div>
-              <a href="team.html" id="w-node-536eaa9b6acc-456d43a3" class="button w-inline-block">
+              <a href="team.html" id="w-node-536eaa9b6acc-114f1c56" class="button w-inline-block">
                 <div>Data Visualizer</div>
               </a>
             </div>
-            <div id="w-node-536eaa9b6ac5-456d43a3" class="html-embed-3 w-embed"><img src="/images/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div>
+            <!-- <div id="w-node-536eaa9b6ac5-114f1c56" class="html-embed-3 w-embed"><img src="http://cev.washington.edu/files/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div> -->
           </div>
         </div>
-        <div class="dataacqblock">
+        <div id="CommunityTablet" class="dataacqblock communityblock">
           <div class="home-section-wrap">
             <h2 id="communityMobile" class="section-heading seafoam">Community</h2>
-            <div class="w-layout-grid grid-6"><a id="w-node-88aee8eacf6c-456d43a3" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-88aee8eacf6e-456d43a3" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-88aee8eacf70-456d43a3" href="#" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-88aee8eacf72-456d43a3" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-Matlab-COLORED.png" alt=""></a></div>
+            <div class="w-layout-grid grid-6"><a id="w-node-88aee8eacf6c-114f1c56" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-88aee8eacf6e-114f1c56" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-88aee8eacf70-114f1c56" href="https://github.com/simonscmap/CMAP.jl" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-88aee8eacf72-114f1c56" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-Matlab-COLORED.png" alt="" class="matlabimage"></a></div>
             <p class="paragraph-light">Simons CMAP is a community-based project intending to further cultivate the collaborative efforts at ocean sciences. It supports popular programming languages used for data analysis and seamlessly blends into your existing codebase. Review the documentation to discover how to retrieve, visualize, and analyze the CMAP data sets using your preferred language. Finally, please join us and contribute to growing the CMAP data and software ecosystem.</p>
           </div>
           <a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button buttonright w-inline-block">
@@ -160,7 +186,7 @@
             <div class="followusblock">
               <a href="#" class="button leftbutton followusunbutton w-inline-block">
                 <div>Follow us:</div>
-              </a><a href="https://github.com/simonscmap" target="_blank" class="button leftbutton githubicon w-inline-block"><img src="images/github-icon.png" width="55" srcset="images/github-icon-p-500.png 500w, images/github-icon.png 512w" sizes="(max-width: 479px) 62vw, (max-width: 991px) 55px, 100vw" alt=""></a><a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button slackbutton w-inline-block"><img src="images/slack-icon.png" width="55" srcset="images/slack-icon-p-500.png 500w, images/slack-icon.png 600w" sizes="(max-width: 479px) 100vw, (max-width: 991px) 55px, 100vw" alt=""></a></div>
+              </a><a href="https://github.com/simonscmap" target="_blank" class="button leftbutton githubicon w-inline-block"><img src="images/github-icon.png" width="55" srcset="images/github-icon-p-500.png 500w, images/github-icon.png 512w" sizes="(max-width: 991px) 55px, 100vw" alt=""></a><a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button slackbutton w-inline-block"><img src="images/slack-icon.png" width="55" srcset="images/slack-icon-p-500.png 500w, images/slack-icon.png 600w" sizes="(max-width: 991px) 55px, 100vw" alt=""></a></div>
           </div>
         </div>
       </div>
@@ -176,7 +202,7 @@
     <div data-w-id="80cc5a68-0e66-2f8d-e3fd-e56466e14ff8" class="layer5front" data-ix="new-interaction"></div>
     <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89d" class="layer6-frontboat" data-ix="new-interaction"></div>
     <div data-w-id="1a890055-8a34-50fb-6c47-a1abafdda89e" class="layer7-topfront"></div>
-    <div class="layerfront">
+    <div id="Home" class="layerfront">
       <div data-w-id="b36a20d8-c269-ef87-89ab-c538f328bec3" class="algal-bloom">
         <div style="-webkit-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, 0, 0) scale3d(0, 0, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0)" class="algal-zoooom"><img src="images/phytoplankton.png" width="310" srcset="images/phytoplankton-p-500.png 500w, images/phytoplankton.png 538w" sizes="(max-width: 991px) 100vw, 310px" alt="" class="imagealagalzoom"></div><img src="images/algal-bloom-for-zoom.png" srcset="images/algal-bloom-for-zoom-p-500.png 500w, images/algal-bloom-for-zoom-p-800.png 800w, images/algal-bloom-for-zoom-p-1080.png 1080w, images/algal-bloom-for-zoom.png 1117w" sizes="(max-width: 1117px) 100vw, 1117px" alt="" class="image-12"></div>
     </div>
@@ -191,7 +217,7 @@
     <div data-w-id="800c46bf-23e4-1b6e-313c-d9ff09bf2339" class="glider-incoming"><img src="images/glider-semi-trans.png" alt="" class="glider-image"></div>
     <div data-w-id="16ffc35f-543a-51af-0a7d-db6467f1b946" style="-webkit-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-moz-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);-ms-transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);transform:translate3d(0, 560PX, 0) scale3d(1, 1, 1) rotateX(0) rotateY(0) rotateZ(0) skew(0, 0);opacity:0.62" class="profilerdown"></div>
     <div id="DataAccessAnchor" data-w-id="178be16a-ef5f-d70d-de89-72c85a3b736c" class="dataaccesscontainer w-container">
-      <h2 id="dataaccess" class="section-heading seafoam">Data Access</h2>
+      <h2 id="dataaccess" class="section-heading seafoam dataaccessicon">Data AcCESS</h2>
       <p class="paragraph-light whiteparagraph">Simons Collaborative Marine Atlas Project (Simons CMAP) is an open-source data portal interconnecting data sets across Oceanography disciplines. It enables scientists and the public to dive into the vast and often underutilized ocean datasets to retrieve custom subsets of data.</p>
       <a href="https://simonscmap.com/catalog" class="button w-inline-block">
         <div>Catalog</div>
@@ -199,10 +225,10 @@
     </div>
     <div id="DataVizAnchor" data-w-id="88352421-abd0-9374-e789-0aa680523b40" class="dataviscontainer w-container">
       <div class="w-layout-grid _2colgrid">
-        <div id="w-node-604082d2e8dc-456d43a3" class="w-embed"><img src="/images/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div>
-        <div id="w-node-604082d2e8dd-456d43a3">
+        <div id="w-node-604082d2e8dc-114f1c56" class="w-embed"><img src="/images/cmap-app-animation-2.gif" width="445" id="w-node-961977c56175-a5f554c3" alt=""></div>
+        <div id="w-node-604082d2e8dd-114f1c56">
           <div class="home-section-wrap left">
-            <h2 id="dataviz" class="section-heading seafoam">Data Visualization</h2>
+            <h2 id="dataviz" class="section-heading seafoam datavizicon">Data Visualization</h2>
             <p class="paragraph-light">Three steps: pick a variable, set the dates, and select a region. That is all it takes to visualize the data, regardless of the size and resolution of the underlying data sets. It is that simple!</p>
           </div>
           <a href="https://simonscmap.com/visualization" class="button w-inline-block">
@@ -212,9 +238,9 @@
       </div>
     </div>
     <div id="CommunityAnchor" data-w-id="d29187bb-118f-d405-4242-57c269ff6c34" class="communitycontainer w-container">
-      <h2 id="community" class="section-heading seafoam centered">Community</h2>
-      <div class="w-layout-grid grid-6"><a id="w-node-dfc839b22f20-456d43a3" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-2a3bd7136caa-456d43a3" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-c96a476d8229-456d43a3" href="#" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-601b200e4253-456d43a3" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-Matlab-COLORED.png" alt=""></a></div>
-      <div class="div-block">
+      <h2 id="community" class="section-heading seafoam centered communityicon">Community</h2>
+      <div class="w-layout-grid grid-6"><a id="w-node-dfc839b22f20-114f1c56" href="https://github.com/simonscmap/cmap4r" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-R-COLORED.png" width="152" alt=""></a><a id="w-node-2a3bd7136caa-114f1c56" href="https://github.com/simonscmap/pycmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-python-COLORED.png" width="273" alt=""></a><a id="w-node-c96a476d8229-114f1c56" href="https://github.com/simonscmap/CMAP.jl" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-julia-COLORED.png" width="176" alt=""></a><a id="w-node-601b200e4253-114f1c56" href="https://github.com/simonscmap/matcmap" target="_blank" class="sdk-linkblock w-inline-block"><img src="images/cmap-sdk-Matlab-COLORED.png" alt=""></a></div>
+      <div id="followContactAnchor" class="div-block">
         <div class="home-section-wrap communitybuttons">
           <p class="paragraph-light">Review the documentation to discover how to retrieve, visualize, and analyze the CMAP data sets using your preferred language. There you will also find information on how your own datasets can be submitted to CMAP. Please join us and contribute to growing the CMAP data and software ecosystem.</p>
           <a href="https://simonscmap.com/apikeymanagement" target="_blank" class="button buttonright w-inline-block">
@@ -231,53 +257,52 @@
             </a><a href="https://github.com/simonscmap" target="_blank" class="button leftbutton githubicon w-inline-block"><img src="images/github-icon.png" width="55" srcset="images/github-icon-p-500.png 500w, images/github-icon.png 512w" sizes="(max-width: 991px) 100vw, 55px" alt=""></a><a href="https://join.slack.com/t/simons-cmap/shared_invite/enQtNjQzMTkzMjg0NjQ2LTdlOGRhZjNhMDY3MjRlNjg2OTY5NzE3ZWZhNWE0OWZhYmQzMTJjNDkyNDQ1MjNkZDg0N2MzMzhlZDliNGYxYzQ" target="_blank" class="button slackbutton w-inline-block"><img src="images/slack-icon.png" width="55" srcset="images/slack-icon-p-500.png 500w, images/slack-icon.png 600w" sizes="(max-width: 991px) 100vw, 55px" alt=""></a></div>
         </div>
       </div>
-    </div><img src="images/bottom-beamer.png" width="285" srcset="images/bottom-beamer-p-500.png 500w, images/bottom-beamer.png 793w" sizes="100vw" alt="" class="image-7"></div>
-  <div class="section footer-section">
-    <div class="container footercontainer">
-      <div class="columns-2 w-row">
-        <div class="w-col w-col-5">
-          <h3 class="footertitle leftsmidge-more">Contact Us</h3>
-          <div class="form-block w-form">
-            <form id='contact-us-form' id="email-form" name="email-form" data-name="Email Form" class="form"><input id='contact-us-name' type="text" class="contactfield2 w-input" maxlength="256" name="Name" data-name="Name" placeholder="Name"><input type="email" id='contact-us-email' class="contactfield2 w-input" maxlength="256" name="Email" data-name="Email" placeholder="Email Address" required=""><textarea data-name="Message" maxlength="5000" id="contact-us-message" name="Message" placeholder="Message..." class="contactfield3 w-input"></textarea><input type="submit" value="Submit" data-wait="Please wait..." class="button w-button"></form>
-            <div class="w-form-done" id='contact-us-success'>
-              <div>Thank you! Your submission has been received!</div>
-            </div>
-            <div class="w-form-fail" id='contact-us-failure'>
-              <div>Oops! Something went wrong while submitting the form.</div>
-            </div>
+    </div>
+    <div class="container footercontainer"></div><img src="images/bottom-beamer.png" width="285" srcset="images/bottom-beamer-p-500.png 500w, images/bottom-beamer.png 793w" sizes="100vw" alt="" class="image-7"></div>
+  <div id="ContactAnchor" class="section footer-section div-block-3">
+    <div id="CommunityAnchor" class="columns-2 w-row">
+      <div class="w-col w-col-5">
+        <h3 id="contactUs" class="footertitle leftsmidge-more">Contact Us</h3>
+        <div class="form-block w-form">
+          <form id="email-form" name="email-form" data-name="Email Form" class="form"><input type="text" class="contactfield2 w-input" maxlength="256" name="Name" data-name="Name" placeholder="Name" id="contact-us-name"><input type="email" class="contactfield2 w-input" maxlength="256" name="Email" data-name="Email" placeholder="Email Address" id="contact-us-email" required=""><textarea data-name="Message" maxlength="5000" id="contact-us-message" name="Message" placeholder="Message..." class="contactfield3 w-input"></textarea><input type="submit" value="Submit" data-wait="Please wait..." id="ContactSubmitButton" class="button w-button"></form>
+          <div id="contact-us-success" class="w-form-done">
+            <div>Thank you! Your submission has been received!</div>
+          </div>
+          <div id="contact-us-failure" class="w-form-fail">
+            <div>Oops! Something went wrong while submitting the form.</div>
           </div>
         </div>
-        <div class="w-col w-col-3"></div>
-        <div class="w-col w-col-4">
-          <div>
-            <h3 class="footertitle">Sponsor</h3>
-          </div><a href="https://www.simonsfoundation.org/" target="_blank" class="sponsorlinkblock w-inline-block"><img src="images/cmap-sponsor-SIMONS-COLORED.png" width="677" alt="" class="image-8"></a>
-          <h3 class="footertitle leftsmidge">Partners</h3>
-          <div class="w-row">
-            <div class="w-col w-col-4"><a href="https://cbiomes.org/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="images/cmap-sponsor-CBIOMES-COLORED.png" width="200" alt="" class="image-11"></a></div>
-            <div class="w-col w-col-4"><a href="http://scope.soest.hawaii.edu/index.html" target="_blank" class="scope-linkblock w-inline-block"><img src="images/cmap-sponsor-SCOPE-COLORED.png" width="263" alt="" class="image-10"></a></div>
-            <div class="w-col w-col-4"><a href="https://www.washington.edu/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="images/cmap-sponsor-UW.png" width="305" alt="" class="image-11"></a></div>
-          </div>
+      </div>
+      <div class="w-col w-col-3"></div>
+      <div class="column-6 w-col w-col-4">
+        <div>
+          <h3 class="footertitle">Sponsor</h3>
+        </div><a href="https://www.simonsfoundation.org/" target="_blank" class="sponsorlinkblock w-inline-block"><img src="images/cmap-sponsor-SIMONS-COLORED.png" width="677" alt="" class="image-8"></a>
+        <h3 class="footertitle leftsmidge">Partners</h3>
+        <div class="w-row">
+          <div class="column-3 w-col w-col-4"><a href="https://cbiomes.org/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="images/cmap-sponsor-CBIOMES-COLORED.png" width="200" alt="" class="image-11"></a></div>
+          <div class="column-4 w-col w-col-4"><a href="http://scope.soest.hawaii.edu/index.html" target="_blank" class="scope-linkblock w-inline-block"><img src="images/cmap-sponsor-SCOPE-COLORED.png" width="263" alt="" class="image-10"></a></div>
+          <div class="column-5 w-col w-col-4"><a href="https://www.washington.edu/" target="_blank" class="cbiomes-linkblock w-inline-block"><img src="images/cmap-sponsor-UW.png" width="305" alt="" class="image-11"></a></div>
         </div>
       </div>
     </div>
   </div>
-  <div style="opacity:0" class="modal-background" id='login-modal'>
+  <div id="login-modal" style="opacity:0" class="modal-background">
     <div class="loginblock"><a data-w-id="640fb33a-efba-002e-1b71-ce82bc3deb0e" href="#" class="closebutton w-button"><strong class="bold-text">×</strong></a>
       <h2 class="modal-h2">Login</h2>
       <div class="modal-text">Please enter your username &amp; password.</div>
-      <div class="w-form">
-        <form id="login-form" name="email-form-2" data-name="Email Form 2" redirect="/api/user/signin" data-redirect="/api/user/signin" class="form-2">
+      <div id="login-form" class="w-form">
+        <form id="email-form-2" name="email-form-2" data-name="Email Form 2" redirect="/api/user/signin" data-redirect="/api/user/signin" class="form-2">
           <div class="username-wrapper"><label for="username-2" class="field-label">Username</label><input type="text" class="username-field w-input" maxlength="256" name="username" data-name="username" id="username"></div>
           <div class="username-wrapper"><label for="password" class="field-label-2">Password</label><input type="password" maxlength="256" name="password" data-name="password" id="password" required="" class="username-field w-input"><a id="forgotpass" href="https://simonscmap.com/forgotpass" class="forgot-password-text">Forgot Username or Password</a></div><input type="submit" value="Login" data-wait="Please wait..." class="button modal-submit w-button"></form>
         <div class="w-form-done">
           <div>Thank you! Your submission has been received!</div>
         </div>
-        <div id='login-failed' class="w-form-fail">
+        <div id="login-failed" class="w-form-fail">
           <div>The username or password you entered does not match our records.</div>
         </div>
       </div>
-      <div class="googlebuttonwrapper"><a handlegooglesignin="onclick" id='google-login-button' href="#" class="googleblock w-inline-block"><img src="images/btn_google_dark_normal_ios.svg" alt="" class="googleicon"><div class="modal-text googlesignin">Sign in with Google</div></a></div>
+      <div class="googlebuttonwrapper" id='google-login-button'><a handlegooglesignin="onclick" href="#" class="googleblock w-inline-block"><img src="images/btn_google_dark_normal_ios.svg" alt="" class="googleicon"><div class="modal-text googlesignin">Sign in with Google</div></a></div>
     </div>
   </div>
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.4.1.min.220afd743d.js?site=5e3ca5cc7a1cb724118586b5" type="text/javascript" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
