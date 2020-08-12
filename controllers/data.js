@@ -1,7 +1,6 @@
 const queryHandler = require('../utility/queryHandler');
 
 var pools = require('../dbHandlers/dbPools');
-var protoLib = require('../config/protoInit');
 const sql = require('mssql');
 
 const Transform = require('stream').Transform
@@ -98,7 +97,6 @@ exports.testProto = async(req, res, next) => {
     let start = new Date();
     let result = await request.query(query);
     res.json(result.recordsets[0]);
-    console.log(new Date() - start);
     next();
 }
 

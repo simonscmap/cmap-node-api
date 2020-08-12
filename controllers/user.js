@@ -56,8 +56,6 @@ exports.signup = async (req, res, next) => {
         }
     })
 
-    console.log(result);
-
     res.sendStatus(200);
     return next();
  }
@@ -173,12 +171,10 @@ exports.updateInfo = async(req, res, next) => {
 exports.forgotPassword = async(req, res, next) => {
     // Accepts post with email address, send forgotten password email with JWT in link to reset
     let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
-    console.log(req.body.email);
     if(!user || !user.email) {
         return res.sendStatus(200);
     }
-    console.log(user);
-
+    
     let token = await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn: 60 * 30});
 
     let emailClient = await awaitableEmailClient;

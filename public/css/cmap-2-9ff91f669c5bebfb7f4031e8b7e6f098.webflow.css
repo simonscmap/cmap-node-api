@@ -3077,6 +3077,7 @@ figcaption {
   padding-top: 0px;
   padding-bottom: 0px;
   padding-left: 10px;
+  background-color: transparent;
   font-family: Lato, sans-serif;
   color: #fff;
   font-size: 15px;
@@ -3084,6 +3085,10 @@ figcaption {
 
 .dropdown-toggle:hover {
   color: #9dd162;
+}
+
+.dropdown-toggle.mainnav {
+  display: block;
 }
 
 .dropdown-list {
@@ -3094,10 +3099,14 @@ figcaption {
   margin-top: 38px;
   padding-top: 10px;
   padding-bottom: 10px;
-  background-color: #0f2c42;
+  background-color: rgba(0, 0, 0, 0.42);
   font-family: Lato, sans-serif;
   font-size: 15px;
   line-height: 15px;
+}
+
+.dropdown-list.mainnavdd.w--open {
+  background-color: rgba(0, 0, 0, 0.42);
 }
 
 .dropdown-link {
@@ -3122,7 +3131,7 @@ figcaption {
 }
 
 .loggedin-dropdown {
-  display: none;
+  display: block;
 }
 
 .googlebuttonwrapper {

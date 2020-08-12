@@ -1,7 +1,7 @@
 const url = 'https://simonscmap.com';
 // const url = 'http://localhost:3000';
 
-const doiHelpURL = 'https://cmap.readthedocs.io/en/latest/faq_and_contributing/FAQ.html?highlight=doi#what-is-a-doi-and-how-do-i-get-one-for-my-dataset';
+const doiHelpURL = 'https://simonsmcap.com/datasubmission/guide#faq-doi';
 const catalogURL = 'https://simonscmap.com/catalog';
 const visualizationURL = 'https://simonscmap.com/visualization';
 
@@ -226,7 +226,7 @@ module.exports.dataSubmissionUserComment = (datasetName, userMessage) => (
 
 module.exports.awaitingDOINotification = (datasetName) => (`
   Your submission, ${datasetName} has been approved for ingestion!<br>
-  The next step is obtain and submit a DOI for this data. More information on DOIs is available <a href="${doiHelpURL}}" target="_blank">here</a>.<br><br>
+  The next step is to obtain and submit a DOI for this data. More information on DOIs is available <a href="${doiHelpURL}}" target="_blank">here</a>.<br><br>
   Once you've obtained a DOI please submit it using the messaging feature on the <a href="${url}/datasubmission/userdashboard?datasetName=${encodeURI(datasetName)}" target="_blank">dashboard</a>.
 `);
 

@@ -2,7 +2,7 @@ const passport = require('passport');
 const JwtStrategy = require('passport-jwt').Strategy;
 const HeaderApiKeyStrategy = require('passport-headerapikey').HeaderAPIKeyStrategy;
 const LocalStrategy = require('passport-local').Strategy;
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const secret = require('../config/jwtConfig').secret;
 const UnsafeUser = require('../models/UnsafeUser');

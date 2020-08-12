@@ -51,6 +51,5 @@ exports.tableStats = async (req, res, next) => {
         res.json({error: 'Table not found'});
         return;
     }
-    console.log(result.recordset[0]);
     res.send(result.recordset[0].JSON_stats);
 }
