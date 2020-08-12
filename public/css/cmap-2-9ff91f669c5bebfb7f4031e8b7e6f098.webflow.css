@@ -585,7 +585,7 @@ figcaption {
 }
 
 .navigation-item {
-  padding: 9px 16px;
+  padding: 0px 16px 9px;
   opacity: 1;
   font-family: Lato, sans-serif;
   color: #fff;
@@ -655,6 +655,7 @@ figcaption {
 
 .navigation-items.leftitems {
   position: absolute;
+  padding-top: 9px;
   padding-left: 58px;
   -webkit-box-pack: start;
   -webkit-justify-content: flex-start;
@@ -667,6 +668,7 @@ figcaption {
 }
 
 .navigation-items.rightitems {
+  padding-top: 9px;
   padding-right: 14px;
   -webkit-box-pack: end;
   -webkit-justify-content: flex-end;
@@ -3081,6 +3083,7 @@ figcaption {
   font-family: Lato, sans-serif;
   color: #fff;
   font-size: 15px;
+  line-height: 20px;
 }
 
 .dropdown-toggle:hover {
@@ -3096,7 +3099,7 @@ figcaption {
 }
 
 .dropdown-list.w--open {
-  margin-top: 38px;
+  margin-top: 42px;
   padding-top: 10px;
   padding-bottom: 10px;
   background-color: rgba(0, 0, 0, 0.42);
@@ -3106,6 +3109,7 @@ figcaption {
 }
 
 .dropdown-list.mainnavdd.w--open {
+  margin-top: 42px;
   background-color: rgba(0, 0, 0, 0.42);
 }
 
@@ -3132,6 +3136,9 @@ figcaption {
 
 .loggedin-dropdown {
   display: block;
+  padding-top: 0px;
+  padding-bottom: 9px;
+  line-height: 20px;
 }
 
 .googlebuttonwrapper {
@@ -3461,6 +3468,37 @@ figcaption {
   -webkit-transform: scale(0.8);
   -ms-transform: scale(0.8);
   transform: scale(0.8);
+}
+
+.dropdownmainnav {
+  display: block;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  padding-left: 10px;
+  background-color: transparent;
+  font-family: Lato, sans-serif;
+  color: #fff;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.dropdownmainnav:hover {
+  color: #9dd162;
+}
+
+.dropdownmainnav.mainnav {
+  display: block;
+}
+
+.datasub-dropdown {
+  display: block;
+  padding-top: 0px;
+  padding-bottom: 9px;
+  line-height: 20px;
+}
+
+.text-block {
+  line-height: 20px;
 }
 
 @media screen and (max-width: 991px) {
@@ -4316,6 +4354,15 @@ figcaption {
   .column-6 {
     text-align: center;
   }
+  .dropdownmainnav {
+    display: inline-block;
+    font-size: 14px;
+  }
+  .datasub-dropdown {
+    display: none;
+    margin-bottom: 7px;
+    text-align: center;
+  }
 }
 
 @media screen and (max-width: 479px) {
@@ -4565,6 +4612,9 @@ figcaption {
   }
   .column-4 {
     text-align: center;
+  }
+  .dropdownmainnav {
+    font-size: 14px;
   }
 }
 

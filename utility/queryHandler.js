@@ -15,8 +15,29 @@ function formatDate(date) {
     return date.toISOString();
 }
 
-module.exports = async (req, res, next, query) => {
-    let pool = await pools.dataReadOnlyPool;
+const mariana = 'mariana';
+const rainier = 'rainier';
+const skipLogging = new Set(['ECANCEL']);
+
+const handleQuery = async (req, res, next, query, forceRainier) => {
+    let pool;
+    let poolName;
+    // used to avoid calling next if we're retrying on rainier
+    let requestError = false;
+
+    // Random load balancing
+    if(!forceRainier && Math.random() >= .5){
+        pool = await pools.mariana;
+        poolName = mariana;
+    }
+
+    else {
+        pool = await pools.dataReadOnlyPool;
+        poolName = rainier;
+    }
+
+    if(poolName === mariana) console.log('Mariana!')
+    // let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
     request.stream = true;
@@ -31,8 +52,10 @@ module.exports = async (req, res, next, query) => {
     })
 
     csvStream.on('error', err => {
-        if(!res.headersSent) res.status(400).end(err)
-        else res.end();
+        if(poolName === rainier){
+            if(!res.headersSent) res.status(400).end(err)
+            else res.end();
+        }
     });
 
     let accumulator = new Accumulator();
@@ -57,7 +80,12 @@ module.exports = async (req, res, next, query) => {
     })
 
     csvStream.on('drain', () => request.resume());
-    request.on('done', () => csvStream.end());
+    request.on('done', () => {
+        if(poolName === mariana && requestError === true){
+            accumulator.unpipe(res);
+        }
+        csvStream.end();
+    });
 
     // cancel sql request if client closes connection
     req.on('close', () => {
@@ -65,13 +93,32 @@ module.exports = async (req, res, next, query) => {
     })
 
     request.on('error', err => {
-        console.log('Query failure:');
-        console.log(req.cmapApiCallDetails.query);
-        console.log(req.cmapApiCallDetails.authMethod === 3 ? 'API Key Auth' : 'JWT Auth');
-        console.log(err);
-        if(res.headersSent) res.end();
-        else res.status(400).end(generateError(err));
+        requestError = true;
+
+        if(!skipLogging.has(err.code)){
+            console.log(`Query failure on ${poolName}:`);
+            console.log(req.cmapApiCallDetails.query);
+            console.log(req.cmapApiCallDetails.authMethod === 3 ? 'API Key Auth' : 'JWT Auth');
+            console.log(err);
+
+            if(res.headersSent) res.end();
+
+            else if(poolName !== mariana){
+               res.status(400).end(generateError(err));
+            }
+        }
     });
+
     await request.query(query);
-    next();
+
+    if(poolName === mariana && requestError === true) {
+        // Rerun query with forceRainier flag
+        accumulator.unpipe(res);
+        console.log(res.headersSent);
+        await handleQuery(req, res, next, query, true);
+    }
+
+    else return next();
 }
+
+module.exports = handleQuery;

@@ -3,11 +3,11 @@ var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
 
 exports.retrieve = async (req, res, next) => {
-    queryHandler(req, res, next, 'EXEC uspCatalog');
+    queryHandler(req, res, next, 'EXEC uspCatalog', true);
 }
 
 exports.datasets = async (req,res,next) => {
-    queryHandler(req, res, next, 'SELECT * FROM tblDatasets');
+    queryHandler(req, res, next, 'SELECT * FROM tblDatasets', true);
 }
 
 exports.description = async (req, res, next) => {
