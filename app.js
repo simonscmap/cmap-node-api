@@ -54,7 +54,7 @@ app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: fa
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/community', communityRoutes);
 // app.use('/api/datasubmission', passport.authenticate(['jwt']), dataSubmissionRoutes);
-app.use('/api/datasubmission', passport.authenticate(['jwt'], {session: false}), upload.any(), dataSubmissionRoutes);
+app.use('/api/datasubmission', passport.authenticate(['headerapikey', 'jwt'], {session: false}), upload.any(), dataSubmissionRoutes);
 
 // Usage metrics logging
 app.use((req, res, next) => {

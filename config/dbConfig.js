@@ -36,7 +36,7 @@ module.exports.mariana = {
     user: process.env.DB_READ_ONLY_USER,
     password: process.env.DB_READ_ONLY_PASSWORD,
     connectionTimeout: 50000,
-    requestTimeout: 50000,
+    requestTimeout: 86000000,
     pool: {
         idleTimeoutMillis: 50000,
         min: 3,

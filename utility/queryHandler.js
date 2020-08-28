@@ -36,7 +36,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
         poolName = rainier;
     }
 
-    if(poolName === mariana) console.log('Mariana!')
+    if(poolName === mariana) {}
     // let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 

@@ -83,7 +83,7 @@ async function submitLoginForm(e){
         let username = document.querySelector('#username').value;
         let password = document.querySelector('#password').value;
         
-        let result = await fetch('https://simonscmap.com/api/user/signin', {
+        let result = await fetch('/api/user/signin', {
             method: 'POST', 
             credentials: 'include',
             body: JSON.stringify({username, password}),
