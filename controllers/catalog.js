@@ -26,7 +26,8 @@ aggs.Lon_Max,
 aggs.Depth_Min,
 aggs.Depth_Max,
 aggs.Time_Min,
-aggs.Time_Max
+aggs.Time_Max,
+aggs.Sensors
 FROM udfCatalog() as cat
 
 JOIN tblDatasets as ds
@@ -43,6 +44,7 @@ JOIN (
     MIN(Time_Min) as Time_Min,
     Max(Time_Max) as Time_Max,
     STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
+    STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
     Dataset_ID
     FROM udfCatalog()
     GROUP BY Dataset_ID
@@ -78,6 +80,7 @@ aggs.Depth_Min,
 aggs.Depth_Max,
 aggs.Time_Min,
 aggs.Time_Max,
+aggs.Sensors,
 refs.[References]
 
 FROM udfCatalog() as cat
@@ -96,6 +99,7 @@ JOIN (
     MIN(Time_Min) as Time_Min,
     Max(Time_Max) as Time_Max,
     STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
+    STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
     Dataset_ID
     FROM udfCatalog()
     GROUP BY Dataset_ID
@@ -240,24 +244,30 @@ exports.searchCatalog = async(req, res, next) => {
     }
 
     if(hasDepth === 'yes'){
-        query += `\nAND aggs.Depth_Max is not null`
+        query += `\nAND aggs.Depth_Max is not null`;
     }
 
     if(hasDepth === 'no'){
-        query += `\nAND aggs.Depth_Max is null`
+        query += `\nAND aggs.Depth_Max is null`;
     }
 
     if(timeStart){
-        query += `\nAND aggs.Time_Max > '${timeStart}'`
+        query += `\nAND (aggs.Time_Max > '${timeStart}' OR aggs.Time_Max IS NULL)`;
     }
 
     if(timeEnd){
-        query += `\nAND aggs.Time_Min < '${timeEnd}'`
+        query += `\nAND (aggs.Time_Min < '${timeEnd}' OR aggs.Time_Min IS NULL)`;
     }
-
+    
     let result = await request.query(query);
+
+    let catalogResponse = result.recordset;
+    catalogResponse.forEach((e, i) => {
+        e.Sensors = [... new Set(e.Sensors.split(','))];        
+    });
+
     res.writeHead(200, {'Cache-Control': 'max-age=1800'})
-    await res.end(JSON.stringify(result.recordset));
+    await res.end(JSON.stringify(catalogResponse));
     next();
 }
 
@@ -304,6 +314,7 @@ exports.datasetFullPage = async(req, res, next) => {
     res.writeHead(200, {'Cache-Control': 'max-age=1800'});
 
     let datasetData = result.recordsets[0][0];
+    datasetData.Sensors = [... new Set(datasetData.Sensors.split(','))];  
     datasetData.Variables = result.recordsets[1];
     datasetData.References = datasetData.References.split('$$$');
     await res.end(JSON.stringify(datasetData));
