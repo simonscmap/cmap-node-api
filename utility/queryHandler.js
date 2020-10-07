@@ -25,19 +25,31 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     // used to avoid calling next if we're retrying on rainier
     let requestError = false;
 
-    // Random load balancing
-    if(!forceRainier && Math.random() >= .5){
-        pool = await pools.mariana;
-        poolName = mariana;
+    if(req.query.servername){
+        if(req.query.servername === mariana){
+            pool = await pools.mariana;
+            poolName = mariana;
+        }
+
+        else if(req.query.servername === rainier){
+            pool = await pools.dataReadOnlyPool;
+            poolName = rainier;
+        }
     }
 
     else {
-        pool = await pools.dataReadOnlyPool;
-        poolName = rainier;
+        // Random load balancing
+        if(!forceRainier && Math.random() >= .5){
+            pool = await pools.mariana;
+            poolName = mariana;
+        }
+    
+        else {
+            pool = await pools.dataReadOnlyPool;
+            poolName = rainier;
+        }
     }
 
-    if(poolName === mariana) {}
-    // let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
     request.stream = true;
@@ -103,7 +115,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
             if(res.headersSent) res.end();
 
-            else if(poolName !== mariana){
+            else if(req.query.servername || poolName !== mariana){
                res.status(400).end(generateError(err));
             }
         }
@@ -111,10 +123,10 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
     await request.query(query);
 
-    if(poolName === mariana && requestError === true) {
+    if(!req.query.servername && poolName === mariana && requestError === true) {
         // Rerun query with forceRainier flag
         accumulator.unpipe(res);
-        console.log(res.headersSent);
+        console.log('retrying on rainier');
         await handleQuery(req, res, next, query, true);
     }
 
