@@ -14,6 +14,9 @@ const apiKeyTable = 'tblApi_Keys'
 
 const cmapClientID = '739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com';
 
+var pools = require('../dbHandlers/dbPools');
+const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
+
 const standardCookieOptions = {
     // secure: true,
 }
@@ -275,4 +278,98 @@ exports.changePassword = async(req, res, next) => {
     let result = await user.updatePassword();
     if(!result.rowsAffected || !result.rowsAffected[0]) return res.sendStatus(400);
     return res.sendStatus(200);
+}
+
+exports.addCartItem = async(req, res, next) => {
+    let pool = await pools.userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    request.input('userID', sql.Int, req.user.id);
+    request.input('datasetID', sql.Int, req.body.itemID);
+
+    const query = 'INSERT INTO [dbo].[tblUser_Dataset_Favorites] (User_ID, Dataset_ID) VALUES (@userID, @datasetID)';
+
+    try {
+        let result = await request.query(query);
+    }
+
+    catch(e) {
+        console.log(e);
+    }
+
+    res.end();
+    return next();
+}
+
+exports.removeCartItem = async(req, res, next) => {
+    let pool = await pools.userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    request.input('userID', sql.Int, req.user.id);
+    request.input('datasetID', sql.Int, req.body.itemID);
+
+    const query = 'DELETE FROM [dbo].[tblUser_Dataset_Favorites] WHERE User_ID = @userID AND Dataset_ID = @datasetID';
+
+    try {
+        let result = await request.query(query);
+    }
+
+    catch(e) {
+        console.log(e);
+    }
+
+    res.end();
+    return next();
+}
+
+exports.clearCart = async(req, res, next) => {
+    let pool = await pools.userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    request.input('userID', sql.Int, req.user.id);
+
+    const query = 'DELETE FROM [dbo].[tblUser_Dataset_Favorites] WHERE User_ID = @userID';
+
+    try {
+        let result = await request.query(query);
+    }
+
+    catch(e) {
+        console.log(e);
+    }
+
+    res.end();
+    return next();
+}
+
+exports.getCart = async(req, res, next) => {
+    let pool = await pools.userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    request.input('userID', sql.Int, req.user.id);
+
+    const query = datasetCatalogQuery + 
+        `
+            AND cat.Dataset_ID IN (
+                SELECT Dataset_ID 
+                FROM tblUser_Dataset_Favorites
+                WHERE User_ID = @userID
+            )
+        `;
+
+    try {
+        let result = await request.query(query);
+        let datasets = result.recordsets[0];
+        datasets.forEach((e, i) => {
+            e.Sensors = [... new Set(e.Sensors.split(','))];        
+        });
+        res.send(JSON.stringify(datasets));
+    }
+
+    catch(e) {
+        console.log(e);
+    }
+
+    res.end();
+    return next();
 }

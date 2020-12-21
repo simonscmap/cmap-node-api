@@ -46,4 +46,10 @@ router.post('/changeemail', passport.authenticate('local', {session:false}), asy
 // Route for transmitted submitted contact us forms
 router.post('/changepassword', passport.authenticate('local', {session:false}), asyncControllerWrapper(userController.changePassword));
 
+// routes for managing persistent cart items
+router.post('/addcartitem', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.addCartItem));
+router.post('/removecartitem', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.removeCartItem));
+router.get('/clearcart', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.clearCart));
+router.get('/getcart', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.getCart));
+
 module.exports = router;

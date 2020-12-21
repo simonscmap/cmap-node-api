@@ -3,8 +3,10 @@ const sql = require('mssql');
 const nodeCache = require('../utility/nodeCache');
 const queryHandler = require('../utility/queryHandler');
 var pools = require('../dbHandlers/dbPools');
+const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
+const cruiseCatalogQuery = require('../dbHandlers/cruiseCatalogQuery');
 
-const tempCatalogQuery = `
+const variableCatalog = `
     SELECT 
     RTRIM(LTRIM(Short_Name)) AS Variable,
     [tblVariables].Table_Name AS [Table_Name],
@@ -34,7 +36,7 @@ const tempCatalogQuery = `
     CAST(JSON_VALUE(JSON_stats,'$."'+[Short_Name]+'".min') AS float) AS [Variable_Min],
     CAST(JSON_VALUE(JSON_stats,'$."'+[Short_Name]+'".max') AS float) AS [Variable_Max],
     RTRIM(LTRIM(Comment)) AS [Comment],
-    RTRIM(LTRIM([tblDatasets].Dataset_Name)) as Dataset_Short_Name,
+    RTRIM(LTRIM([tblDatasets].Dataset_Name)) as [Dataset_Short_Name],
     RTRIM(LTRIM(Dataset_Long_Name)) AS [Dataset_Name],
     RTRIM(LTRIM([Data_Source])) AS [Data_Source],
     RTRIM(LTRIM(Distributor)) AS [Distributor],
@@ -56,122 +58,6 @@ const tempCatalogQuery = `
     JOIN (SELECT var_ID, STRING_AGG (keywords, ', ') AS Keywords FROM tblVariables var_table
     JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
     AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
-`;
-
-const datasetCatalogQuery = `
-SELECT
-ds.Dataset_Name as Short_Name,
-TRIM(ds.Dataset_Long_Name) as Long_Name,
-ds.Icon_URL,
-ds.Description,
-cat.Table_Name,
-cat.Process_Level,
-cat.Make,
-cat.Data_Source,
-cat.Distributor,
-cat.Acknowledgement,
-cat.Dataset_ID,
-cat.Spatial_Resolution,
-cat.Temporal_Resolution,
-aggs.Lat_Min,
-aggs.Lat_Max,
-aggs.Lon_Min,
-aggs.Lon_Max,
-aggs.Depth_Min,
-aggs.Depth_Max,
-aggs.Time_Min,
-aggs.Time_Max,
-aggs.Sensors
-FROM udfCatalog() as cat
-
-JOIN tblDatasets as ds
-on ds.ID = cat.Dataset_ID
-
-JOIN (
-    SELECT
-    MIN(Lat_Min) as Lat_Min,
-    MAX(Lat_Max) as Lat_Max,
-    MIN(Lon_Min) as Lon_Min,
-    MAX(Lon_Max) as Lon_Max,
-    Min(Depth_Min) as Depth_Min,
-    MAX(Depth_Max) as Depth_Max,
-    MIN(Time_Min) as Time_Min,
-    Max(Time_Max) as Time_Max,
-    STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
-    STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
-    STRING_AGG(CAST(Long_Name AS nvarchar(MAX)), ',') as Variable_Long_Names,
-    Dataset_ID
-    FROM udfCatalog()
-    GROUP BY Dataset_ID
-) as aggs
-ON aggs.Dataset_ID = cat.Dataset_ID
-
-WHERE cat.ID in (
-    SELECT
-    MAX(ID) from udfCatalog()
-    GROUP BY Dataset_ID
-)
-`;
-
-const datasetFullPageInfoQuery = `
-SELECT
-ds.Dataset_Name as Short_Name,
-ds.Dataset_Long_Name as Long_Name,
-ds.Description,
-ds.Icon_URL,
-cat.Table_Name,
-cat.Process_Level,
-cat.Make,
-cat.Data_Source,
-cat.Distributor,
-cat.Acknowledgement,
-cat.Dataset_ID,
-cat.Spatial_Resolution,
-cat.Temporal_Resolution,
-cat.Row_Count,
-aggs.Lat_Min,
-aggs.Lat_Max,
-aggs.Lon_Min,
-aggs.Lon_Max,
-aggs.Depth_Min,
-aggs.Depth_Max,
-aggs.Time_Min,
-aggs.Time_Max,
-aggs.Sensors,
-aggs.Keywords,
-refs.[References]
-
-FROM (${tempCatalogQuery}) cat
-
-JOIN tblDatasets as ds
-on ds.ID = cat.Dataset_ID
-
-JOIN (
-    SELECT
-    MIN(Lat_Min) as Lat_Min,
-    MAX(Lat_Max) as Lat_Max,
-    MIN(Lon_Min) as Lon_Min,
-    MAX(Lon_Max) as Lon_Max,
-    Min(Depth_Min) as Depth_Min,
-    MAX(Depth_Max) as Depth_Max,
-    MIN(Time_Min) as Time_Min,
-    Max(Time_Max) as Time_Max,
-    STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
-    STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,    
-    Dataset_ID
-    FROM udfCatalog()
-    GROUP BY Dataset_ID
-) as aggs
-ON aggs.Dataset_ID = cat.Dataset_ID
-
-LEFT OUTER JOIN (
-    SELECT
-    Dataset_ID,
-    STRING_AGG(CAST(Reference AS nvarchar(MAX)), '$$$') as [References]
-    FROM tblDataset_References
-    GROUP BY Dataset_ID
-) as refs
-on ds.ID = refs.Dataset_ID
 `;
 
 exports.retrieve = async (req, res, next) => {
@@ -233,12 +119,15 @@ exports.submissionOptions = async(req, res, next) => {
 
     let request = await new sql.Request(pool);
     let query = `
-        SELECT Make FROM tblMakes
-        SELECT Sensor FROM tblSensors
-        SELECT Study_Domain FROM tblStudy_Domains
-        SELECT Temporal_Resolution FROM tblTemporal_Resolutions
-        SELECT Spatial_Resolution FROM tblSpatial_Resolutions
-    `
+        SELECT Make FROM tblMakes ORDER BY Make
+        SELECT Sensor FROM tblSensors ORDER BY Sensor
+        SELECT Study_Domain FROM tblStudy_Domains ORDER BY Study_Domain
+        SELECT Temporal_Resolution FROM tblTemporal_Resolutions ORDER BY Temporal_Resolution
+        SELECT Spatial_Resolution FROM tblSpatial_Resolutions ORDER BY Spatial_Resolution
+        SELECT DISTINCT Data_Source FROM udfCatalog() ORDER BY Data_Source
+        SELECT DISTINCT Distributor FROM udfCatalog() ORDER BY Distributor
+        SELECT Process_Stage_Long as Process_Level FROM tblProcess_Stages 
+    `;
 
     try {
         let result = await request.query(query);
@@ -274,7 +163,7 @@ exports.keywords = async(req, res, next) => {
         let pool = await pools.dataReadOnlyPool;
         let request = await new sql.Request(pool);
 
-        let query = `SELECT DISTINCT [keywords] from [dbo].[tblKeywords]`;
+        let query = `SELECT [keywords] from [dbo].[tblKeywords] UNION SELECT [keywords] from [dbo].[tblCruise_Keywords]`;
         let result = await request.query(query);
 
         keywords = result.recordset.map(e => e.keywords);
@@ -291,7 +180,7 @@ exports.searchCatalog = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
     
-    let { keywords, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd } = req.query;
+    let { keywords, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd, sensor } = req.query;
 
     const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
 
@@ -337,6 +226,10 @@ exports.searchCatalog = async(req, res, next) => {
         query += `\nAND (aggs.Lat_Min < '${latEnd}' OR aggs.Lat_Max IS NULL)`;
     }
 
+    if(sensor){
+        query += `\nAND aggs.Sensors LIKE '%${sensor}%'`;
+    }
+
     if(crosses180){
         query += `\nAND (
             (aggs.Lon_Max BETWEEN ${lonStart} AND 180) OR 
@@ -378,14 +271,8 @@ exports.datasetFullPage = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let query = datasetFullPageInfoQuery +
-        `WHERE ds.Dataset_Name='${shortname}'   
-        AND cat.ID in (
-            SELECT
-            MAX(ID) from udfCatalog()
-            WHERE ds.Dataset_Name='${shortname}'
-            GROUP BY Dataset_ID
-        )
+    let query = datasetCatalogQuery +
+        `AND ds.Dataset_Name='${shortname}'   
 
         SELECT
         Variable,
@@ -409,9 +296,21 @@ exports.datasetFullPage = async(req, res, next) => {
         Variable_Max,
         Comment,
         Sensor
-        FROM (${tempCatalogQuery}) cat
+        FROM (${variableCatalog}) cat
         WHERE Dataset_Short_Name='${shortname}'
         ORDER BY Long_Name
+
+        SELECT * FROM tblCruise
+        WHERE ID IN
+        (
+            SELECT Cruise_ID
+            FROM tblDataset_Cruises
+            WHERE Dataset_ID IN (
+                SELECT ID
+                FROM tblDatasets
+                WHERE Dataset_Name = '${shortname}'
+            )
+        )
     `;
 
     let result = await request.query(query);
@@ -421,8 +320,356 @@ exports.datasetFullPage = async(req, res, next) => {
     let datasetData = result.recordsets[0][0];
     datasetData.Sensors = [... new Set(datasetData.Sensors.split(','))];  
     datasetData.Variables = result.recordsets[1];
+    datasetData.Cruises = result.recordsets[2];
     datasetData.References = datasetData.References ? datasetData.References.split('$$$') : [];
-
     await res.end(JSON.stringify(datasetData));
     next();
+}
+
+exports.datasetsFromCruise = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+    const { cruiseID } = req.query;
+
+    let query = datasetCatalogQuery;
+    query += `
+        AND Dataset_ID IN (
+            SELECT Dataset_ID 
+            FROM tblDataset_Cruises
+            WHERE Cruise_ID = ${cruiseID}
+        )
+    `;
+
+    query += '\nORDER BY Long_Name';
+    let result = await request.query(query);
+
+    let catalogResponse = result.recordset;
+    catalogResponse.forEach((e, i) => {
+        e.Sensors = [... new Set(e.Sensors.split(','))];        
+    });
+
+    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    await res.end(JSON.stringify(catalogResponse));
+    next();
+}
+
+exports.cruisesFromDataset = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+    const { datasetID } = req.query;
+
+    let query = `
+        SELECT * 
+        FROM tblCruise
+        WHERE Cruise_ID IN (
+            SELECT * 
+            FROM tblDataset_Cruises
+            WHERE Dataset_ID = ${datasetID}
+        )
+    `;
+
+    let result = await request.query(query);
+
+    let response = result.recordset;
+    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    await res.end(JSON.stringify(response));
+    next();
+}
+
+exports.cruiseFullPage = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    const { name } = req.query;
+
+    let query = `
+        SELECT * FROM tblCruise
+        WHERE Name='${name}'
+
+        SELECT 
+        Dataset_Name,
+        Dataset_Long_Name
+        FROM tblDatasets
+        WHERE ID IN (
+            SELECT Dataset_ID
+            FROM tblDataset_Cruises
+            WHERE Cruise_ID IN (
+                SELECT ID
+                FROM tblCruise
+                WHERE Name='${name}'
+            )
+        )       
+    `;
+
+    let result = await request.query(query);
+    let cruiseData = result.recordsets[0][0];
+    cruiseData.datasets = result.recordsets[1]
+    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    await res.end(JSON.stringify(cruiseData));
+    next();
+}
+
+exports.searchCruises = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+    
+    let { searchTerms, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd, sensor } = req.query;
+    if(typeof searchTerms === 'string') searchTerms = [searchTerms];
+    
+    if(sensor && !(sensor === "Any" || sensor === "GPS")) {
+        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        await res.end(JSON.stringify([]));
+        return next();
+    }
+
+    const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
+
+    if(typeof searchTerms === 'string') searchTerms = [searchTerms];
+
+    let query = cruiseCatalogQuery;
+    let clauses = [];
+
+    if(searchTerms && searchTerms.length){
+        searchTerms.forEach((keyword, i) => {
+            clauses.push(`(
+                aggs.Keywords LIKE '%${keyword}%' 
+                OR Name LIKE '%${keyword}%' 
+                OR Ship_Name LIKE '%${keyword}%'
+                OR Chief_Name LIKE '%${keyword}%'
+            )`);
+        })
+    }
+
+    if(timeStart){
+        clauses.push(`(End_Time > '${timeStart}' OR End_Time IS NULL)`);
+    }
+
+    if(timeEnd){
+        clauses.push(`(Start_Time < '${timeEnd}' OR Start_Time IS NULL)`);
+    }
+
+    if(latStart){
+        clauses.push(`(Lat_Max > '${latStart}' OR Lat_Min IS NULL)`);
+    }
+
+    if(latEnd){
+        clauses.push(`(Lat_Min < '${latEnd}' OR Lat_Max IS NULL)`);
+    }
+
+    if(crosses180){
+        clauses.push(`(
+            (Lon_Max BETWEEN ${lonStart} AND 180) OR 
+            (Lon_Max BETWEEN -180 AND ${lonEnd}) OR
+            (Lon_Min BETWEEN ${lonStart} AND 180) OR
+            (Lon_Min Between -180 and ${lonEnd}) OR 
+            Lon_Max IS NULL OR
+            Lon_Min IS Null
+            )`);
+    }
+
+    else {
+        if(lonStart){
+            clauses.push(`(Lon_Max > '${lonStart}' OR Lon_Min IS NULL)`);
+        }
+    
+        if(lonEnd){
+            clauses.push(`(Lon_Min < '${lonEnd}' OR Lon_Max IS NULL)`);
+        }
+    }
+
+    if(clauses.length){
+        query += `\nWHERE`;
+        query += clauses.join('\nAND ');
+    }
+
+    query += '\nORDER BY Name';
+    console.log(query);
+    let result = await request.query(query);
+
+    let catalogResponse = result.recordset;
+
+    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    await res.end(JSON.stringify(catalogResponse));
+    next();
+}
+
+exports.memberVariables = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+    const { datasetID } = req.query;
+
+    try {
+        let query = `SELECT * FROM udfCatalog() WHERE Dataset_ID = ${datasetID}`;
+        let response = await request.query(query);
+        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        await res.end(JSON.stringify(response.recordset));
+        next();
+    }
+
+    catch(e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+}
+
+exports.variableSearch = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    let { 
+        searchTerms, 
+        hasDepth, 
+        timeStart, 
+        timeEnd, 
+        latStart, 
+        latEnd, 
+        lonStart, 
+        lonEnd, 
+        sensor,
+        dataSource,
+        distributor,
+        processLevel,
+        temporalResolution,
+        spatialResolution
+    } = req.query;
+    const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
+    if(typeof searchTerms === 'string') searchTerms = [searchTerms];
+
+    let query = `SELECT * FROM udfCatalog() WHERE Visualize = 1`;
+
+    if(temporalResolution && temporalResolution !== 'Any'){
+        query += `\nAND Temporal_Resolution = '${temporalResolution}'`
+    }
+
+    if(spatialResolution && spatialResolution !== 'Any'){
+        query += `\nAND Spatial_Resolution = '${spatialResolution}'`;
+    }
+
+    if(dataSource && dataSource !== 'Any'){
+        query += `\nAND Data_Source = '${dataSource}'`;
+    }
+
+    if(distributor && distributor !== 'Any'){
+        query += `\nAND Distributor = '${distributor}'`;
+    }
+
+    if(processLevel && processLevel !=='Any'){
+        query += `\nAND Process_Level = '${processLevel}'`;
+    }
+
+    if(searchTerms && searchTerms.length){
+        searchTerms.forEach((keyword, i) => {
+            query += `\nAND (
+                Long_Name LIKE '%${keyword}%'
+                OR Variable LIKE '%${keyword}%'
+                OR Sensor LIKE '%${keyword}%' 
+                OR Keywords LIKE '%${keyword}%'
+                OR Distributor LIKE '%${keyword}%'
+                OR Data_Source LIKE '%${keyword}%'
+                OR Process_Level LIKE '%${keyword}%'
+                OR Study_Domain LIKE '%${keyword}%'
+            )`;
+        })
+    }
+
+    if(hasDepth === 'yes'){
+        query += `\nAND Depth_Max is not null`;
+    }
+
+    if(hasDepth === 'no'){
+        query += `\nAND Depth_Max is null`;
+    }
+
+    if(timeStart){
+        query += `\nAND (Time_Max > '${timeStart}' OR Time_Max IS NULL)`;
+    }
+
+    if(timeEnd){
+        query += `\nAND (Time_Min < '${timeEnd}' OR Time_Min IS NULL)`;
+    }
+
+    if(sensor && sensor !== 'Any'){
+        query += `\nAND Sensor LIKE '%${sensor}%'`;
+    }
+
+    if(latStart){
+        query += `\nAND (Lat_Max > ${latStart} OR Lat_Min IS NULL)`;
+    }
+
+    if(latEnd){
+        query += `\nAND (Lat_Min < ${latEnd} OR Lat_Max IS NULL)`;
+    }
+
+    if(crosses180){
+        query += `\nAND (
+            (Lon_Max BETWEEN ${lonStart} AND 180) OR 
+            (Lon_Max BETWEEN -180 AND ${lonEnd}) OR
+            (Lon_Min BETWEEN ${lonStart} AND 180) OR
+            (Lon_Min Between -180 and ${lonEnd}) OR 
+            Lon_Max IS NULL OR
+            Lon_Min IS Null
+            )`;
+    }
+
+    else {
+        if(lonStart){
+            query += `\nAND (Lon_Max > ${lonStart} OR Lon_Min IS NULL)`;
+        }
+    
+        if(lonEnd){
+            query += `\nAND (Lon_Min < ${lonEnd} OR Lon_Max IS NULL)`;
+        }
+    }
+
+    query += '\nORDER BY Long_Name';
+
+    try {
+        let response = await request.query(query);
+        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        await res.end(JSON.stringify(response.recordset));
+        next();
+    }
+
+    catch(e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+}
+
+exports.autocompleteVariableNames = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    try {
+        let { searchTerms } = req.query;
+        // let parsedSearch = searchTerms.split(' ');
+
+        let query = `SELECT DISTINCT Long_Name from udfCatalog() WHERE Visualize = 1`;
+
+        // if(parsedSearch && parsedSearch.length){
+            // parsedSearch.forEach((keyword) => {
+            query += ` AND (
+                Keywords LIKE '%${searchTerms}%' 
+                OR Data_Source LIKE '%${searchTerms}%'
+                OR Process_Level LIKE '%${searchTerms}%'
+                OR Sensor LIKE '%${searchTerms}%'
+                OR Make like '%${searchTerms}%'
+                OR Study_Domain like '%${searchTerms}%'
+                OR Long_Name like '%${searchTerms}%'
+                OR Variable like '%${searchTerms}%'
+            )`;
+            // });
+        // }
+
+        let response = await request.query(query);
+        let names = response.recordset.map(record => record.Long_Name);
+        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        await res.end(JSON.stringify(names));
+        next();
+    }
+
+    catch(e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
 }
