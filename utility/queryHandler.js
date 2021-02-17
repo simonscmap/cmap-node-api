@@ -20,9 +20,11 @@ const rainier = 'rainier';
 const skipLogging = new Set(['ECANCEL']);
 
 const handleQuery = async (req, res, next, query, forceRainier) => {
+
     let pool;
     let poolName;
     // used to avoid calling next if we're retrying on rainier
+    
     let requestError = false;
 
     if(req.query.servername){
@@ -106,6 +108,8 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
     request.on('error', err => {
         requestError = true;
+        console.log(err);
+        console.log(req.cmapApiCallDetails.query);
 
         if(!skipLogging.has(err.code)){
             console.log(`Query failure on ${poolName}:`);
@@ -120,7 +124,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
             }
         }
     });
-
+    
     await request.query(query);
 
     if(!req.query.servername && poolName === mariana && requestError === true) {

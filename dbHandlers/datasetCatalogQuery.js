@@ -1,10 +1,15 @@
+// aggs.Keywords removed from select
+
 module.exports = `
     SELECT
     'Dataset' as Product_Type,
     ds.Dataset_Name as Short_Name,
-    ds.Dataset_Long_Name as Long_Name,
+    RTRIM(LTRIM(ds.Dataset_Long_Name)) AS [Long_Name],
     ds.Description,
     ds.Icon_URL,
+    ds.Dataset_Release_Date,
+    ds.Dataset_History,
+    ds.Dataset_Version,
     cat.Table_Name,
     cat.Process_Level,
     cat.Make,
@@ -23,10 +28,10 @@ module.exports = `
     aggs.Depth_Max,
     aggs.Time_Min,
     aggs.Time_Max,
-    aggs.Sensors,
-    aggs.Keywords,
+    aggs.Sensors,    
     aggs.Visualize,
     aggs.Row_Count,
+    regs.Regions,
     refs.[References]
 
     FROM (
@@ -107,6 +112,17 @@ module.exports = `
         GROUP BY Dataset_ID
     ) as refs
     on ds.ID = refs.Dataset_ID
+
+    LEFT OUTER JOIN (
+        SELECT
+        ds_reg.Dataset_ID,
+        STRING_AGG(CAST(reg.Region_Name AS nvarchar(MAX)), ',') as Regions
+        FROM tblDataset_Regions ds_reg
+        JOIN tblRegions reg
+        ON ds_reg.Region_ID = reg.Region_ID
+        GROUP BY ds_reg.Dataset_ID
+    ) as regs
+    on ds.ID = regs.Dataset_ID
 
     WHERE cat.ID in (
         SELECT

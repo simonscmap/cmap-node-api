@@ -5,6 +5,7 @@ const queryHandler = require('../utility/queryHandler');
 var pools = require('../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
 const cruiseCatalogQuery = require('../dbHandlers/cruiseCatalogQuery');
+const catalogPlusLatCountQuery = require('../dbHandlers/catalogPlusLatCountQuery');
 
 const variableCatalog = `
     SELECT 
@@ -171,7 +172,7 @@ exports.keywords = async(req, res, next) => {
         nodeCache.set('keywords', keywords, 3600);
     }
 
-    res.writeHead(200, {'Cache-Control': 'max-age=3600'})
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(keywords));
     next();
 }
@@ -180,25 +181,31 @@ exports.searchCatalog = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
     
-    let { keywords, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd, sensor } = req.query;
+    let { keywords, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd, sensor, region, make } = req.query;
 
     const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
 
     if(typeof keywords === 'string') keywords = [keywords];
+    if(typeof region === 'string') region = [region];
+    if(typeof make === 'string') make = [make];
+    if(typeof sensor === 'string') sensor = [sensor];
 
     let query = datasetCatalogQuery;
 
     if(keywords && keywords.length){
         keywords.forEach((keyword, i) => {
-            query += `\nAND (
-                aggs.Variable_Long_Names LIKE '%${keyword}%' 
-                OR aggs.Sensors LIKE '%${keyword}%' 
-                OR aggs.Keywords LIKE '%${keyword}%'
-                OR cat.Distributor LIKE '%${keyword}%'
-                OR cat.Data_Source LIKE '%${keyword}%'
-                OR cat.Process_Level LIKE '%${keyword}%'
-                OR cat.Study_Domain LIKE '%${keyword}%'
-            )`;
+            if(keyword.length){
+                query += `\nAND (
+                    aggs.Variable_Long_Names LIKE '%${keyword}%'
+                    OR ds.Dataset_Long_Name LIKE '%${keyword}%'
+                    OR aggs.Sensors LIKE '%${keyword}%' 
+                    OR aggs.Keywords LIKE '%${keyword}%'
+                    OR cat.Distributor LIKE '%${keyword}%'
+                    OR cat.Data_Source LIKE '%${keyword}%'
+                    OR cat.Process_Level LIKE '%${keyword}%'
+                    OR cat.Study_Domain LIKE '%${keyword}%'
+                )`;
+            }
         })
     }
 
@@ -226,8 +233,20 @@ exports.searchCatalog = async(req, res, next) => {
         query += `\nAND (aggs.Lat_Min < '${latEnd}' OR aggs.Lat_Max IS NULL)`;
     }
 
-    if(sensor){
-        query += `\nAND aggs.Sensors LIKE '%${sensor}%'`;
+    if(sensor && sensor.length){
+        query += `\nAND (
+            ${sensor.map(r => `aggs.Sensors LIKE '%${r}%'`).join('\nOR ')}
+        )`;
+    }
+
+    if(region && region.length){
+        query += `\nAND (
+            ${region.map(r => `regs.Regions LIKE '%${r}%'`).join('\nOR ')}
+        )`;
+    }
+
+    if(make && make.length){
+        query += `\nAND cat.Make IN ('${make.join("','")}')`
     }
 
     if(crosses180){
@@ -253,15 +272,16 @@ exports.searchCatalog = async(req, res, next) => {
 
 
     query += '\nORDER BY Long_Name';
+    
     let result = await request.query(query);
 
-    let catalogResponse = result.recordset;
-    catalogResponse.forEach((e, i) => {
+    let catalogSearchResponse = result.recordset;
+    catalogSearchResponse.forEach((e, i) => {
         e.Sensors = [... new Set(e.Sensors.split(','))];        
     });
-
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
-    await res.end(JSON.stringify(catalogResponse));
+    
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
+    await res.end(JSON.stringify(catalogSearchResponse));
     next();
 }
 
@@ -285,7 +305,10 @@ exports.datasetFullPage = async(req, res, next) => {
         Depth_Min,
         Depth_Max,
         Time_Min,
-        Time_Max,        
+        Time_Max,
+        Spatial_Resolution,
+        Temporal_Resolution,  
+        Study_Domain,     
         Variable_25th,
         Variable_50th,
         Variable_75th,
@@ -294,8 +317,11 @@ exports.datasetFullPage = async(req, res, next) => {
         Variable_STD,
         Variable_Min,
         Variable_Max,
+        Make,
+        Visualize,
         Comment,
-        Sensor
+        Sensor,
+        Keywords
         FROM (${variableCatalog}) cat
         WHERE Dataset_Short_Name='${shortname}'
         ORDER BY Long_Name
@@ -315,7 +341,7 @@ exports.datasetFullPage = async(req, res, next) => {
 
     let result = await request.query(query);
 
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'});
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
 
     let datasetData = result.recordsets[0][0];
     datasetData.Sensors = [... new Set(datasetData.Sensors.split(','))];  
@@ -348,7 +374,7 @@ exports.datasetsFromCruise = async(req, res, next) => {
         e.Sensors = [... new Set(e.Sensors.split(','))];        
     });
 
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(catalogResponse));
     next();
 }
@@ -371,7 +397,7 @@ exports.cruisesFromDataset = async(req, res, next) => {
     let result = await request.query(query);
 
     let response = result.recordset;
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(response));
     next();
 }
@@ -404,7 +430,7 @@ exports.cruiseFullPage = async(req, res, next) => {
     let result = await request.query(query);
     let cruiseData = result.recordsets[0][0];
     cruiseData.datasets = result.recordsets[1]
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(cruiseData));
     next();
 }
@@ -417,7 +443,7 @@ exports.searchCruises = async(req, res, next) => {
     if(typeof searchTerms === 'string') searchTerms = [searchTerms];
     
     if(sensor && !(sensor === "Any" || sensor === "GPS")) {
-        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
         await res.end(JSON.stringify([]));
         return next();
     }
@@ -483,12 +509,12 @@ exports.searchCruises = async(req, res, next) => {
     }
 
     query += '\nORDER BY Name';
-    console.log(query);
+
     let result = await request.query(query);
 
     let catalogResponse = result.recordset;
 
-    res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(catalogResponse));
     next();
 }
@@ -501,7 +527,7 @@ exports.memberVariables = async(req, res, next) => {
     try {
         let query = `SELECT * FROM udfCatalog() WHERE Dataset_ID = ${datasetID}`;
         let response = await request.query(query);
-        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
         await res.end(JSON.stringify(response.recordset));
         next();
     }
@@ -530,36 +556,95 @@ exports.variableSearch = async(req, res, next) => {
         distributor,
         processLevel,
         temporalResolution,
-        spatialResolution
+        spatialResolution,
+        make,
+        region
     } = req.query;
-    const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
-    if(typeof searchTerms === 'string') searchTerms = [searchTerms];
 
-    let query = `SELECT * FROM udfCatalog() WHERE Visualize = 1`;
+    sensor = typeof sensor === 'string' ? [sensor] : sensor;
+    make = typeof make ==='string' ? [make] : make;
+    region = typeof region === 'string' ? [region] : region;
+
+    const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
+
+    let searchBaseQuery = `
+        SELECT
+            ID,
+            Long_Name,
+            Make,
+            Sensor,
+            Process_Level,
+            Temporal_Resolution,
+            Spatial_Resolution,
+            Dataset_Name,
+            Dataset_Short_Name,
+            Data_Source,
+            Distributor,
+            cat.Dataset_ID,
+            Regions
+        FROM udfCatalog() cat
+        LEFT OUTER JOIN
+            (
+                SELECT
+                ds_reg.Dataset_ID,
+                STRING_AGG(CAST(reg.Region_Name AS nvarchar(MAX)), ',') as Regions
+                FROM tblDataset_Regions ds_reg
+                JOIN tblRegions reg
+                ON ds_reg.Region_ID = reg.Region_ID
+                GROUP BY ds_reg.Dataset_ID
+            ) regs
+        on regs.Dataset_ID = cat.Dataset_ID
+        `;
+    
+    let countBaseQuery = `
+        SELECT Make, COUNT(DISTINCT cat.Dataset_ID) AS Count
+        FROM udfCatalog() cat
+        LEFT OUTER JOIN
+            (
+                SELECT
+                ds_reg.Dataset_ID,
+                STRING_AGG(CAST(reg.Region_Name AS nvarchar(MAX)), ',') as Regions
+                FROM tblDataset_Regions ds_reg
+                JOIN tblRegions reg
+                ON ds_reg.Region_ID = reg.Region_ID
+                GROUP BY ds_reg.Dataset_ID
+            ) regs
+        on regs.Dataset_ID = cat.Dataset_ID
+    `;
+    
+    let visualizeClause = 'WHERE Visualize = 1';
+    let placeholder = 'WHERE 1 = 1';
+
+    let clauses = [];
+        
+    if(make){
+        clauses.push(`\nAND Make IN ('${make.join("','")}')`);
+    }
 
     if(temporalResolution && temporalResolution !== 'Any'){
-        query += `\nAND Temporal_Resolution = '${temporalResolution}'`
+        clauses.push(searchBaseQuery += `\nAND Temporal_Resolution = '${temporalResolution}'`);
     }
 
     if(spatialResolution && spatialResolution !== 'Any'){
-        query += `\nAND Spatial_Resolution = '${spatialResolution}'`;
+        clauses.push(`\nAND Spatial_Resolution = '${spatialResolution}'`);
     }
 
     if(dataSource && dataSource !== 'Any'){
-        query += `\nAND Data_Source = '${dataSource}'`;
+        clauses.push(`\nAND Data_Source = '${dataSource}'`);
     }
 
     if(distributor && distributor !== 'Any'){
-        query += `\nAND Distributor = '${distributor}'`;
+        clauses.push(`\nAND Distributor = '${distributor}'`);
     }
 
     if(processLevel && processLevel !=='Any'){
-        query += `\nAND Process_Level = '${processLevel}'`;
+        clauses.push(`\nAND Process_Level = '${processLevel}'`);
     }
 
     if(searchTerms && searchTerms.length){
+        searchTerms = searchTerms.split(' ');
         searchTerms.forEach((keyword, i) => {
-            query += `\nAND (
+            clauses.push(`\nAND (
                 Long_Name LIKE '%${keyword}%'
                 OR Variable LIKE '%${keyword}%'
                 OR Sensor LIKE '%${keyword}%' 
@@ -568,65 +653,86 @@ exports.variableSearch = async(req, res, next) => {
                 OR Data_Source LIKE '%${keyword}%'
                 OR Process_Level LIKE '%${keyword}%'
                 OR Study_Domain LIKE '%${keyword}%'
-            )`;
+                OR Dataset_Name LIKE '%${keyword}%'
+            )`);
         })
     }
 
     if(hasDepth === 'yes'){
-        query += `\nAND Depth_Max is not null`;
+        clauses.push(`\nAND Depth_Max is not null`);
     }
 
     if(hasDepth === 'no'){
-        query += `\nAND Depth_Max is null`;
+        clauses.push(`\nAND Depth_Max is null`);
     }
 
     if(timeStart){
-        query += `\nAND (Time_Max > '${timeStart}' OR Time_Max IS NULL)`;
+        clauses.push(`\nAND (Time_Max > '${timeStart}' OR Time_Max IS NULL)`);
     }
 
     if(timeEnd){
-        query += `\nAND (Time_Min < '${timeEnd}' OR Time_Min IS NULL)`;
+        clauses.push(`\nAND (Time_Min < '${timeEnd}' OR Time_Min IS NULL)`);
     }
 
-    if(sensor && sensor !== 'Any'){
-        query += `\nAND Sensor LIKE '%${sensor}%'`;
+    if(sensor){
+        clauses.push(`\nAND Sensor IN ('${sensor.join("','")}')`);
+    }
+
+    if(region && region.length){
+        clauses.push(`\nAND (
+            ${region.map(r => `Regions LIKE '%${r}%'`).join('\nOR ')}
+        )`);
     }
 
     if(latStart){
-        query += `\nAND (Lat_Max > ${latStart} OR Lat_Min IS NULL)`;
+        clauses.push(`\nAND (Lat_Max > ${latStart} OR Lat_Min IS NULL)`);
     }
 
     if(latEnd){
-        query += `\nAND (Lat_Min < ${latEnd} OR Lat_Max IS NULL)`;
+        clauses.push(`\nAND (Lat_Min < ${latEnd} OR Lat_Max IS NULL)`);
     }
 
     if(crosses180){
-        query += `\nAND (
+        clauses.push(`\nAND (
             (Lon_Max BETWEEN ${lonStart} AND 180) OR 
             (Lon_Max BETWEEN -180 AND ${lonEnd}) OR
             (Lon_Min BETWEEN ${lonStart} AND 180) OR
             (Lon_Min Between -180 and ${lonEnd}) OR 
             Lon_Max IS NULL OR
             Lon_Min IS Null
-            )`;
+            )`);
     }
 
     else {
         if(lonStart){
-            query += `\nAND (Lon_Max > ${lonStart} OR Lon_Min IS NULL)`;
+            clauses.push(`\nAND (Lon_Max > ${lonStart} OR Lon_Min IS NULL)`);
         }
     
         if(lonEnd){
-            query += `\nAND (Lon_Min < ${lonEnd} OR Lon_Max IS NULL)`;
+            clauses.push(`\nAND (Lon_Min < ${lonEnd} OR Lon_Max IS NULL)`);
         }
     }
 
-    query += '\nORDER BY Long_Name';
+    let searchOrderClause = '\nORDER BY Long_Name';
+    let countGroupByClause = 'GROUP BY Make';
 
+    let joinedClauses = clauses.join('');
+
+    let searchQuery = [searchBaseQuery, visualizeClause, joinedClauses, searchOrderClause].join('');
+    let countQuery = [countBaseQuery, placeholder, joinedClauses, countGroupByClause].join('');
+    let combinedQuery = [searchQuery, countQuery].join('');
+    
     try {
-        let response = await request.query(query);
-        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
-        await res.end(JSON.stringify(response.recordset));
+        let response = await request.query(combinedQuery);
+        let counts = response.recordsets[1].reduce((acc, e) => {
+            acc[e.Make] = e.Count; 
+            return acc;
+        }, {});
+        res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'max-age=7200'});
+        await res.end(JSON.stringify({
+            counts,
+            variables: response.recordsets[0]
+        }));
         next();
     }
 
@@ -663,8 +769,55 @@ exports.autocompleteVariableNames = async(req, res, next) => {
 
         let response = await request.query(query);
         let names = response.recordset.map(record => record.Long_Name);
-        res.writeHead(200, {'Cache-Control': 'max-age=1800'})
+        res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
         await res.end(JSON.stringify(names));
+        next();
+    }
+
+    catch(e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+}
+
+exports.variable = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    try {
+        let { id } = req.query;
+
+        let query = `${catalogPlusLatCountQuery} WHERE tblVariables.ID = ${id}`;
+        let response = await request.query(query);
+        res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
+        await res.end(JSON.stringify(response.recordset[0]));
+        next();
+    }
+
+    catch(e) {
+        console.log(e);
+        res.sendStatus(500);
+    }
+}
+
+exports.datasetSummary = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    try {
+        let { id } = req.query;
+
+        let query = `
+            SELECT 
+                Dataset_Name,
+                Dataset_Long_Name,
+                Description
+            FROM tblDatasets WHERE ID = ${id}
+        `;
+
+        let response = await request.query(query);
+        res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
+        await res.end(JSON.stringify(response.recordset[0]));
         next();
     }
 

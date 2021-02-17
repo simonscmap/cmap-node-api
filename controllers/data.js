@@ -18,7 +18,6 @@ exports.storedProcedure = async (req, res, next)=>{
 
     let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
     req.cmapApiCallDetails.query = spExecutionQuery;
-
     queryHandler(req, res, next, spExecutionQuery);
 };
 
@@ -35,7 +34,25 @@ exports.cruiseList = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let query =  'EXEC uspCruises';
+    let query =  `
+        SELECT 
+            [tblCruise].ID 
+            ,[tblCruise].Nickname
+            ,[tblCruise].Name
+            ,[tblCruise].Ship_Name
+            ,[tblCruise].Start_Time
+            ,[tblCruise].End_Time
+            ,[tblCruise].Lat_Min
+            ,[tblCruise].Lat_Max
+            ,[tblCruise].Lon_Min
+            ,[tblCruise].Lon_Max
+            ,[tblCruise].Chief_Name
+            ,[keywords_agg].Keywords
+        FROM tblCruise
+        LEFT JOIN (SELECT cruise_ID, STRING_AGG (CAST(key_table.keywords AS VARCHAR(MAX)), ', ') AS Keywords FROM tblCruise tblC
+        JOIN tblCruise_Keywords key_table ON [tblC].ID = [key_table].cruise_ID GROUP BY cruise_ID) AS keywords_agg ON [keywords_agg].cruise_ID = [tblCruise].ID
+        WHERE [tblCruise].ID IN (SELECT DISTINCT Cruise_ID FROM tblDataset_Cruises)
+    `;
     let result = await request.query(query);
     let cruiseList = result.recordset;
     cruiseList.forEach(cruise => delete cruise.Chief_Email);

@@ -19,5 +19,7 @@ router.get('/cruisefullpage', asyncControllerWrapper(catalogController.cruiseFul
 router.get('/membervariables', asyncControllerWrapper(catalogController.memberVariables));
 router.get('/variablesearch', asyncControllerWrapper(catalogController.variableSearch));
 router.get('/autocompletevariablesnames', asyncControllerWrapper(catalogController.autocompleteVariableNames));
+router.get('/variable', asyncControllerWrapper(catalogController.variable));
+router.get('/datasetsummary', asyncControllerWrapper(catalogController.datasetSummary));
 
 module.exports = router;
