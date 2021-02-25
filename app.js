@@ -48,6 +48,14 @@ app.get('/', (req, res, next) => {
     });
 })
 
+app.get('/about', (req, res, next) => {
+    res.cmapSkipCatchAll = true;
+    res.sendFile(__dirname + '/public/landing/about.html', null, (err) => {
+        if(err) next(err);
+        else next();
+    });
+});
+
 // API Routes
 app.use('/api/user', userRoutes);
 // app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);

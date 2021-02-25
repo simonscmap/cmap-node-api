@@ -622,7 +622,7 @@ exports.variableSearch = async(req, res, next) => {
     }
 
     if(temporalResolution && temporalResolution !== 'Any'){
-        clauses.push(searchBaseQuery += `\nAND Temporal_Resolution = '${temporalResolution}'`);
+        clauses.push(`\nAND Temporal_Resolution = '${temporalResolution}'`);
     }
 
     if(spatialResolution && spatialResolution !== 'Any'){
