@@ -47,6 +47,7 @@ window.gapi.load('auth2', () => {
 });
 
 async function submitContactForm(e){
+    
     try {
         e.preventDefault();
         e.stopPropagation();
@@ -73,6 +74,37 @@ async function submitContactForm(e){
         document.querySelector('#contact-us-failure').style.display = 'block';
         document.querySelector('#contact-us-failure').style.backgroundColor = 'red';
         document.querySelector('#contact-us-success').style.display = 'none';
+    }
+}
+
+async function submitContactFormMobile(e) {
+    try {
+        e.preventDefault();
+        e.stopPropagation();
+        let name = document.querySelector('#contact-us-name-mobile').value;
+        let email = document.querySelector('#contact-us-email-mobile').value;
+        let message = document.querySelector('#contact-us-message-mobile').value;
+        
+        await fetch('/api/community/contactus', {
+            method: 'POST', 
+            credentials: 'include',
+            body: JSON.stringify({name, email, message}),
+            headers: {
+                'Content-Type': 'application/json'
+              },
+        });
+
+        document.querySelector('#contact-us-success-mobile').style.display = 'block';
+        document.querySelector('#contact-us-success-mobile').style.backgroundColor = '#93b968';
+        document.querySelector('#contact-us-success-mobile').style.marginTop = '12px';
+        document.querySelector('#contact-us-failure-mobile').style.display = 'none';
+    }
+
+    catch(e) {
+        console.log(e)
+        document.querySelector('#contact-us-failure-mobile').style.display = 'block';
+        document.querySelector('#contact-us-failure-mobile').style.backgroundColor = 'red';
+        document.querySelector('#contact-us-success-mobile').style.display = 'none';
     }
 }
 
@@ -108,8 +140,18 @@ async function submitLoginForm(e){
     }
 }
 
-document.querySelector('#logout-button').addEventListener("click", logOut);
-document.querySelector('#email-form').addEventListener('submit', submitContactForm);
-document.querySelector('#email-form-2').addEventListener('submit', submitLoginForm);
+let logoutButton = document.querySelector('#logout-button');
+let emailForm = document.querySelector('#email-form');
+let emailFormMobile = document.querySelector('#email-form-mobile');
+let emailForm2 = document.querySelector('#email-form-2');
+
+if(logoutButton) logoutButton.addEventListener("click", logOut);
+if(emailForm) emailForm.addEventListener('submit', submitContactForm);
+if(emailForm2) emailForm2.addEventListener('submit', submitLoginForm);
+if(emailFormMobile) emailFormMobile.addEventListener('submit', submitContactFormMobile);
+
+// document.querySelector('#logout-button').addEventListener("click", logOut);
+// document.querySelector('#email-form').addEventListener('submit', submitContactForm);
+// document.querySelector('#email-form-2').addEventListener('submit', submitLoginForm);
 
 checkCookies();

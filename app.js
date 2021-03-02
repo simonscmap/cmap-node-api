@@ -50,7 +50,7 @@ app.get('/', (req, res, next) => {
 
 app.get('/about', (req, res, next) => {
     res.cmapSkipCatchAll = true;
-    res.sendFile(__dirname + '/public/landing/about.html', null, (err) => {
+    res.sendFile(__dirname + '/public/about.html', null, (err) => {
         if(err) next(err);
         else next();
     });
