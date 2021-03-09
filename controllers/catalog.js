@@ -242,6 +242,7 @@ exports.searchCatalog = async(req, res, next) => {
     if(region && region.length){
         query += `\nAND (
             ${region.map(r => `regs.Regions LIKE '%${r}%'`).join('\nOR ')}
+            \n OR regs.Regions LIKE 'Global'
         )`;
     }
 
@@ -681,6 +682,7 @@ exports.variableSearch = async(req, res, next) => {
     if(region && region.length){
         clauses.push(`\nAND (
             ${region.map(r => `Regions LIKE '%${r}%'`).join('\nOR ')}
+            \n OR Regions LIKE 'Global'
         )`);
     }
 

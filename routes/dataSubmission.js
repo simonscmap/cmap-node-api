@@ -26,4 +26,6 @@ router.get('/newoptionsrequests', checkAdminAuth, asyncControllerWrapper(dataSub
 router.post('/approvenewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.approveNewOptions));
 router.post('/rejectnewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.rejectNewOption));
 
+router.get('/deletesubmission', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.deleteSubmission));
+
 module.exports = router;

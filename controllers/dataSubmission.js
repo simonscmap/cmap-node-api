@@ -57,7 +57,7 @@ exports.beginUploadSession = async(req, res, next) => {
 exports.commitUpload = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     
-    const { sessionID } = req.body;
+    const { sessionID, dataSource, datasetLongName } = req.body;
     let fileName = req.body.fileName.trim();
     const offset = parseInt(req.body.offset);
     const currentTime = Date.now();
@@ -80,15 +80,18 @@ exports.commitUpload = async(req, res, next) => {
 
         let checkFilenameRequest = new sql.Request(pool);
         let checkFilenameQuery = `
-            SELECT ID FROM tblData_Submissions
+            SELECT ID, QC1_Completion_Date_Time FROM tblData_Submissions
             WHERE Filename_Root = '${fileName}'
         `;
 
         let checkFilenameResult = await checkFilenameRequest.query(checkFilenameQuery);
 
         var dataSubmissionID;
+        var qc1WasCompleted;
+
         if(checkFilenameResult.recordset && checkFilenameResult.recordset.length){
             dataSubmissionID = checkFilenameResult.recordset[0].ID;
+            qc1WasCompleted = !!checkFilenameResult.recordset[0].QC1_Completion_Date_Time;
             submissionType = 'Update';
         }
 
@@ -101,10 +104,12 @@ exports.commitUpload = async(req, res, next) => {
                 submissionType = 'New';
                 const dataSubmissionsInsert = new sql.Request(transaction);
                 dataSubmissionsInsert.input('filename', sql.NVarChar, fileName);
+                dataSubmissionsInsert.input('dataSource', sql.NVarChar, dataSource);
+                dataSubmissionsInsert.input('datasetLongName', sql.NVarChar, datasetLongName);
                 const dataSubmissionsInsertQuery = `
                 INSERT INTO [dbo].[tblData_Submissions] 
-                (Filename_Root, Submitter_ID)
-                VALUES (@filename, ${req.user.id})
+                (Filename_Root, Submitter_ID, Data_Source, Dataset_Long_Name)
+                VALUES (@filename, ${req.user.id}, @dataSource, @datasetLongName)
                 SELECT SCOPE_IDENTITY() AS ID
                 `;
 
@@ -117,7 +122,7 @@ exports.commitUpload = async(req, res, next) => {
                 dataSubmissionPhaseChange.input('filename', sql.NVarChar, fileName);
                 let dataSubmissionPhaseChangeQuery = `
                     UPDATE [dbo].[tblData_Submissions]
-                    SET Phase_ID = 2
+                    SET Phase_ID = ${qc1WasCompleted ? 7 : 2}
                     WHERE Filename_Root = @filename
                 `;
                 const dataSubmissionPhaseChangeQueryResult = await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
@@ -245,9 +250,13 @@ exports.submissions = async(req, res, next) => {
     let query = `
         SELECT 
             [dbo].[tblData_Submissions].[Filename_Root] as Dataset, 
+            [dbo].[tblData_Submissions].[Dataset_Long_Name], 
+            [dbo].[tblData_Submissions].[Data_Source], 
             [dbo].[tblData_Submissions].[ID] as Submission_ID, 
             [dbo].[tblData_Submission_Phases].[Phase],
             [dbo].[tblData_Submissions].[Phase_ID],
+            [dbo].[tblData_Submissions].[Start_Date_Time],
+            [dbo].[tblData_Submissions].[Ingestion_Date_Time],
             CONCAT([dbo].[tblUsers].[FirstName], ' ', [dbo].[tblUsers].[FamilyName]) as Name
         FROM [dbo].[tblData_Submissions]
         JOIN [dbo].[tblData_Submission_Phases] ON [tblData_Submissions].[Phase_ID] = [tblData_Submission_Phases].[ID]
@@ -266,6 +275,7 @@ exports.addComment = async(req, res, next) => {
 
     let { submissionID, comment } = req.body;
     let ownerID;
+    let qc1WasCompleted = false;
 
     //TODO make this check a re-usable function / middleware
     if(!req.user.isDataSubmissionAdmin){
@@ -274,12 +284,13 @@ exports.addComment = async(req, res, next) => {
             checkOwnerRequest.input('ID', sql.Int, submissionID);
     
             let checkOwnerQuery = `
-                SELECT Submitter_ID from tblData_Submissions
+                SELECT Submitter_ID, QC1_Completion_Date_Time from tblData_Submissions
                 WHERE ID = @ID
-            `
+            `;
     
             let checkOwnerResult = await checkOwnerRequest.query(checkOwnerQuery);
             let owner = checkOwnerResult.recordset[0].Submitter_ID;
+            qc1WasCompleted = !!checkOwnerResult.recordset[0].QC1_Completion_Date_Time;
 
             if(req.user.id !== owner){
                 return res.sendStatus(401);
@@ -327,7 +338,7 @@ exports.addComment = async(req, res, next) => {
             
             let dataSubmissionPhaseChangeQuery = `
                 UPDATE [dbo].[tblData_Submissions]
-                SET Phase_ID = 2
+                SET Phase_ID = ${qc1WasCompleted ? 7 : 2}
                 WHERE Filename_Root = @filename
             `;
             const dataSubmissionPhaseChangeQueryResult = await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
@@ -380,7 +391,12 @@ exports.submissionsByUser = async(req, res, next) => {
         SELECT 
             [dbo].[tblData_Submissions].[Filename_Root] as Dataset, 
             [dbo].[tblData_Submissions].[ID] as Submission_ID, 
-            [dbo].[tblData_Submission_Phases].[Phase]
+            [dbo].[tblData_Submission_Phases].[Phase],
+            [dbo].[tblData_Submissions].[Ingestion_Date_Time],
+            [dbo].[tblData_Submissions].[QC1_Completion_Date_Time],
+            [dbo].[tblData_Submissions].[QC2_Completion_Date_Time],
+            [dbo].[tblData_Submissions].[DOI_Accepted_Date_Time],
+            [dbo].[tblData_Submissions].[Start_Date_Time]
         FROM [dbo].[tblData_Submissions]
         JOIN [dbo].[tblData_Submission_Phases] ON [tblData_Submissions].[Phase_ID] = [tblData_Submission_Phases].[ID]
         WHERE Submitter_ID = ${userID}
@@ -467,9 +483,19 @@ exports.setPhase = async(req, res, next) => {
     request.input('phaseID', sql.Int, phaseID);
     request.input('submissionID', sql.Int, submissionID);
 
+    let phaseSpecificQueryPart;
+
+    switch(phaseID){
+        case 4: phaseSpecificQueryPart = `, QC2_Completion_Date_Time = GETDATE(), QC2_Completed_By = ${req.user.id}`; break;
+        case 5: phaseSpecificQueryPart = `, DOI_Accepted_Date_Time = GETDATE()`; break;
+        case 6: phaseSpecificQueryPart = ', Ingestion_Date_Time = GETDATE()'; break;
+        case 7: phaseSpecificQueryPart = `, QC1_Completion_Date_Time = GETDATE(), QC1_Completed_By = ${req.user.id}`; break;
+        default: phaseSpecificQueryPart = ''; break;
+    }
+
     let query = `
         UPDATE [tblData_Submissions]
-        SET Phase_ID = @phaseID
+        SET Phase_ID = @phaseID${phaseSpecificQueryPart}
         WHERE ID = @submissionID;
 
         SELECT [dbo].[tblData_Submissions].[Filename_Root],
@@ -520,6 +546,33 @@ exports.setPhase = async(req, res, next) => {
             catch(e) {
                 console.log('Data submission notify admin failed:')
                 console.log(e);
+            }
+        }
+
+        if(phaseID === 7){
+            notificationContent = emailTemplates.qc1CompleteNotification(datasetName, req.user);
+
+            let notification =
+            "From: 'me'\r\n" +
+            "To: cmap-data-submission@uw.edu\r\n" +
+            `Subject: ${datasetName} Ready for QC2\r\n` +
+            "Content-Type: text/html; charset='UTF-8'\r\n" +
+            "Content-Transfer-Encoding: base64\r\n\r\n" +
+            notificationContent;
+
+            let rawNotification = base64url.encode(notification);
+
+            try {
+                await emailClient.users.messages.send({
+                    userId: 'me',
+                    resource: {
+                        raw: rawNotification
+                    }
+                });
+            } 
+    
+            catch(e) {
+                console.log('Data submission notify admin failed:')
             }
         }
     }
@@ -582,4 +635,24 @@ exports.approveNewOption = async(req, res, next) => {
 
 exports.rejectNewOption = async(req, res, next) => {
     // delete from table or flag as rejected?
+}
+
+exports.deleteSubmission = async(req, res, next) => {
+    let pool = await userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    try {
+        request.input('submissionID', sql.Int, req.query.submissionID)
+        let query = `DELETE FROM tblData_Submissions WHERE ID = @submissionID`;
+        let response = await request.query(query);
+        res.sendStatus(200);
+        return next();
+    }
+
+    catch(e) {
+        console.log('Failed to delete dataset');
+        console.log(e);
+        res.sendStatus(500);
+    }
+
 }

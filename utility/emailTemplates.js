@@ -240,3 +240,7 @@ module.exports.ingestionCompleteNotification = (datasetName) => (`
   You can now view your dataset in the <a href=${catalogURL} target="_blank">Data Catalog</a><br>
   Thank you for contributing to Simons CMAP!
 `);
+
+module.exports.qc1CompleteNotification = (datasetName, user) => (`
+  ${user.firstName + ' ' + user.lastName} has completed QC1 for the submission, ${datasetName}. This dataset is now ready for QC2. 
+`);
