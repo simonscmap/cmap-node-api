@@ -22,4 +22,6 @@ router.get('/autocompletevariablesnames', asyncControllerWrapper(catalogControll
 router.get('/variable', asyncControllerWrapper(catalogController.variable));
 router.get('/datasetsummary', asyncControllerWrapper(catalogController.datasetSummary));
 
+router.get('/updates', asyncControllerWrapper(catalogController.updates));
+
 module.exports = router;

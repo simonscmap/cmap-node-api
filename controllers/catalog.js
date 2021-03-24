@@ -436,11 +436,12 @@ exports.cruiseFullPage = async(req, res, next) => {
     next();
 }
 
+// Not currently in use. Cruise search is fully client-side
 exports.searchCruises = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
     
-    let { searchTerms, hasDepth, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd, sensor } = req.query;
+    let { searchTerms, chiefScientist, timeStart, timeEnd, latStart, latEnd, lonStart, lonEnd } = req.query;
     if(typeof searchTerms === 'string') searchTerms = [searchTerms];
     
     if(sensor && !(sensor === "Any" || sensor === "GPS")) {
@@ -827,4 +828,24 @@ exports.datasetSummary = async(req, res, next) => {
         console.log(e);
         res.sendStatus(500);
     }
+}
+
+exports.updates = async(req, res, next) => {
+    let pool = await pools.dataReadOnlyPool;
+    let request = await new sql.Request(pool);
+
+    let query = `SELECT DISTINCT Chief_Name FROM tblCruise WHERE Chief_Name NOT LIKE '%,%' AND Chief_Name <> '' AND Chief_Name <> 'Multiple - Virginia Armbrust'`;
+    let response = await request.query(query);
+
+    let names = response.recordset;
+    let queries = names.map(obj => {
+        let original = obj.Chief_Name;
+        let split = original.split(' ');
+        return `
+        UPDATE tblCruise
+        SET Chief_Name = '${split[1]}, ${split[0]}'
+        WHERE Chief_Name = '${original}'`
+    })
+
+    console.log(queries.join('\n'));
 }

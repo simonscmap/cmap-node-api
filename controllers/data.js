@@ -34,29 +34,44 @@ exports.cruiseList = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let query =  `
-        SELECT 
-            [tblCruise].ID 
-            ,[tblCruise].Nickname
-            ,[tblCruise].Name
-            ,[tblCruise].Ship_Name
-            ,[tblCruise].Start_Time
-            ,[tblCruise].End_Time
-            ,[tblCruise].Lat_Min
-            ,[tblCruise].Lat_Max
-            ,[tblCruise].Lon_Min
-            ,[tblCruise].Lon_Max
-            ,[tblCruise].Chief_Name
-            ,[keywords_agg].Keywords
-        FROM tblCruise
-        LEFT JOIN (SELECT cruise_ID, STRING_AGG (CAST(key_table.keywords AS VARCHAR(MAX)), ', ') AS Keywords FROM tblCruise tblC
-        JOIN tblCruise_Keywords key_table ON [tblC].ID = [key_table].cruise_ID GROUP BY cruise_ID) AS keywords_agg ON [keywords_agg].cruise_ID = [tblCruise].ID
-        WHERE [tblCruise].ID IN (SELECT DISTINCT Cruise_ID FROM tblDataset_Cruises)
+    let query = `
+    SELECT 
+    [tblCruise].ID 
+    ,[tblCruise].Nickname
+    ,[tblCruise].Name
+    ,[tblCruise].Ship_Name
+    ,[tblCruise].Start_Time
+    ,[tblCruise].End_Time
+    ,[tblCruise].Lat_Min
+    ,[tblCruise].Lat_Max
+    ,[tblCruise].Lon_Min
+    ,[tblCruise].Lon_Max
+    ,[tblCruise].Chief_Name
+    ,[keywords_agg].Keywords
+    ,CAST(YEAR(Start_Time) as NVARCHAR) as Year
+    ,cruise_regions.Regions
+    ,CASE
+        WHEN tblCruise_Series.Series IS NOT NULL THEN tblCruise_Series.Series
+        WHEN tblCruise_Series.Series IS NULL THEN 'Other'
+        END AS Series
+    FROM tblCruise
+    LEFT JOIN tblCruise_Series ON tblCruise.Cruise_Series = tblCruise_Series.ID
+    LEFT JOIN (
+        SELECT cr.Cruise_ID AS ID,
+        STRING_AGG(CAST(Region_Name as NVARCHAR(MAX)), ',') as Regions
+        FROM tblCruise_Regions cr
+        LEFT JOIN tblRegions rg ON cr.Region_ID = rg.Region_ID
+        GROUP BY cr.Cruise_ID
+    ) cruise_regions ON tblCruise.ID = cruise_regions.ID
+    LEFT JOIN (SELECT cruise_ID, STRING_AGG (CAST(key_table.keywords AS VARCHAR(MAX)), ', ') AS Keywords FROM tblCruise tblC
+    JOIN tblCruise_Keywords key_table ON [tblC].ID = [key_table].cruise_ID GROUP BY cruise_ID) AS keywords_agg ON [keywords_agg].cruise_ID = [tblCruise].ID
+    WHERE [tblCruise].ID IN (SELECT DISTINCT Cruise_ID FROM tblDataset_Cruises)
     `;
+
     let result = await request.query(query);
-    let cruiseList = result.recordset;
-    cruiseList.forEach(cruise => delete cruise.Chief_Email);
-    res.json(cruiseList);
+    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
+    await res.end(JSON.stringify(result.recordset));
+    next();
 }
 
 exports.tableStats = async (req, res, next) => {
