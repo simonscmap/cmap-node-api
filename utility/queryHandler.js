@@ -106,6 +106,9 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
         request.cancel();
     })
 
+    let count = 0;
+    request.on('row', () => count ++);
+
     request.on('error', err => {
         requestError = true;
         console.log(err);
