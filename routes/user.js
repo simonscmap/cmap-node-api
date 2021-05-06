@@ -52,4 +52,7 @@ router.post('/removecartitem', passport.authenticate('jwt', {session:false}), as
 router.get('/clearcart', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.clearCart));
 router.get('/getcart', passport.authenticate('jwt', {session:false}), asyncControllerWrapper(userController.getCart));
 
+// router.get('/getguesttoken'), passport.authenticate('browserOnly', { session: false}), asyncControllerWrapper(userContoller.getGuestToken);
+router.get('/getguesttoken', passport.authenticate('browserOnly', { session: false}), asyncControllerWrapper(userController.getGuestToken));
+
 module.exports = router;

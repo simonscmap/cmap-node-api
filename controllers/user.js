@@ -9,6 +9,8 @@ const UnsafeUser = require('../models/UnsafeUser');
 const userDBConfig = require ('../config/dbConfig').userTableConfig;
 const awaitableEmailClient = require('../utility/emailAuth');
 const emailTemplates = require('../utility/emailTemplates');
+const guestTokenHashFromRequest = require('../utility/guestTokenHashFromRequest');
+const sqlSegments = require('../utility/sqlSegments');
 
 const apiKeyTable = 'tblApi_Keys'
 
@@ -16,6 +18,7 @@ const cmapClientID = '739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleu
 
 var pools = require('../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
+const { request } = require('express');
 
 const standardCookieOptions = {
     // secure: true,
@@ -372,4 +375,76 @@ exports.getCart = async(req, res, next) => {
 
     res.end();
     return next();
+}
+
+exports.getGuestToken = async(req, res, next) => {    
+    let pool = await pools.userReadAndWritePool;    
+
+    let checkTokenLimitRequest = await new sql.Request(pool);
+    let checkTokenLimitResult = await checkTokenLimitRequest.query(`
+        ${sqlSegments.declareAndSetDateTimeVariables}
+
+        SELECT * FROM [tblGuest_Tokens_Issued_Hourly]
+        WHERE [Date_Time] = ${sqlSegments.dateTimeFromParts}
+    `);
+
+    if(checkTokenLimitResult.recordset && checkTokenLimitResult.recordset.length){
+        let tokensIssuedThisHour = checkTokenLimitResult.recordset[0].Tokens_Issued;
+        if(tokensIssuedThisHour > 200){
+            res.sendStatus(503);
+            return next();
+        }      
+    }
+
+    else {
+        let addNewHourRowRequest = await new sql.Request(pool);
+        let addNewHourRowResult;
+        
+        try {
+            addNewHourRowResult = await addNewHourRowRequest.query(`
+                ${sqlSegments.declareAndSetDateTimeVariables}
+                INSERT INTO [tblGuest_Tokens_Issued_Hourly] ([Date_Time], [Tokens_Issued])
+                VALUES ( ${sqlSegments.dateTimeFromParts}, 1)
+            `);
+        }
+
+        catch(e) {
+            if(e.number === 2601){
+                // another node instance inserted this row during our network call. 
+                //Just increment
+            }
+
+            else {
+                res.sendStatus(503);
+                return next();
+            }
+        }
+    }
+
+    // if you're not going to increment a row and send back a token you should have exited the function by now
+    let incrementTokensIssuedRequest = await new sql.Request(pool);
+    incrementTokensIssuedRequest.query(`
+        ${sqlSegments.declareAndSetDateTimeVariables}
+        UPDATE [tblGuest_Tokens_Issued_Hourly]
+        SET [Tokens_Issued] = [Tokens_Issued] + 1
+        WHERE [Date_Time] = ${sqlSegments.dateTimeFromParts}
+    `);
+
+    let hash = guestTokenHashFromRequest(req);
+
+    let storeTokenInfoRequest = await new sql.Request(pool);
+    let storeTokenInfoResult = await storeTokenInfoRequest.query(`
+        INSERT INTO tblGuest_Tokens ([Hash])
+        Values ('${hash}')
+        SELECT SCOPE_IDENTITY() AS ID
+    `);
+
+    let token = {
+        id: storeTokenInfoResult.recordset[0].ID,
+        hash
+    };
+
+    let expires = parseInt(req.query.expires);
+    res.cookie('guestToken', await jwt.sign(token, jwtConfig.secret, {expiresIn:'24h'}), {expires: new Date(expires)});    
+    return res.sendStatus(200)
 }
