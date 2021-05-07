@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const sql = require('mssql');
 const passport = require('passport');
+const bcrypt = require('bcryptjs');
 const JwtStrategy = require('passport-jwt').Strategy;
 const HeaderApiKeyStrategy = require('passport-headerapikey').HeaderAPIKeyStrategy;
 const LocalStrategy = require('passport-local').Strategy;
@@ -73,8 +74,6 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
 
 passport.use(new LocalStrategy(localStrategyOptions,
     async function(req, username, password, done) {
-        console.log(username);
-        console.log(password);
         try{
             let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByUsername(username));
             bcrypt.compare(password, unsafeUser.password, function (err, isMatch){
@@ -86,6 +85,7 @@ passport.use(new LocalStrategy(localStrategyOptions,
                 return done(null, false);
             })
         } catch (e) {
+            console.error(e)
             return done(null, false);
         }
     }

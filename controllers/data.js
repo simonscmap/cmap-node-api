@@ -7,7 +7,6 @@ const sql = require('mssql');
 
 exports.customQuery = async (req, res, next)=> {
     req.cmapApiCallDetails.query = req.query.query;
-    console.log(req.query.query)
     queryHandler(req, res, next, req.query.query);
 };
 
@@ -19,7 +18,6 @@ exports.storedProcedure = async (req, res, next)=>{
 
     let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
     req.cmapApiCallDetails.query = spExecutionQuery;
-    console.log(spExecutionQuery)
     queryHandler(req, res, next, spExecutionQuery);
 };
 
