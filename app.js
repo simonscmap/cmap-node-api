@@ -58,11 +58,14 @@ app.get('/about', (req, res, next) => {
 
 // API Routes
 app.use('/api/user', userRoutes);
-app.use('/api/data', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRoutes);
-// app.use('/api/data', dataRoutes);
+// app.use('/api/data', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), dataRoutes);
+app.use('/api/data', dataRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/datasubmission', passport.authenticate(['headerapikey', 'jwt'], {session: false}), upload.any(), dataSubmissionRoutes);
+
+// app.use('/guesttest', passport.authenticate('guest', {session: false}), () => console.log('hi'));
+app.use('/testguestauth', passport.authenticate('guest', {session: false}), () => console.log('hi'));
 
 // Usage metrics logging
 app.use((req, res, next) => {

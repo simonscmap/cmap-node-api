@@ -13,11 +13,11 @@ var pools = require('../dbHandlers/dbPools');
 module.exports = class UnsafeUser {
 
     constructor(userInfo){
-        this.firstName = userInfo.firstName || userInfo.FirstName;
-        this.lastName = userInfo.lastName || userInfo.FamilyName;
-        this.username = userInfo.userName || userInfo.Username || userInfo.username;
+        this.firstName = userInfo.firstName || userInfo.FirstName || 'Guest';
+        this.lastName = userInfo.lastName || userInfo.FamilyName || 'Guest';
+        this.username = userInfo.userName || userInfo.Username || userInfo.username || 'Guest';
         this.password = userInfo.password || userInfo.Password || 'NoPass';
-        this.email = userInfo.email || userInfo.Email;
+        this.email = userInfo.email || userInfo.Email || 'Guest';
         this.institute = userInfo.institute || userInfo.Institute || null;
         this.department = userInfo.department || userInfo.Department || null;
         this.country = userInfo.country || userInfo.Country || null;
@@ -28,7 +28,7 @@ module.exports = class UnsafeUser {
 
         this.apiKey = userInfo.Api_Key || null;
         this.apiKeyID = userInfo.Api_Key_ID || userInfo.apiKeyID || null;
-        this.isDataSubmissionAdmin = Boolean(userInfo.Is_Data_Submission_Admin) || Boolean(userInfo.isDataSubmissionAdmin);
+        this.isDataSubmissionAdmin = Boolean(userInfo.Is_Data_Submission_Admin) || Boolean(userInfo.isDataSubmissionAdmin) || false;
     }
 
     static async getUserByUsername(username){

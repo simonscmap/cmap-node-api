@@ -1,13 +1,15 @@
 const router = require('express').Router();
+const passport = require('../middleware/passport');
+
 const dataController = require('../controllers/data');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 
 // Custom query statement route
-router.get('/query', asyncControllerWrapper(dataController.customQuery));
+router.get('/query', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), asyncControllerWrapper(dataController.customQuery));
 
 // Stored procedure route
-router.get('/sp', asyncControllerWrapper(dataController.storedProcedure));
+router.get('/sp', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), asyncControllerWrapper(dataController.storedProcedure));
 
 // Get list of cruises
 router.get('/cruiselist', asyncControllerWrapper(dataController.cruiseList));
