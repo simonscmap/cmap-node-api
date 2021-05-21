@@ -56,7 +56,7 @@ const variableCatalog = `
     JOIN tblSensors ON [tblVariables].Sensor_ID=[tblSensors].ID
     JOIN tblProcess_Stages ON [tblVariables].Process_ID=[tblProcess_Stages].ID
     JOIN tblStudy_Domains ON [tblVariables].Study_Domain_ID=[tblStudy_Domains].ID
-    JOIN (SELECT var_ID, STRING_AGG (keywords, ', ') AS Keywords FROM tblVariables var_table
+    JOIN (SELECT var_ID, STRING_AGG ( CAST(keywords as NVARCHAR(MAX)), ', ') AS Keywords FROM tblVariables var_table
     JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
     AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
 `;
