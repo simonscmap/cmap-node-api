@@ -40,6 +40,7 @@ app.use((req, res, next) => {
 app.use('/user', userRoutes);
 app.use('/dataretrieval', passport.authenticate(['headerapikey', 'jwt'], {session: false}), dataRetrievalRoutes);
 
+// serve the landing page as a static file
 app.get('/', (req, res, next) => {
     res.cmapSkipCatchAll = true;
     res.sendFile(__dirname + '/public/landing/landing.html', null, (err) => {
@@ -48,6 +49,7 @@ app.get('/', (req, res, next) => {
     });
 })
 
+// serve the about page as a static file
 app.get('/about', (req, res, next) => {
     res.cmapSkipCatchAll = true;
     res.sendFile(__dirname + '/public/about.html', null, (err) => {
@@ -58,14 +60,10 @@ app.get('/about', (req, res, next) => {
 
 // API Routes
 app.use('/api/user', userRoutes);
-// app.use('/api/data', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), dataRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/datasubmission', passport.authenticate(['headerapikey', 'jwt'], {session: false}), upload.any(), dataSubmissionRoutes);
-
-// app.use('/guesttest', passport.authenticate('guest', {session: false}), () => console.log('hi'));
-app.use('/testguestauth', passport.authenticate('guest', {session: false}), () => console.log('hi'));
 
 // Usage metrics logging
 app.use((req, res, next) => {
@@ -82,6 +80,7 @@ app.use((req, res, next) => {
     }
 })
 
+// catch-all error logging
 app.use((err, req, res, next) => {
     console.log('an error occurred in the catch-all')
     console.log(err);
@@ -89,6 +88,3 @@ app.use((err, req, res, next) => {
 })
 
 var server = app.listen(port, ()=>{console.log(`listening on port ${port}`)});
-
-// Super long timeout for testing
-server.timeout = 84000000;

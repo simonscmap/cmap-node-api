@@ -8,8 +8,8 @@ const iss = "Simons CMAP";
 
 var pools = require('../dbHandlers/dbPools');
 
-// Instances of this class contain sensitive information
-// and should never be sent to the client directly. See makeSafe
+// This is the general user class. Instances can include a password in some routes, hence "unsafe". Makesafe
+// returns an object literal with partial information and no password.
 module.exports = class UnsafeUser {
 
     constructor(userInfo){
@@ -36,7 +36,13 @@ module.exports = class UnsafeUser {
         let request = await new sql.Request(pool);
         request.input('username', sql.NVarChar, username);
         request.on('error', err => console.log(err));
-        let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE username = @username`);
+
+        try {
+            let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE username = @username`);
+        }
+
+        catch(e) {console.log(e)}
+
         return result.recordset.length ? new this(result.recordset[0]) : false;
     }
 

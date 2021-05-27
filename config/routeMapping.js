@@ -1,4 +1,5 @@
-// Maps request path to a route ID used in recording calls to SQL
+// Maps request path to a route ID used in recording calls to SQL. No longer maintained
+
 let routeMapping = {
     // A route ID of 1 in SQL means no matching route was found
     '' : 2,

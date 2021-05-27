@@ -5,6 +5,7 @@ const awaitableEmailClient = require('../utility/emailAuth');
 const emailTemplates = require('../utility/emailTemplates');
 const { userReadAndWritePool } = require('../dbHandlers/dbPools');
 
+// Endpoint used by contact us form on landing page
 exports.contactUs = async(req, res, next) => {
     let payload = req.body;
 
@@ -34,6 +35,7 @@ exports.contactUs = async(req, res, next) => {
     return next();
 }
 
+// Front end error boundary sends error reports to this endpoints when the app crashes
 exports.errorReport = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);

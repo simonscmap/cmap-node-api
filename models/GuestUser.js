@@ -1,3 +1,5 @@
+//
+
 module.exports = class GuestUser {
     constructor(){
         this.firstName = 'Guest';

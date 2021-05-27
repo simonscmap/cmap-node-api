@@ -8,7 +8,7 @@ const base64url = require('base64-url');
 
 let emailSubjectRoot = 'CMAP Data Submission - ';
 
-// Begin upload session and return ID
+// Begin data submission upload session and return ID
 exports.beginUploadSession = async(req, res, next) => {
     const { datasetName } = req.body;
     let pool = await userReadAndWritePool;
@@ -53,7 +53,7 @@ exports.beginUploadSession = async(req, res, next) => {
     }
 }
 
-// Commit upload session
+// Commit upload session (completing upload)
 exports.commitUpload = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     
@@ -217,6 +217,8 @@ exports.commitUpload = async(req, res, next) => {
     }
 }
 
+// Larger data submission must be uploaded in parts.  This endpoint takes a session ID from
+// /beginuploadsession and uploads a chunk of the file
 exports.uploadFilePart = async(req, res, next) => {
     const { sessionID } = req.body;
     const offset = parseInt(req.body.offset);
@@ -242,6 +244,7 @@ exports.uploadFilePart = async(req, res, next) => {
     }
 }
 
+// Retrieve all data submissions. Used on admin dashboard
 exports.submissions = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
@@ -269,6 +272,7 @@ exports.submissions = async(req, res, next) => {
     return res.json(result.recordset);
 }
 
+// Add a timestamped comment to a submission
 exports.addComment = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
@@ -381,6 +385,7 @@ exports.addComment = async(req, res, next) => {
     }
 }
 
+// Retrieve submissions for a single user. Used by user dashboard
 exports.submissionsByUser = async(req, res, next) => {
     let pool = await dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -406,8 +411,8 @@ exports.submissionsByUser = async(req, res, next) => {
     return res.json(result.recordset);
 }
 
+// Retrieves references to all file version of a submission. Not currently used
 exports.uploadHistory = async(req, res, next) => {
-    // TODO returns full list of files associated with a submission
     let pool = await dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
@@ -420,6 +425,7 @@ exports.uploadHistory = async(req, res, next) => {
     `;
 }
 
+// Retrieves comments for a single submission
 exports.commentHistory = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
@@ -474,6 +480,7 @@ exports.commentHistory = async(req, res, next) => {
     }
 }
 
+// Changes the current phase of a submission. User by admin dashboard. Automatically sends relevant email to user
 exports.setPhase = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
@@ -584,6 +591,7 @@ exports.setPhase = async(req, res, next) => {
     }
 }
 
+// Generates a temporary download link to the most recent version of a submission, and sends to client
 exports.retrieveMostRecentFile = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);
@@ -621,22 +629,7 @@ exports.retrieveMostRecentFile = async(req, res, next) => {
 
 }
 
-exports.newOption = async(req, res, next) => {
-    // Insert into option request table, notify admin
-}
-
-exports.newOptionsRequests = async(req, res, next) => {
-    // Query and send a list of the requests
-}
-
-exports.approveNewOption = async(req, res, next) => {
-    // Add to table?
-}
-
-exports.rejectNewOption = async(req, res, next) => {
-    // delete from table or flag as rejected?
-}
-
+// Deletes a data submission. Used on admin dashboard
 exports.deleteSubmission = async(req, res, next) => {
     let pool = await userReadAndWritePool;
     let request = await new sql.Request(pool);

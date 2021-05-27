@@ -1,5 +1,7 @@
 const Transform = require('stream').Transform
 
+// Allows a larger buffer than default stream, reduces number of write operations
+
 module.exports = class AccumulatorStream extends Transform {
     constructor(options){
         super(options);

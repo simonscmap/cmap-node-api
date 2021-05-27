@@ -66,12 +66,9 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
     catch(e) {
         return done(null, false);
     }
-    //retrieve guest token from cookie, check stored hash against hash of useragentinfo, increment
-    // if guest is invalid return done(null, false)
-    // othrwise return done(null, new GuestUser()) and increment token usage count
-    // SELECT SCOPE_IDENTITY() AS ID
 }));
 
+// Protects user signin route. Finds user and checks password
 passport.use(new LocalStrategy(localStrategyOptions,
     async function(req, username, password, done) {
         try{
@@ -91,6 +88,7 @@ passport.use(new LocalStrategy(localStrategyOptions,
     }
   ));
 
+  // Confirms JWT was signed using out secret
 passport.use(new JwtStrategy(
     jwtExtractorOpts,
     async function(req, jwtPayload, done){
@@ -106,6 +104,7 @@ passport.use(new JwtStrategy(
     }
 ))
 
+// Confirms API key belonds to registered user
 passport.use(new HeaderApiKeyStrategy(
     headerApiKeyOpts,
     true,

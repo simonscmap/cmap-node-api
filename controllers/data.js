@@ -3,13 +3,13 @@ const queryHandler = require('../utility/queryHandler');
 var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
 
-// const Transform = require('stream').Transform
-
+// Custom query endpoint
 exports.customQuery = async (req, res, next)=> {
     req.cmapApiCallDetails.query = req.query.query;
     queryHandler(req, res, next, req.query.query);
 };
 
+// Stored procedure call endpoint
 exports.storedProcedure = async (req, res, next)=>{
     let argSet = req.query;
 
@@ -21,6 +21,7 @@ exports.storedProcedure = async (req, res, next)=>{
     queryHandler(req, res, next, spExecutionQuery);
 };
 
+// Retrieves a single cruise trajectory
 exports.cruiseTrajectory = async (req, res, next) => {
     let cruiseID = req.query.id;
     let query = `EXEC uspCruiseTrajectory ${cruiseID}`;
@@ -30,6 +31,7 @@ exports.cruiseTrajectory = async (req, res, next) => {
     queryHandler(req, res, next, query);
 }
 
+// Retrieves all cruises
 exports.cruiseList = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -74,6 +76,7 @@ exports.cruiseList = async (req, res, next) => {
     next();
 }
 
+// Retrieves table stats for a variable
 exports.tableStats = async (req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -94,6 +97,7 @@ exports.tableStats = async (req, res, next) => {
     res.send(result.recordset[0].JSON_stats);
 }
 
+// Protocol buffer test from long ago. Kept for reference
 // exports.testProto = async(req, res, next) => {
 //     let protos = await protoLib;
 //     let pool = await pools.dataReadOnlyPool;

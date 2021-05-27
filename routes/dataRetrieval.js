@@ -3,6 +3,9 @@ const dataRetrievalController = require('../controllers/dataRetrieval');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 
+// dataRetrieval routes are no longer used by the web app, and can be removed if no longer
+// in use by the SDKs
+
 // Custom query statement route
 router.get('/query', asyncControllerWrapper(dataRetrievalController.customQuery));
 

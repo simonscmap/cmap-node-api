@@ -1,3 +1,5 @@
+// Not currently in use
+
 module.exports = class StoredProcedureArgumentSet{
     constructor(sprocArgs){
         this.spName = sprocArgs.spName;

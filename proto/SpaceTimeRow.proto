@@ -1,9 +1,0 @@
-package spacetimepackage;
-syntax = "proto3";
- 
-message SpaceTimeRow {
-    string time = 1;
-    float lat = 2;
-    float lon = 3;
-    float var = 4;
-}

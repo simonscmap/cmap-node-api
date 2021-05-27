@@ -8,6 +8,7 @@ var pools = require('../dbHandlers/dbPools');
 const apiCallsTable = "tblApi_Calls";
 const apiCallDetailsTable = "tblApi_Call_Details";
 
+// Model for tblApi_Calls
 module.exports = class ApiCallDetail{
     constructor(req){
         this.ip = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip || 'None';

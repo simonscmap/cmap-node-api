@@ -5,10 +5,7 @@ const errors = require('../errorHandling/errorsStrings');
 var pools = require('../dbHandlers/dbPools');
 const sql = require('mssql');
 
-const CSVStream = require('../utility/CSVStream');
-
-const { finished } = require('stream');
-
+// This set of end points is no longer used by the web app. It can be removed if SDKs are using the /data routes as well
 
 exports.customQuery = async (req, res, next)=>{
     // Executes a custom written query on the sql server and returns the result as json.

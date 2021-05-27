@@ -1,5 +1,6 @@
 const Transform = require('stream').Transform
 
+// Only used in old /dataretrieval routes, which are no longer used by the web app. Can be deleted if SDKs are using /data
 module.exports = class CustomTransform extends Transform {
     constructor(){
         super();

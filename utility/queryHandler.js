@@ -6,19 +6,15 @@ const Accumulator = require('../utility/AccumulatorStream');
 const generateError = require('../errorHandling/generateError');
 
 function formatDate(date) {
-    // if(date.getUTCHours() === 0){
-    //     let month  = date.getUTCMonth() + 1;
-    //     let day = date.getUTCDate();
-    //     let year = date.getUTCFullYear();
-    //     return [year, month < 10 ? '0' + month : month, day < 10 ? '0' + day : day].join('-');
-    // } else return 
     return date.toISOString();
 }
 
 const mariana = 'mariana';
 const rainier = 'rainier';
+const rossby = 'rossby';
 const skipLogging = new Set(['ECANCEL']);
 
+// Streaming data handler used by /data routes
 const handleQuery = async (req, res, next, query, forceRainier) => {
 
     let pool;
@@ -37,19 +33,16 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
             pool = await pools.dataReadOnlyPool;
             poolName = rainier;
         }
+
+        else if(req.query.servername === rossby){
+            pool = await pools.rossby;
+            poolName = rossby;
+        }
     }
 
     else {
-        // Random load balancing
-        if(!forceRainier && Math.random() >= .5){
-            pool = await pools.mariana;
-            poolName = mariana;
-        }
-    
-        else {
-            pool = await pools.dataReadOnlyPool;
-            poolName = rainier;
-        }
+        pool = await pools.dataReadOnlyPool;
+        poolName = rainier;
     }
 
     let request = await new sql.Request(pool);

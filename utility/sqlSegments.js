@@ -1,3 +1,5 @@
+// SQL statement sections used in multiple routes
+
 module.exports = {
     declareAndSetDateTimeVariables: `
         DECLARE @DateTimeVariable datetime

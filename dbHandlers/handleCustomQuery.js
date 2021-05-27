@@ -1,3 +1,5 @@
+// Old handler from /dataretrieval routes that are no longer used by web app
+
 const sql = require('mssql');
 const ndjson = require('ndjson');
 var pools = require('./dbPools');

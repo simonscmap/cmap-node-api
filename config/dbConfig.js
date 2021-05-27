@@ -43,3 +43,18 @@ module.exports.mariana = {
         max: 500
     }
 }
+
+module.exports.rossby = {
+    server: process.env.ROSSBY_SERVER,
+    port: Number(process.env.DB_PORT),
+    database: "Opedia",
+    user: process.env.DB_READ_ONLY_USER,
+    password: process.env.DB_READ_ONLY_PASSWORD,
+    connectionTimeout: 50000,
+    requestTimeout: 86000000,
+    pool: {
+        idleTimeoutMillis: 50000,
+        min: 3,
+        max: 500
+    }
+}

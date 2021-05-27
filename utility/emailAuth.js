@@ -9,6 +9,7 @@ const { promisify } = require('util');
 
 const readFileAsync = promisify(fs.readFile);
 
+// Initializes email client for sending no-reply mail. Assists in creating a new credentials file if one is missing
 const emailClientInit = async () => {
     let credentials = JSON.parse(await readFileAsync('./credentials.json'));
 

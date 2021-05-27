@@ -4,6 +4,7 @@ const nodeCache = require('../utility/nodeCache');
 const queryHandler = require('../utility/queryHandler');
 var pools = require('../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
+const datasetFullPageQuery = require('../dbHandlers/datasetFullPageQuery');
 const cruiseCatalogQuery = require('../dbHandlers/cruiseCatalogQuery');
 const catalogPlusLatCountQuery = require('../dbHandlers/catalogPlusLatCountQuery');
 
@@ -56,15 +57,17 @@ const variableCatalog = `
     JOIN tblSensors ON [tblVariables].Sensor_ID=[tblSensors].ID
     JOIN tblProcess_Stages ON [tblVariables].Process_ID=[tblProcess_Stages].ID
     JOIN tblStudy_Domains ON [tblVariables].Study_Domain_ID=[tblStudy_Domains].ID
-    JOIN (SELECT var_ID, STRING_AGG (keywords, ', ') AS Keywords FROM tblVariables var_table
+    JOIN (SELECT var_ID, STRING_AGG ( CAST(keywords as NVARCHAR(MAX)), ', ') AS Keywords FROM tblVariables var_table
     JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
     AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
 `;
 
+// No longer used by web app
 exports.retrieve = async (req, res, next) => {
     queryHandler(req, res, next, 'EXEC uspCatalog', true);
 }
 
+// No longer used by web app
 exports.datasets = async (req,res,next) => {
     queryHandler(req, res, next, 'SELECT * FROM tblDatasets', true);
 }
@@ -80,6 +83,7 @@ exports.description = async (req, res, next) => {
     res.json(result.recordset[0]);
 }
 
+// Used internally for identifying name mismatches
 exports.auditCatalogVariableNames = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -115,6 +119,7 @@ exports.auditCatalogVariableNames = async(req, res, next) => {
     res.json(response);
 }
 
+// Retrieves lists of available options for search and data submission components
 exports.submissionOptions = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
 
@@ -157,6 +162,7 @@ exports.submissionOptions = async(req, res, next) => {
 
 }
 
+// No longer in use in web app
 exports.keywords = async(req, res, next) => {
     let keywords = nodeCache.get("keywords");
 
@@ -177,6 +183,7 @@ exports.keywords = async(req, res, next) => {
     next();
 }
 
+// Web app /catalog search endpoint
 exports.searchCatalog = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -286,13 +293,13 @@ exports.searchCatalog = async(req, res, next) => {
     next();
 }
 
-// Takes a dataset ID and returns json of dataset and member variables
+// Retrieves dataset and variable information for catalog pages
 exports.datasetFullPage = async(req, res, next) => {
     let { shortname } = req.query;
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
 
-    let query = datasetCatalogQuery +
+    let query = datasetFullPageQuery +
         `AND ds.Dataset_Name='${shortname}'   
 
         SELECT
@@ -341,7 +348,7 @@ exports.datasetFullPage = async(req, res, next) => {
     `;
 
     let result = await request.query(query);
-
+    
     res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
 
     let datasetData = result.recordsets[0][0];
@@ -353,6 +360,7 @@ exports.datasetFullPage = async(req, res, next) => {
     next();
 }
 
+// Retrieves datasets associated with a cruise
 exports.datasetsFromCruise = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -380,6 +388,7 @@ exports.datasetsFromCruise = async(req, res, next) => {
     next();
 }
 
+// Retrieves cruises associated with a dataset
 exports.cruisesFromDataset = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -403,6 +412,7 @@ exports.cruisesFromDataset = async(req, res, next) => {
     next();
 }
 
+// Retrieves information for rendering a cruise page (as linked in cruise exploration component or from catalog dataset page)
 exports.cruiseFullPage = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -521,6 +531,7 @@ exports.searchCruises = async(req, res, next) => {
     next();
 }
 
+// Retrieves all member variables of a dataset
 exports.memberVariables = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -540,6 +551,7 @@ exports.memberVariables = async(req, res, next) => {
     }
 }
 
+// Variable search used by viz plots page
 exports.variableSearch = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -745,6 +757,7 @@ exports.variableSearch = async(req, res, next) => {
     }
 }
 
+// No longer in use by web app
 exports.autocompleteVariableNames = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -783,6 +796,7 @@ exports.autocompleteVariableNames = async(req, res, next) => {
     }
 }
 
+// Retrieve a single variable
 exports.variable = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -792,6 +806,7 @@ exports.variable = async(req, res, next) => {
 
         let query = `${catalogPlusLatCountQuery} WHERE tblVariables.ID = ${id}`;
         let response = await request.query(query);
+
         res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
         await res.end(JSON.stringify(response.recordset[0]));
         next();
@@ -803,6 +818,7 @@ exports.variable = async(req, res, next) => {
     }
 }
 
+// Retrieve partial information for a dataset
 exports.datasetSummary = async(req, res, next) => {
     let pool = await pools.dataReadOnlyPool;
     let request = await new sql.Request(pool);
@@ -828,24 +844,4 @@ exports.datasetSummary = async(req, res, next) => {
         console.log(e);
         res.sendStatus(500);
     }
-}
-
-exports.updates = async(req, res, next) => {
-    let pool = await pools.dataReadOnlyPool;
-    let request = await new sql.Request(pool);
-
-    let query = `SELECT DISTINCT Chief_Name FROM tblCruise WHERE Chief_Name NOT LIKE '%,%' AND Chief_Name <> '' AND Chief_Name <> 'Multiple - Virginia Armbrust'`;
-    let response = await request.query(query);
-
-    let names = response.recordset;
-    let queries = names.map(obj => {
-        let original = obj.Chief_Name;
-        let split = original.split(' ');
-        return `
-        UPDATE tblCruise
-        SET Chief_Name = '${split[1]}, ${split[0]}'
-        WHERE Chief_Name = '${original}'`
-    })
-
-    console.log(queries.join('\n'));
 }

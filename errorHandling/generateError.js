@@ -1,3 +1,5 @@
+// Error mapping for queryHandler
+
 const errorCodeMap = {
     ECANCEL: 'Request cancelled.',
     EREQUEST: ''

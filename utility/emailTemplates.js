@@ -1,7 +1,7 @@
 const url = 'https://simonscmap.com';
 // const url = 'http://localhost:3000';
 
-const doiHelpURL = 'https://simonsmcap.com/datasubmission/guide#faq-doi';
+const doiHelpURL = 'https://simonscmap.com/datasubmission/guide#faq-doi';
 const catalogURL = 'https://simonscmap.com/catalog';
 const visualizationURL = 'https://simonscmap.com/visualization';
 
@@ -229,11 +229,6 @@ module.exports.awaitingDOINotification = (datasetName) => (`
   The next step is to obtain and submit a DOI for this data. More information on DOIs is available <a href="${doiHelpURL}}" target="_blank">here</a>.<br><br>
   Once you've obtained a DOI please submit it using the messaging feature on the <a href="${url}/datasubmission/userdashboard?datasetName=${encodeURI(datasetName)}" target="_blank">dashboard</a>.
 `);
-
-// module.exports.awaitingIngestionNotification = (datasetName) => (`
-//   Your submission, ${datasetName} is now ready for ingestion!<br>
-
-// `);
 
 module.exports.ingestionCompleteNotification = (datasetName) => (`
   Your submission, ${datasetName} has been ingested into the CMAP database!<br>
