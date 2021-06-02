@@ -204,6 +204,7 @@ exports.searchCatalog = async(req, res, next) => {
             if(keyword.length){
                 query += `\nAND (
                     aggs.Variable_Long_Names LIKE '%${keyword}%'
+                    OR aggs.Variable_Short_Names LIKE '%${keyword}%'
                     OR ds.Dataset_Long_Name LIKE '%${keyword}%'
                     OR aggs.Sensors LIKE '%${keyword}%' 
                     OR aggs.Keywords LIKE '%${keyword}%'

@@ -71,6 +71,7 @@ module.exports = `
         MAX(Time_Max) as Time_Max,
         MAX(Row_Count) as Row_Count,
         STRING_AGG(CAST(Long_Name AS nvarchar(MAX)), ',') as Variable_Long_Names,
+        STRING_AGG(CAST(Short_Name AS nvarchar(MAX)), ',') as Variable_Short_Names,
         STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
         STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
         MAX(CAST(Visualize as [int])) as Visualize,
@@ -90,6 +91,7 @@ module.exports = `
             RTRIM(LTRIM(Sensor)) AS [Sensor],
             [tblVariables].Visualize,
             [tblVariables].Dataset_ID,
+            [tblVariables].Short_Name,
             [keywords_agg].Keywords AS [Keywords]
             FROM tblVariables
             JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
