@@ -38,7 +38,7 @@ module.exports = class UnsafeUser {
         request.on('error', err => console.log(err));
 
         try {
-            let result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE username = @username`);
+            var result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE username = @username`);
         }
 
         catch(e) {console.log(e)}
