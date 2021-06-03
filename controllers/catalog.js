@@ -526,7 +526,7 @@ exports.searchCruises = async(req, res, next) => {
     let result = await request.query(query);
 
     let catalogResponse = result.recordset;
-
+    console.log(catalogResponse)
     res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
     await res.end(JSON.stringify(catalogResponse));
     next();
