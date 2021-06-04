@@ -19,11 +19,14 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
     let pool;
     let poolName;
-    // used to avoid calling next if we're retrying on rainier
-    
     let requestError = false;
 
-    if(req.query.servername){
+    if(forceRainier){
+        pool = await pools.dataReadOnlyPool;
+        poolName = rainier;
+    }
+
+    else if(req.query.servername){
         if(req.query.servername === mariana){
             pool = await pools.mariana;
             poolName = mariana;
@@ -41,8 +44,22 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     }
 
     else {
-        pool = await pools.dataReadOnlyPool;
-        poolName = rainier;
+        switch(Math.floor(Math.random() * 3)){
+            case 0:
+                pool = await pools.dataReadOnlyPool;
+                poolName = rainier;
+                break;
+            case 1:
+                pool = await pools.mariana;
+                poolName = mariana;
+                break;
+            case 2:
+                pool = await pools.rossby;
+                poolName = rossby;
+                break;
+            default:
+                pool = pools.dataReadOnlyPool;
+        }
     }
 
     let request = await new sql.Request(pool);
@@ -104,8 +121,6 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
     request.on('error', err => {
         requestError = true;
-        console.log(err);
-        console.log(req.cmapApiCallDetails.query);
 
         if(!skipLogging.has(err.code)){
             console.log(`Query failure on ${poolName}:`);
@@ -115,7 +130,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
             if(res.headersSent) res.end();
 
-            else if(req.query.servername || poolName !== mariana){
+            else if(req.query.servername || poolName === rainier){
                res.status(400).end(generateError(err));
             }
         }
@@ -123,7 +138,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     
     await request.query(query);
 
-    if(!req.query.servername && poolName === mariana && requestError === true) {
+    if(!req.query.servername && (poolName === mariana || poolName === rossby) && requestError === true) {
         // Rerun query with forceRainier flag
         accumulator.unpipe(res);
         console.log('retrying on rainier');
