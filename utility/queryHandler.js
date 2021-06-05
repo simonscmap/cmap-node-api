@@ -50,15 +50,20 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
                 poolName = rainier;
                 break;
             case 1:
-                pool = await pools.mariana;
-                poolName = mariana;
+                pool = await pools.dataReadOnlyPool;
+                poolName = rainier;
+                // pool = await pools.mariana;
+                // poolName = mariana;
                 break;
             case 2:
-                pool = await pools.rossby;
-                poolName = rossby;
+                pool = await pools.dataReadOnlyPool;
+                poolName = rainier;
+                // pool = await pools.rossby;
+                // poolName = rossby;
                 break;
             default:
                 pool = pools.dataReadOnlyPool;
+                poolName = rainier;
         }
     }
 
@@ -135,7 +140,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
             }
         }
     });
-    
+
     await request.query(query);
 
     if(!req.query.servername && (poolName === mariana || poolName === rossby) && requestError === true) {
