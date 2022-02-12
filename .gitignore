@@ -3,10 +3,13 @@ client/
 *.zip
 config/UNSAFE_dbConfig.js
 config/UNSAFE_jwtConfig.js
+
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# secrets
 /keys.json
 /credentials.json
 /token.json

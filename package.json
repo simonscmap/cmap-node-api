@@ -25,7 +25,7 @@
     "express": "^4.17.1",
     "express-useragent": "^1.0.15",
     "google-auth-library": "^5.10.1",
-    "googleapis": "^39.2.0",
+    "googleapis": "^88.2.0",
     "isomorphic-fetch": "^2.2.1",
     "jsonwebtoken": "^8.5.1",
     "mssql": "^5.1.1",

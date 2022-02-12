@@ -15,14 +15,15 @@ const emailClientInit = async () => {
 
     const {client_secret, client_id, redirect_uris} = credentials.installed;
     const oAuth2Client = new google.auth.OAuth2(
-      client_id, 
-      client_secret, 
+      client_id,
+      client_secret,
       redirect_uris[0]
     );
-    
+
     try{
       const token = await readFileAsync(TOKEN_PATH);
       let parsed = JSON.parse(token);
+
       oAuth2Client.setCredentials(parsed);
     } catch(e) {
         console.log('HI')
@@ -45,7 +46,7 @@ function getNewToken(oAuth2Client, callback) {
     input: process.stdin,
     output: process.stdout,
   });
-  
+
   console.log('Authorize this app by visiting this url:', authUrl);
   rl.question('Enter the code from that page here: ', (code) => {
     rl.close();

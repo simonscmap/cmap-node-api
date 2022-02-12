@@ -10,6 +10,7 @@ exports.customQuery = async (req, res, next)=> {
 };
 
 // Stored procedure call endpoint
+// NOTE: this only serves the subset of stored procedures that power the chart visualizations
 exports.storedProcedure = async (req, res, next)=>{
     let argSet = req.query;
 
@@ -37,8 +38,8 @@ exports.cruiseList = async (req, res, next) => {
     let request = await new sql.Request(pool);
 
     let query = `
-    SELECT 
-    [tblCruise].ID 
+    SELECT
+    [tblCruise].ID
     ,[tblCruise].Nickname
     ,[tblCruise].Name
     ,[tblCruise].Ship_Name

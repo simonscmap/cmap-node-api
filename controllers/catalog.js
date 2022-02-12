@@ -280,9 +280,10 @@ exports.searchCatalog = async(req, res, next) => {
     }
 
 
-    query += '\nORDER BY Long_Name';
+    query += '\nORDER BY Dataset_Release_Date DESC';
     
     let result = await request.query(query);
+
 
     let catalogSearchResponse = result.recordset;
     catalogSearchResponse.forEach((e, i) => {

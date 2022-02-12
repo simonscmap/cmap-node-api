@@ -18,7 +18,6 @@ const cmapClientID = '739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleu
 
 var pools = require('../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../dbHandlers/datasetCatalogQuery');
-const { request } = require('express');
 
 const standardCookieOptions = {
     // secure: true,
@@ -31,41 +30,55 @@ const jwtCookieOptions = {
 
 // Creates a new user in DB. Sends confirmation email
 exports.signup = async (req, res, next) => {
-    // Registers a new user.
-    let newUser = new UnsafeUser(req.body);
-    let signupResult = await newUser.saveAsNew();
-    if(!(signupResult.rowsAffected && signupResult.rowsAffected[0] > 0)){
-        res.sendStatus(400);
-        return next();
-    }
+  // Registers a new user.
+  let newUser = new UnsafeUser(req.body);
+  let signupResult = await newUser.saveAsNew();
 
-    let signedUpUser = await UnsafeUser.getUserByEmail(req.body.email);
+  if(!(signupResult.rowsAffected && signupResult.rowsAffected[0] > 0)){
+    res.sendStatus(400);
+    return next();
+  }
 
-    let emailClient = await awaitableEmailClient;
-    
-    let token = jwt.sign(signedUpUser.getJWTPayload(), jwtConfig.secret, {expiresIn: 60 * 60 * 24});
-    
-    let content = emailTemplates.confirmEmail(token);
-    let message =
-        "From: 'me'\r\n" +
-        "To: " + newUser.email + "\r\n" +
-        "Subject: Simons CMAP\r\n" +
-        "Content-Type: text/html; charset='UTF-8'\r\n" +
-        "Content-Transfer-Encoding: base64\r\n\r\n" +
-        content;
+  let signedUpUser = await UnsafeUser.getUserByEmail(req.body.email);
 
-    let raw = base64url.encode(message);
+  let emailClient = await awaitableEmailClient;
 
-    let result = await emailClient.users.messages.send({
-        userId: 'me',
-        resource: {
-            raw
-        }
-    })
+  // jwt payload is just `{ iss, sub }`
+  let jwtPayload = signedUpUser.getJWTPayload();
+
+  let token = jwt.sign(jwtPayload, jwtConfig.secret, { expiresIn: 60 * 60 * 24 });
+
+  let content = emailTemplates.confirmEmail(token);
+  let message =
+    "From: 'me'\r\n" +
+    "To: " + newUser.email + "\r\n" +
+    "Subject: Simons CMAP\r\n" +
+    "Content-Type: text/html; charset='UTF-8'\r\n" +
+    "Content-Transfer-Encoding: base64\r\n\r\n" +
+    content;
+
+  let raw = base64url.encode(message);
+
+  let result;
+
+  try {
+    result = await emailClient.users.messages.send({
+      // https://developers.google.com/gmail/api/reference/rest/v1/users.messages/send
+      // 'me' is a special value, indicating to use the authenticated user
+      // which, in this case, is the one stored in credentials.json
+      userId: 'me',
+      resource: {
+        raw
+      }
+    });
 
     res.sendStatus(200);
-    return next();
- }
+  } catch (e) {
+    console.log('error sending mail, check if token is valid', e, result);
+  }
+
+  return next();
+}
 
  // Sends JWT http-only cookie
  exports.signin = async (req, res, next) => {
@@ -74,7 +87,7 @@ exports.signup = async (req, res, next) => {
     let user = new UnsafeUser(req.user);
     res.cookie('UserInfo', JSON.stringify(new UnsafeUser(req.user).makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
     res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-    
+
     res.json(true);
     next();
 }
@@ -88,7 +101,7 @@ exports.validate = async(req, res, next) => {
 }
 
 // Deletes http-only cookie (this cannot be done by client-side javascript)
-exports.signout = async(req, res, next) => {
+exports.signout = async(_req, res, next) => {
     res.clearCookie('UserInfo');
     res.clearCookie('jwt', jwtCookieOptions)
     res.end();
@@ -99,7 +112,7 @@ exports.signout = async(req, res, next) => {
 exports.generateApiKey = async(req, res, next) => {
     let apiKey = uuidv1();
     let pool = await new sql.ConnectionPool(userDBConfig).connect();
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input('description', sql.NVarChar, req.query.description);
     let query = `INSERT INTO ${apiKeyTable} (Api_Key, Description, User_ID) VALUES ('${apiKey}', @description, ${req.cmapApiCallDetails.userID})`;
     await request.query(query);
@@ -133,11 +146,11 @@ exports.googleAuth = async(req, res, next) => {
 
     // User already has a google ID associated with their account
     var googleIDUser = await UnsafeUser.getUserByGoogleID(googleID);
-    
+
     if(googleIDUser) {
         let user = new UnsafeUser(googleIDUser);
         res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-        res.cookie('jwt', await jwt.sign(googleIDUser.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+        res.cookie('jwt', jwt.sign(googleIDUser.getJWTPayload(), jwtConfig.secret, { expiresIn: '2h' }), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
         res.json(true);
         return next();
     }
@@ -147,10 +160,11 @@ exports.googleAuth = async(req, res, next) => {
 
     if(existingUser){
         let user = new UnsafeUser({...existingUser, googleID});
-        let result = await user.attachGoogleIDToExistingUser();
+
+        await user.attachGoogleIDToExistingUser();
 
         res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-        res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+        res.cookie('jwt', jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
         res.json(true);
         return next();
     }
@@ -163,17 +177,17 @@ exports.googleAuth = async(req, res, next) => {
         username: email
     });
 
-    let result = await user.saveAsNew();
+    await user.saveAsNew();
 
     res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {...standardCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
-    res.cookie('jwt', await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
+    res.cookie('jwt', jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn:'2h'}), {...jwtCookieOptions, expires: new Date(Date.now() + 1000 * 60 * 60 * 2)});
     res.json(true);
 
     return next();
 }
 
 // Endpoint for user profile self update
-exports.updateInfo = async(req, res, next) => {
+exports.updateInfo = async(req, res, _next) => {
     let user = new UnsafeUser({...req.user, ...req.body.userInfo});
     let result = await user.updateUserProfile();
     if(!result.rowsAffected || !result.rowsAffected[0]) {
@@ -190,8 +204,8 @@ exports.forgotPassword = async(req, res, next) => {
     if(!user || !user.email) {
         return res.sendStatus(200);
     }
-    
-    let token = await jwt.sign(user.getJWTPayload(), jwtConfig.secret, {expiresIn: 60 * 30});
+
+    let token = jwt.sign(user.getJWTPayload(), jwtConfig.secret, { expiresIn: 60 * 30 });
 
     let emailClient = await awaitableEmailClient;
     let content = emailTemplates.forgotPassword(token, user.username);
@@ -205,12 +219,19 @@ exports.forgotPassword = async(req, res, next) => {
 
     let raw = base64url.encode(message);
 
-    let result = await emailClient.users.messages.send({
-        userId: 'me',
-        resource: {
-            raw
-        }
-    })
+    let result;
+    try {
+      result = await emailClient.users.messages.send({
+         userId: 'me',
+         resource: {
+             raw
+         }
+      });
+    } catch (e) {
+      console.log('failed to send emal', e, result);
+      res.sendStatus(500);
+      return (next);
+    }
 
     res.sendStatus(200);
     return next();
@@ -238,7 +259,7 @@ exports.contactUs = async(req, res, next) => {
                 raw
             }
         })
-    
+
         res.sendStatus(200);
     } catch(e) {
         res.sendStatus(400);
@@ -319,7 +340,7 @@ exports.addCartItem = async(req, res, next) => {
 // Remove persisted favorite from DB
 exports.removeCartItem = async(req, res, next) => {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     request.input('userID', sql.Int, req.user.id);
     request.input('datasetID', sql.Int, req.body.itemID);
@@ -327,10 +348,8 @@ exports.removeCartItem = async(req, res, next) => {
     const query = 'DELETE FROM [dbo].[tblUser_Dataset_Favorites] WHERE User_ID = @userID AND Dataset_ID = @datasetID';
 
     try {
-        let result = await request.query(query);
-    }
-
-    catch(e) {
+        await request.query(query);
+    } catch(e) {
         console.log(e);
     }
 
@@ -341,14 +360,14 @@ exports.removeCartItem = async(req, res, next) => {
 // Remove all persisted favorites from db
 exports.clearCart = async(req, res, next) => {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     request.input('userID', sql.Int, req.user.id);
 
     const query = 'DELETE FROM [dbo].[tblUser_Dataset_Favorites] WHERE User_ID = @userID';
 
     try {
-        let result = await request.query(query);
+      await request.query(query);
     }
 
     catch(e) {
@@ -366,10 +385,10 @@ exports.getCart = async(req, res, next) => {
 
     request.input('userID', sql.Int, req.user.id);
 
-    const query = datasetCatalogQuery + 
+    const query = datasetCatalogQuery +
         `
             AND cat.Dataset_ID IN (
-                SELECT Dataset_ID 
+                SELECT Dataset_ID
                 FROM tblUser_Dataset_Favorites
                 WHERE User_ID = @userID
             )
@@ -379,7 +398,7 @@ exports.getCart = async(req, res, next) => {
         let result = await request.query(query);
         let datasets = result.recordsets[0];
         datasets.forEach((e, i) => {
-            e.Sensors = [... new Set(e.Sensors.split(','))];        
+            e.Sensors = [... new Set(e.Sensors.split(','))];
         });
         res.send(JSON.stringify(datasets));
     }
@@ -393,8 +412,8 @@ exports.getCart = async(req, res, next) => {
 }
 
 // Generates and sends a guest token to user
-exports.getGuestToken = async(req, res, next) => {    
-    let pool = await pools.userReadAndWritePool;    
+exports.getGuestToken = async(req, res, next) => {
+    let pool = await pools.userReadAndWritePool;
 
     let checkTokenLimitRequest = await new sql.Request(pool);
     let checkTokenLimitResult = await checkTokenLimitRequest.query(`
@@ -409,13 +428,13 @@ exports.getGuestToken = async(req, res, next) => {
         if(tokensIssuedThisHour > 200){
             res.sendStatus(503);
             return next();
-        }      
+        }
     }
 
     else {
         let addNewHourRowRequest = await new sql.Request(pool);
         let addNewHourRowResult;
-        
+
         try {
             addNewHourRowResult = await addNewHourRowRequest.query(`
                 ${sqlSegments.declareAndSetDateTimeVariables}
@@ -426,7 +445,7 @@ exports.getGuestToken = async(req, res, next) => {
 
         catch(e) {
             if(e.number === 2601){
-                // another node instance inserted this row during our network call. 
+                // another node instance inserted this row during our network call.
                 //Just increment
             }
 
@@ -462,6 +481,6 @@ exports.getGuestToken = async(req, res, next) => {
     };
 
     let expires = parseInt(req.query.expires);
-    res.cookie('guestToken', await jwt.sign(token, jwtConfig.secret, {expiresIn:'24h'}), {expires: new Date(expires)});    
+    res.cookie('guestToken', await jwt.sign(token, jwtConfig.secret, {expiresIn:'24h'}), {expires: new Date(expires)});
     return res.sendStatus(200)
 }
