@@ -11,6 +11,8 @@ router.get('/query', passport.authenticate(['headerapikey', 'jwt', 'guest'], {se
 // Stored procedure route
 router.get('/sp', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), asyncControllerWrapper(dataController.storedProcedure));
 
+router.get('/ancillary-datasets', asyncControllerWrapper(dataController.ancillaryDatasets));
+
 // Get list of cruises
 router.get('/cruiselist', asyncControllerWrapper(dataController.cruiseList));
 

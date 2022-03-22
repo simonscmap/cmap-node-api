@@ -26,10 +26,16 @@ exports.storedProcedure = async (req, res, next)=>{
 exports.cruiseTrajectory = async (req, res, next) => {
     let cruiseID = req.query.id;
     let query = `EXEC uspCruiseTrajectory ${cruiseID}`;
-
     req.cmapApiCallDetails.query = query;
-
     queryHandler(req, res, next, query);
+}
+
+// provide list of tables with ancillary data
+// uses sproc
+exports.ancillaryDatasets = async (req, res, next) => {
+  let query = 'EXEC uspDatasetsWithAncillary';
+  req.cmapApiCallDetails.query = query;
+  queryHandler(req, res, next, query);
 }
 
 // Retrieves all cruises
