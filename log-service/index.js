@@ -1,25 +1,13 @@
-const fs = require("fs");
+const { versions } = require('./get-versions');
 
-const isProduction = process.env.NODE_ENV === "production";
-
-let pkgJSON = fs.readFileSync(process.cwd() + "/package.json", {
-  encoding: "utf8",
-  flag: "r",
-});
-
-let p;
-try {
-  p = JSON.parse(pkgJSON);
-} catch (e) {
-  console.error("error parsing package.json in log-service generator", e);
-}
+const isProduction = process.env.NODE_ENV === 'production';
 
 const tagInfo = {
   versions: {
-    api: p.version,
-    web: null,
+    api: versions.api,
+    web: versions.web,
   },
-  env: process.env.NODE_ENV,
+  node_env: process.env.NODE_ENV,
 };
 
 const logLevel = {
@@ -66,14 +54,11 @@ function log(level, tags, context, message, isError, data) {
   // 3. prepare log
 
   let payload = {
+    time: Date.now(),
     level,
     tags,
     context,
     message,
-  };
-
-  context.time = {
-    utc: Date.now(),
   };
 
   if (isError) {
@@ -88,8 +73,7 @@ function log(level, tags, context, message, isError, data) {
   if (isProduction) {
     console.log(JSON.stringify(payload));
   } else {
-    delete payload.context.time.utc;
-    payload.context.time = new Date().toLocaleTimeString();
+    payload.time = new Date().toLocaleTimeString();
     console.log(payload);
   }
 }
