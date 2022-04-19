@@ -49,8 +49,7 @@ module.exports = class ApiCallDetail {
     request.input("Query", sql.VarChar, this.query || null);
     request.input("Api_Key_ID", sql.Int, this.apiKeyID || null);
     request.input("Request_Duration", sql.Int, new Date() - this.startTime);
-    request.input("URL_Query", this.query ? this.query : "");
-    request.input("URL_Path", this.requestPath);
+    request.input("URL_Path", sql.VarChar, this.requestPath);
 
     request.on("error", log.error);
 
@@ -62,7 +61,6 @@ module.exports = class ApiCallDetail {
             User_ID,
             Route_ID,
             Query,
-            URL_Query,
             URL_Path,
             Api_Key_ID,
             Auth_Method,
@@ -75,7 +73,6 @@ module.exports = class ApiCallDetail {
                 @User_ID,
                 @Route_ID,
                 @Query,
-                @URL_Query,
                 @URL_Path,
                 @Api_Key_ID,
                 @Auth_Method,
