@@ -1,7 +1,6 @@
 // Define database connection configs
 // used by node-mssql connection
 
-const trustServer = process.env.NODE_ENV === "production" ? false : true;
 
 const baseConfig = {
   port: Number(process.env.DB_PORT),
@@ -12,7 +11,7 @@ const baseConfig = {
     max: 500,
   },
   options: {
-    trustServerCertificate: trustServer,
+    trustServerCertificate: true,
   },
 };
 

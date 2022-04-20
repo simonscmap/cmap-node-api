@@ -25,7 +25,7 @@ try {
     flag: "r",
   });
 } catch (e) {
-  console.error("error trying to reat web app version file");
+  console.error("error trying to read web app version file");
   console.error("if this file is missing, make sure it was produced in the web app build step");
   console.log(e);
 }
