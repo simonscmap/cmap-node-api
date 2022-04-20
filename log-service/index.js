@@ -1,4 +1,5 @@
 const { versions } = require('./get-versions');
+const { id: workerId } = require('./get-worker');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -9,6 +10,10 @@ const tagInfo = {
   },
   node_env: process.env.NODE_ENV,
 };
+
+if (workerId) {
+  tagInfo.worker = workerId;
+}
 
 const logLevel = {
   trace: 5,
