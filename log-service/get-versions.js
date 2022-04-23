@@ -20,7 +20,7 @@ try {
 let webPackage = null;
 
 try {
-  fs.readFileSync(process.cwd() + "/public/web-app-version-tag.json", {
+  webPackage = fs.readFileSync(process.cwd() + "/public/web-app-version-tag.json", {
     encoding: "utf8",
     flag: "r",
   });
@@ -34,6 +34,8 @@ let wp;
 try {
   if (webPackage) {
     wp = JSON.parse(webPackage);
+  } else {
+    console.log("no version file for web app")
   }
 } catch (e) {
   console.error("error parsing package.json", e);
