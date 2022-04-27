@@ -1,31 +1,68 @@
-const router = require('express').Router();
-const dataSubmissionController = require('../controllers/dataSubmission');
+const router = require("express").Router();
+const {
+  addComment,
+  beginUploadSession,
+  commitUpload,
+  deleteSubmission,
+  listComments,
+  listSubmissions,
+  listSubmissionsByUser,
+  mostRecentFile,
+  setSubmissionPhase,
+  uploadFilePart
+}= require("../controllers/data-submission");
 
-const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
-const checkAdminAuth = require('../middleware/checkAdminAuth');
+const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
+const checkAdminAuth = require("../middleware/checkAdminAuth");
 
-router.post('/beginuploadsession', asyncControllerWrapper(dataSubmissionController.beginUploadSession));
-router.post('/uploadfilepart', asyncControllerWrapper(dataSubmissionController.uploadFilePart));
-router.post('/commitupload', asyncControllerWrapper(dataSubmissionController.commitUpload));
+router.post(
+  "/beginuploadsession",
+  asyncControllerWrapper(beginUploadSession)
+);
+router.post(
+  "/uploadfilepart",
+  asyncControllerWrapper(uploadFilePart)
+);
+router.post(
+  "/commitupload",
+  asyncControllerWrapper(commitUpload)
+);
 
-router.post('/addcomment', asyncControllerWrapper(dataSubmissionController.addComment));
+router.post(
+  "/addcomment",
+  asyncControllerWrapper(addComment)
+);
 
-router.get('/submissions', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.submissions));
-router.get('/submissionsbyuser', asyncControllerWrapper(dataSubmissionController.submissionsByUser));
+router.get(
+  "/submissions", // TODO merge /submissions and /submissionsbyuser
+  checkAdminAuth,
+  asyncControllerWrapper(listSubmissions)
+);
+router.get(
+  "/submissionsbyuser",
+  asyncControllerWrapper(listSubmissionsByUser)
+);
 
-router.get('/uploadhistory', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.uploadHistory));
+router.get(
+  "/commenthistory", // TODO rename
+  asyncControllerWrapper(listComments)
+);
 
-router.get('/commenthistory', asyncControllerWrapper(dataSubmissionController.commentHistory));
+router.post(
+  "/setphase", // TODO rename
+  checkAdminAuth,
+  asyncControllerWrapper(setSubmissionPhase)
+);
 
-router.post('/setphase', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.setPhase));
+router.get(
+  "/retrievemostrecentfile", // TODO rename -> ?
+  asyncControllerWrapper(mostRecentFile)
+);
 
-router.get('/retrievemostrecentfile', asyncControllerWrapper(dataSubmissionController.retrieveMostRecentFile));
-
-router.post('/newoption', asyncControllerWrapper(dataSubmissionController.newOption));
-router.get('/newoptionsrequests', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.newOptionRequests));
-router.post('/approvenewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.approveNewOptions));
-router.post('/rejectnewoption', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.rejectNewOption));
-
-router.get('/deletesubmission', checkAdminAuth, asyncControllerWrapper(dataSubmissionController.deleteSubmission));
+router.get(
+  "/deletesubmission",
+  checkAdminAuth,
+  asyncControllerWrapper(deleteSubmission)
+);
 
 module.exports = router;
