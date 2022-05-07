@@ -14,6 +14,7 @@ const {
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 const checkAdminAuth = require("../middleware/checkAdminAuth");
+const passport = require('../middleware/passport');
 
 router.post(
   "/beginuploadsession",
@@ -30,6 +31,7 @@ router.post(
 
 router.post(
   "/addcomment",
+  // passport.authenticate(['jwt'], { session: false }),
   asyncControllerWrapper(addComment)
 );
 

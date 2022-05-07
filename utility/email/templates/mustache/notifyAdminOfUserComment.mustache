@@ -1,0 +1,44 @@
+<table>
+  <tr>
+    <td style="padding: 0 0 10px 0">
+      <p>
+        There is a new comment by {{ commentor }} the data submission named:
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="border-left: 2px solid #22a3b9; font-weight: bold; padding: 0 10px">
+      <p>
+        {{datasetName}}
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 10px 0">
+      <p>
+        Message:
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td  style="border-left: 2px solid #22a3b9; padding: 0 10px">
+      {{#userMessage}}
+        <p>{{.}}</p>
+      {{/userMessage}}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 10px 0 0 0">
+      <p>
+        To view the status of this submission,
+        visit <a href="{{domain}}/datasubmission/admindashboard?datasetName={{datasetName}}" style="color: #22a3b9; text-decoration: none;" target="_blank">
+        <span style="color: #22a3b9; text-decoration: none;">
+          <font color="#22a3b9">
+            {{domain}}/datasubmission/admindashboard?datasetName={{datasetName}}
+          </font>
+        </span>
+        </a>
+      </p>
+    </td>
+  </tr>
+</table>
