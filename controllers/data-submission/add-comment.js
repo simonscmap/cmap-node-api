@@ -1,118 +1,213 @@
-// Add a timestamped comment to a submission
-// 1. records comment in sql
-// 2. sends mail to recipient
+const sql = require("mssql");
+const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
+const templates = require("../../utility/email/templates");
+const sendMail = require("../../utility/email/sendMail");
+const initializeLogger = require("../../log-service");
+const { CMAP_DATA_SUBMISSION_EMAIL_ADDRESS } = require('../../utility/constants');
 
-const addComment = async (req, res) => {
-  let pool = await userReadAndWritePool;
-  let request = await new sql.Request(pool);
+let log = initializeLogger("controllers/data-submission/add-comment");
 
-  let { submissionID, comment } = req.body;
+// check owner
+// checks if user that sent comment is owner of dataset
+// also fetches qality control status
+const checkOwner = async (submissionId, userId) => {
+  let userIsOwner = false;
   let qc1WasCompleted = false;
 
-  //TODO make this check a re-usable function / middleware
-  if (!req.user.isDataSubmissionAdmin) {
-    try {
-      let checkOwnerRequest = new sql.Request(pool);
-      checkOwnerRequest.input("ID", sql.Int, submissionID);
+  let pool = await userReadAndWritePool;
+  let checkOwnerRequest = new sql.Request(pool);
 
-      let checkOwnerQuery = `
-                SELECT Submitter_ID, QC1_Completion_Date_Time from tblData_Submissions
-                WHERE ID = @ID
-            `;
+  checkOwnerRequest.input("ID", sql.Int, submissionId);
 
-      let checkOwnerResult = await checkOwnerRequest.query(checkOwnerQuery);
-      let owner = checkOwnerResult.recordset[0].Submitter_ID;
-      qc1WasCompleted = !!checkOwnerResult.recordset[0]
-        .QC1_Completion_Date_Time;
+  let checkOwnerQuery = `
+     SELECT Submitter_ID, QC1_Completion_Date_Time from tblData_Submissions
+     WHERE ID = @ID
+    `;
 
-      if (req.user.id !== owner) {
-        return res.sendStatus(401);
-      }
-    } catch (e) {
-      console.log(e);
-      return res.sendStatus(500);
-    }
+  // make request to fetch SubmitterID, based or submissionId
+
+  let result;
+  try {
+    result = await checkOwnerRequest.query(checkOwnerQuery);
+  } catch (e) {
+    log.error("error requesting dataset owner information", e);
+    throw new Error("error requesting dataset owner");
+    return;
   }
 
+  owner = result.recordset[0].Submitter_ID;
+  userIsOwner = owner === userId;
+  qc1WasCompleted = !!result.recordset[0].QC1_Completion_Date_Time;
+
+  if (!userIsOwner) {
+    log.warn("mismatch between commenting user and dataset owner", {
+      userId,
+      ownerId: owner,
+      submissionId,
+    });
+  }
+
+  return [userIsOwner, qc1WasCompleted];
+};
+
+// insertCommentAndSelectUserInfo
+const insertCommentAndSelectUserInfo = async (submissionID, comment, userId) => {
+  let pool = await userReadAndWritePool;
+  let request = await new sql.Request(pool);
   request.input("ID", sql.Int, submissionID);
   request.input("comment", sql.VarChar, comment);
 
   let addCommentQuery = `
         INSERT INTO [dbo].[tblData_Submission_Comments]
         (Data_Submission_ID, Commenter_ID, Comment)
-        VALUES (@ID, ${req.user.id}, @comment)
+        VALUES (@ID, ${userId}, @comment)
 
         SELECT [dbo].[tblData_Submissions].[Filename_Root],
-        [dbo].[tblUsers].[Email]
+        [dbo].[tblData_Submissions].[Phase_ID],
+        [dbo].[tblUsers].[Email],
+        [dbo].[tblUsers].[FirstName]
         FROM [dbo].[tblData_Submissions]
         JOIN [dbo].[tblUsers] on [dbo].[tblData_Submissions].[Submitter_ID] = UserID
         WHERE ID = @ID
     `;
-
+  let result;
   try {
-    let result = await request.query(addCommentQuery);
-    var datasetName = result.recordset[0].Filename_Root;
-    var userEmail = result.recordset[0].Email;
-    res.sendStatus(200);
+    result = await request.query(addCommentQuery);
+  } catch (e) {
+    log.error("error inserting comment and fetching dataset info");
+    return null;
+  }
 
-    let emailClient = await awaitableEmailClient;
+  let datasetName = result.recordset[0].Filename_Root;
+  let ownerEmail = result.recordset[0].Email;
+  let ownerFirstName = result.recordset[0].FirstName;
 
-    var notificationContent;
-    var notificationDestination;
+  return {
+    datasetName,
+    ownerEmail,
+    ownerFirstName,
+  };
+};
 
-    if (!req.user.isDataSubmissionAdmin) {
-      // TEMP
-      // notificationContent = emailTemplates.dataSubmissionUserComment(datasetName, comment);
-      notificationContent = userCommentTemplate(datasetName, comment);
-      notificationDestination = "cmap-data-submission@uw.edu";
+const sendNotificationToAdmin = async (datasetInfo, comment, userName, qc1WasCompleted) => {
+  let { datasetName } = datasetInfo;
 
-      let dataSubmissionPhaseChange = new sql.Request(pool);
-      dataSubmissionPhaseChange.input("filename", sql.NVarChar, datasetName);
+  let content = templates.notifyAdminOfUserComment({
+    datasetName,
+    userMessage: comment,
+    userName,
+    // template already knows addressee is CMAP Admin
+  });
 
-      let dataSubmissionPhaseChangeQuery = `
+  let pool = await userReadAndWritePool;
+  let dataSubmissionPhaseChange = new sql.Request(pool);
+  dataSubmissionPhaseChange.input("filename", sql.NVarChar, datasetName);
+
+  let dataSubmissionPhaseChangeQuery = `
                 UPDATE [dbo].[tblData_Submissions]
                 SET Phase_ID = ${qc1WasCompleted ? 7 : 2}
-                WHERE Filename_Root = @filename
-            `;
-      const dataSubmissionPhaseChangeQueryResult = await dataSubmissionPhaseChange.query(
-        dataSubmissionPhaseChangeQuery
-      );
-    } else {
-      // TEMP
-      // notificationContent = emailTemplates.dataSubmissionAdminComment(datasetName, comment);
-      notificationContent = userCommentTemplate(datasetName, comment);
-      notificationDestination = userEmail;
-    }
+                WHERE Filename_Root = @filename`;
 
-    let notification =
-      "From: 'me'\r\n" +
-      "To: " +
-      notificationDestination +
-      "\r\n" +
-      `Subject: Re: ${emailSubjectRoot + datasetName}\r\n` +
-      "Content-Type: text/html; charset='UTF-8'\r\n" +
-      "Content-Transfer-Encoding: base64\r\n\r\n" +
-      notificationContent;
+  // error handling maybe ???
+  await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
 
-    let rawNotification = base64url.encode(notification);
+  let emailSubject = `CMAP Data Submission - ${datasetName}`;
 
-    try {
-      await emailClient.users.messages.send({
-        userId: "me",
-        resource: {
-          raw: rawNotification,
-        },
-      });
-    } catch (e) {
-      console.log("Failed to enter new comment");
-      console.log(e);
-      return res.sendStatus(500);
-    }
+  try {
+    sendMail(CMAP_DATA_SUBMISSION_EMAIL_ADDRESS, emailSubject, content);
   } catch (e) {
-    console.log("Failed to enter new comment");
-    console.log(e);
-    return res.sendStatus(500);
+    log.error("failed to notify user of new comment", e);
   }
 };
 
-module.exports = addComment;
+const sendNotificationToUser = async (datasetInfo, comment, userName) => {
+  let { datasetName, ownerFirstName, ownerEmail } = datasetInfo;
+
+  mailContent = templates.notifyUserOfAdminComment({
+    datasetName,
+    userMessage: comment,
+    userName, // admin name
+    addressee: ownerFirstName,
+  });
+
+  let emailSubject = `CMAP Data Submission - ${datasetName}`;
+  try {
+    sendMail(ownerEmail, emailSubject, mailContent);
+  } catch (e) {
+    log.error("failed to notify user of new comment", e);
+  }
+};
+
+// Add a timestamped comment to a submission
+
+// 1. records comment in sql
+// 2. sends mail to recipient
+
+// Note: becuase both admin comments and user comments use the same route
+// and route handler, we can't use the checkAdminAuth middleware, and
+// and have to do it here; however, doing it here is odd, because the auth
+// check doubles as a sort of user identification
+
+// TODO separate these out into two routes, and protect the admin route with auth
+const addCommentController = async (req, res) => {
+  let { submissionID, comment } = req.body;
+  log.trace('add comment controller -- start');
+  // 1. check f request is from a user, make sure user is the owner of the data submission
+  // being commented upon
+
+  log.info('user', { user: req.user });
+
+  let qc1WasCompleted = false;
+  let userIsAdmin = req.user.isDataSubmissionAdmin;
+
+  if (!userIsAdmin) {
+    log.trace('check owner')
+    let userIsOwner, qc1;
+    try {
+      [userIsOwner, qc1] = await checkOwner(submissionID, req.user.id);
+    } catch (e) {
+      log.error('error in checkOwner', e);
+      res.sendStatus(500);
+      return;
+    }
+
+    if (!userIsOwner) {
+      res.sendStatus(401);
+      return;
+    }
+    qc1WasCompleted = qc1;
+  }
+
+  // 2. insert comment in db and get dataset info
+
+  log.trace('insert comment')
+  let datasetInfo;
+  try {
+    datasetInfo = await insertCommentAndSelectUserInfo(submissionID, comment, req.user.id);
+  } catch (e) {
+    res.sendStatus(500);
+    return;
+  }
+
+  // 3. fulfill web response
+
+  log.trace('send web response 200')
+  res.sendStatus(200);
+
+  // 4. send appropriate notification
+  // let userName = req.user.name;
+  log.trace('send email');
+
+  let { firstName, lastName } = req.user;
+  let fullUserName = `${firstName} ${lastName}`;
+  if (!req.user.isDataSubmissionAdmin) {
+    await sendNotificationToAdmin(datasetInfo, comment, fullUserName, qc1WasCompleted);
+  } else {
+    // use admin's first name only
+    await sendNotificationToUser(datasetInfo, comment, req.user.firstName);
+  }
+
+  // guess we're done :/
+};
+
+module.exports = addCommentController;

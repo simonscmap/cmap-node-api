@@ -30,6 +30,7 @@
     "jsonwebtoken": "^8.5.1",
     "mssql": "^8.0.0",
     "multer": "^1.4.2",
+    "mustache": "^4.2.0",
     "ndjson": "^1.5.0",
     "node-cache": "^5.1.2",
     "passport": "^0.4.1",

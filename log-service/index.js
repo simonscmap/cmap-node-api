@@ -57,14 +57,19 @@ function log(level, tags, context, message, isError, data) {
   }
 
   // 3. prepare log
-
   let payload = {
-    time: Date.now(),
     level,
-    tags,
-    context,
     message,
   };
+
+  if (context) {
+    payload.context = context;
+  }
+
+  if (isProduction) {
+    time: Date.now(),
+    payload.tags = tags;
+  }
 
   if (isError) {
     payload.error = true;

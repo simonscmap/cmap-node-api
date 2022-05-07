@@ -1,12 +1,13 @@
 const sql = require("mssql");
 const { dropbox } = require("../../utility/Dropbox");
+const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
+const sendMail = require("../../utility/email/sendMail");
+const templates = require("../../utility/email/templates");
+const initializeLogger = require("../../log-service");
+let log = initializeLogger("controllers/data-submission/commit-upload");
 const {
-  userReadAndWritePool,
-} = require("../../dbHandlers/dbPools");
-const awaitableEmailClient = require("../../utility/emailAuth");
-const emailTemplates = require("../../utility/emailTemplates");
-const base64url = require("base64-url");
-let emailSubjectRoot = "CMAP Data Submission - ";
+  CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
+} = require("../../utility/constants");
 
 // Commit upload session (completing upload)
 const commitUpload = async (req, res) => {
@@ -19,6 +20,7 @@ const commitUpload = async (req, res) => {
 
   let submissionType;
 
+  // TODO we may want to refactor these 96 lies of the umbrella try/catch
   try {
     await dropbox.filesUploadSessionFinish({
       cursor: {
@@ -50,7 +52,7 @@ const commitUpload = async (req, res) => {
       dataSubmissionID = checkFilenameResult.recordset[0].ID;
       qc1WasCompleted = !!checkFilenameResult.recordset[0]
         .QC1_Completion_Date_Time;
-      submissionType = "Update";
+      submissionType = "Updated";
     }
 
     const transaction = new sql.Transaction(pool);
@@ -88,9 +90,7 @@ const commitUpload = async (req, res) => {
                     WHERE Filename_Root = @filename
                 `;
 
-        await dataSubmissionPhaseChange.query(
-          dataSubmissionPhaseChangeQuery
-        );
+        await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
       }
 
       dataSubmissionFilesInsert = new sql.Request(transaction);
@@ -103,89 +103,70 @@ const commitUpload = async (req, res) => {
 
       await transaction.commit();
     } catch (e) {
-      console.log("Transaction failed");
-      console.log(e);
+      log.error("transaction failed", e);
       try {
         await transaction.rollback();
       } catch (err) {
-        console.log("Rollback failed");
-        console.log(err);
+        log.error('rollback failed', err);
       }
-      return res.sendStatus(500);
+      res.sendStatus(500);
+      return;
     }
   } catch (e) {
-    console.log("Failed to commit dropbox upload");
-    console.log(e);
-    return res.sendStatus(500);
+    log.error('failed to commit dropbox upload', e);
+    res.sendStatus(500);
+    return;
   }
 
   res.sendStatus(200);
 
-  let emailClient = await awaitableEmailClient;
+  // NOTIFY ADMIN
 
-  let notifyAdminContent = emailTemplates.dataSubmissionAdminNotification(
-    fileName,
-    req.user,
-    submissionType
-  );
-
-  let notifyAdminMessage =
-    "From: 'me'\r\n" +
-    "To: " +
-    "cmap-data-submission@uw.edu" +
-    "\r\n" +
-    `Subject: ${
-      submissionType === "New"
-        ? emailSubjectRoot + fileName
-        : "Re: " + emailSubjectRoot + fileName
-    }\r\n` +
-    "Content-Type: text/html; charset='UTF-8'\r\n" +
-    "Content-Transfer-Encoding: base64\r\n\r\n" +
-    notifyAdminContent;
-
-  let rawAdminMessage = base64url.encode(notifyAdminMessage);
-
-  try {
-    await emailClient.users.messages.send({
-      userId: "me",
-      resource: {
-        raw: rawAdminMessage,
-      },
-    });
-  } catch (e) {
-    console.log("Data submission notify admin failed:");
-    console.log(e);
+  let subject; // NOTE: same subject is used for both mailings
+  if (submissionType === "New") {
+    subject = `CMAP Data Submission - ${fileName}`;
+  } else {
+    subject = `Re: CMAP Data Submission - ${fileName}`;
   }
 
-  let notifyUserContent = emailTemplates.dataSubmissionUserNotification(
-    fileName
-  );
-  let notifyUserMessage =
-    "From: 'me'\r\n" +
-    "To: " +
-    req.user.email +
-    "\r\n" +
-    `Subject: ${
-      submissionType === "New"
-        ? emailSubjectRoot + fileName
-        : "Re: " + emailSubjectRoot + fileName
-    }\r\n` +
-    "Content-Type: text/html; charset='UTF-8'\r\n" +
-    "Content-Transfer-Encoding: base64\r\n\r\n" +
-    notifyUserContent;
-
-  let rawUserMessage = base64url.encode(notifyUserMessage);
+  let notifyAdminContent = templates.notifyAdminOfDataSubmission({
+    datasetName: fileName,
+    user: req.user,
+    submissionType,
+  });
 
   try {
-    await emailClient.users.messages.send({
-      userId: "me",
-      resource: {
-        raw: rawUserMessage,
-      },
-    });
+    sendMail(CMAP_DATA_SUBMISSION_EMAIL_ADDRESS, subject, notifyAdminContent);
   } catch (e) {
-    console.log("Data submission notify user failed:");
-    console.log(e);
+    log.error("failed to notify admin of new data submission", {
+      subject,
+    });
+  }
+
+  // NOTIFY USER
+
+  let contentTemplate =
+    submissionType === "New"
+      ? templates.notifyUserOfReceiptOfNewDataSubmission
+      : templates.notifyUserOfReceiptOfUpdatedDataSubmission;
+
+  let notifyUserContent = contentTemplate({
+    datasetName: fileName,
+    user: req.user,
+  });
+
+  try {
+    sendMail(req.user.email, subject, notifyUserContent);
+  } catch (e) {
+    log.error(
+      `failed to notify user of receipt of ${
+        submissionType === "New" ? "new" : "updated"
+      } data submission`,
+      {
+        subject,
+        recipientId: req.user.id,
+      }
+    );
   }
 };
 

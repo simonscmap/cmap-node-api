@@ -26,7 +26,6 @@ module.exports = class ApiCallDetail {
 
   checkIp() {
     if (!this.ip.match(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/)) {
-      log.debug('setting ignore flag to true: will not record api calls');
       this.ignore = true;
     }
   }
