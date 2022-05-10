@@ -1,5 +1,11 @@
 const { dropbox } = require("../../utility/Dropbox");
 const sql = require("mssql");
+const initializeLogger = require("../../log-service");
+const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
+
+const log = initializeLogger(
+  "controllers/data-submission/begin-upload-session"
+);
 
 // Begin data submission upload session and return ID
 const beginUploadSession = async (req, res) => {
@@ -21,12 +27,15 @@ const beginUploadSession = async (req, res) => {
         let owner = checkOwnerResult.recordset[0].Submitter_ID;
 
         if (req.user.id !== owner) {
-          return res.status(401).send("wrongUser");
+          log.warn("mismatch between uploading user and dataset owner");
+          res.status(401).send("wrongUser");
+          return;
         }
       }
     } catch (e) {
-      console.log(e);
-      return res.sendStatus(500);
+      log.error("error checking dataset owner", e);
+      res.sendStatus(500);
+      return;
     }
   }
 
@@ -36,9 +45,9 @@ const beginUploadSession = async (req, res) => {
     });
     return res.json({ sessionID: startResponse.session_id });
   } catch (e) {
-    console.log("failed to start upload session");
-    console.log(e);
-    return res.sendStatus(500);
+    log.error("failed to start upload session", e);
+    res.sendStatus(500);
+    return;
   }
 };
 

@@ -9,25 +9,16 @@ const {
   listSubmissionsByUser,
   mostRecentFile,
   setSubmissionPhase,
-  uploadFilePart
-}= require("../controllers/data-submission");
+  uploadFilePart,
+} = require("../controllers/data-submission");
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 const checkAdminAuth = require("../middleware/checkAdminAuth");
-const passport = require('../middleware/passport');
+const passport = require("../middleware/passport");
 
-router.post(
-  "/beginuploadsession",
-  asyncControllerWrapper(beginUploadSession)
-);
-router.post(
-  "/uploadfilepart",
-  asyncControllerWrapper(uploadFilePart)
-);
-router.post(
-  "/commitupload",
-  asyncControllerWrapper(commitUpload)
-);
+router.post("/beginuploadsession", asyncControllerWrapper(beginUploadSession));
+router.post("/uploadfilepart", asyncControllerWrapper(uploadFilePart));
+router.post("/commitupload", asyncControllerWrapper(commitUpload));
 
 router.post(
   "/addcomment",
@@ -40,10 +31,7 @@ router.get(
   checkAdminAuth,
   asyncControllerWrapper(listSubmissions)
 );
-router.get(
-  "/submissionsbyuser",
-  asyncControllerWrapper(listSubmissionsByUser)
-);
+router.get("/submissionsbyuser", asyncControllerWrapper(listSubmissionsByUser));
 
 router.get(
   "/commenthistory", // TODO rename

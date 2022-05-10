@@ -5,6 +5,9 @@ const initializeLogger = require('../../../log-service');
 const log = initializeLogger('utility/email/templates');
 
 let partialsNames = [
+  'notifyUserOfReceiptOfUpdatedDataSubmission',
+  'notifyUserOfReceiptOfNewDataSubmission',
+  'notifyAdminOfDataSubmission',
   'notifyAdminOfUserComment',
   'notifyUserOfAdminComment',
 ];

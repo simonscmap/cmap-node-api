@@ -1,11 +1,11 @@
 const sql = require("mssql");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const {
-  notifyAdminOfUserComment,
-  notifyUserOfAdminComment,
-} = require("../../utility/email/templates");
+const templates = require("../../utility/email/templates");
 const sendMail = require("../../utility/email/sendMail");
 const initializeLogger = require("../../log-service");
+const {
+  CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
+} = require("../../utility/constants");
 
 let log = initializeLogger("controllers/data-submission/add-comment");
 
@@ -105,7 +105,7 @@ const sendNotificationToAdmin = async (
 ) => {
   let { datasetName } = datasetInfo;
 
-  let content = notifyAdminOfUserComment({
+  let content = templates.notifyAdminOfUserComment({
     datasetName,
     userMessage: comment,
     userName,
@@ -125,10 +125,9 @@ const sendNotificationToAdmin = async (
   await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
 
   let emailSubject = `CMAP Data Submission - ${datasetName}`;
-  let recipient = "cmap-data-submission@uw.edu";
 
   try {
-    sendMail(recipient, emailSubject, content);
+    sendMail(CMAP_DATA_SUBMISSION_EMAIL_ADDRESS, emailSubject, content);
   } catch (e) {
     log.error("failed to notify user of new comment", e);
   }
@@ -137,9 +136,7 @@ const sendNotificationToAdmin = async (
 const sendNotificationToUser = async (datasetInfo, comment, userName) => {
   let { datasetName, ownerFirstName, ownerEmail } = datasetInfo;
 
-  log.debug('ownerFirstName', ownerFirstName);
-
-  mailContent = notifyUserOfAdminComment({
+  mailContent = templates.notifyUserOfAdminComment({
     datasetName,
     userMessage: comment,
     userName, // admin name
@@ -217,14 +214,18 @@ const addCommentController = async (req, res) => {
   // 4. send appropriate notification
   // let userName = req.user.name;
   log.trace("send email");
+
+  let { firstName, lastName } = req.user;
+  let fullUserName = `${firstName} ${lastName}`;
   if (!req.user.isDataSubmissionAdmin) {
     await sendNotificationToAdmin(
       datasetInfo,
       comment,
-      req.user.firstName,
+      fullUserName,
       qc1WasCompleted
     );
   } else {
+    // use admin's first name only
     await sendNotificationToUser(datasetInfo, comment, req.user.firstName);
   }
 
