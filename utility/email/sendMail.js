@@ -5,6 +5,10 @@ const awaitableEmailClient = require("../emailAuth");
 
 let log = initializeLogger("utility/email/sendMail");
 
+// https://developers.google.com/gmail/api/reference/rest/v1/users.messages/send
+// 'me' is a special value, indicating to use the authenticated user
+// which, in this case, is the one stored in credentials.json
+
 const sendEmail = async (recipient, subject, content) => {
   let notification =
     "From: 'me'\r\n" +
@@ -19,7 +23,7 @@ const sendEmail = async (recipient, subject, content) => {
   let emailClient = await awaitableEmailClient;
 
   try {
-    await emailClient.users.messages.send({
+    return await emailClient.users.messages.send({
       userId: "me",
       resource: { raw },
     });

@@ -4,8 +4,10 @@ const notifyAdminOfDataSubmission = require('./notifyAdminOfDataSubmission');
 const notifyUserOfReceiptOfNewDataSubmission = require('./notifyUserOfReceiptOfNewDataSubmission');
 const notifyUserOfReceiptOfUpdatedDataSubmission = require('./notifyUserOfReceiptOfUpdatedDataSubmission');
 const userResetPassword = require('./userResetPassword');
+const signupConfirmEmail = require('./signupConfirmEmail');
 
 const templates = {
+  signupConfirmEmail,
   userResetPassword,
   notifyUserOfReceiptOfUpdatedDataSubmission,
   notifyUserOfReceiptOfNewDataSubmission,

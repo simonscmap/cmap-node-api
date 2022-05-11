@@ -11,6 +11,7 @@ let partialsNames = [
   'notifyAdminOfUserComment',
   'notifyUserOfAdminComment',
   'userResetPassword',
+  'signupConfirmEmail',
 ];
 
 // read in email templates and export them as strings
