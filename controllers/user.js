@@ -9,8 +9,13 @@ const UnsafeUser = require('../models/UnsafeUser');
 const userDBConfig = require ('../config/dbConfig').userTableConfig;
 const awaitableEmailClient = require('../utility/emailAuth');
 const emailTemplates = require('../utility/emailTemplates');
+const templates = require('../utility/email/templates');
 const guestTokenHashFromRequest = require('../utility/guestTokenHashFromRequest');
 const sqlSegments = require('../utility/sqlSegments');
+const sendMail = require('../utility/email/sendMail');
+
+const initializeLogger = require('../log-service');
+const log = initializeLogger('controllers/user');
 
 const apiKeyTable = 'tblApi_Keys'
 
@@ -199,42 +204,29 @@ exports.updateInfo = async(req, res, _next) => {
 
 // Sends forgot password email to registered email address
 exports.forgotPassword = async(req, res, next) => {
-    // Accepts post with email address, send forgotten password email with JWT in link to reset
-    let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
-    if(!user || !user.email) {
-        return res.sendStatus(200);
-    }
+  // Accepts post with email address, send forgotten password email with JWT in link to reset
+  let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
 
-    let token = jwt.sign(user.getJWTPayload(), jwtConfig.secret, { expiresIn: 60 * 30 });
+  if(!user || !user.email) {
+    return res.sendStatus(200);
+  }
 
-    let emailClient = await awaitableEmailClient;
-    let content = emailTemplates.forgotPassword(token, user.username);
-    let message =
-        "From: 'me'\r\n" +
-        "To: " + user.email + "\r\n" +
-        "Subject: Simons CMAP Password\r\n" +
-        "Content-Type: text/html; charset='UTF-8'\r\n" +
-        "Content-Transfer-Encoding: base64\r\n\r\n" +
-        content;
+  let token = jwt.sign(user.getJWTPayload(), jwtConfig.secret, { expiresIn: 60 * 30 });
 
-    let raw = base64url.encode(message);
+  let content = templates.userResetPassword({ jwt: token });
 
-    let result;
-    try {
-      result = await emailClient.users.messages.send({
-         userId: 'me',
-         resource: {
-             raw
-         }
-      });
-    } catch (e) {
-      console.log('failed to send emal', e, result);
-      res.sendStatus(500);
-      return (next);
-    }
+  let subject = 'CMAP Password Reset Request';
 
-    res.sendStatus(200);
-    return next();
+  try {
+    sendMail(user.email, subject, content);
+  } catch (e) {
+    res.sendStatus(500);
+    log.error('error sending password reset email', e);
+    return;
+  }
+
+  res.sendStatus(200);
+  return next();
 }
 
 exports.contactUs = async(req, res, next) => {

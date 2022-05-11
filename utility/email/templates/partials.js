@@ -10,6 +10,7 @@ let partialsNames = [
   'notifyAdminOfDataSubmission',
   'notifyAdminOfUserComment',
   'notifyUserOfAdminComment',
+  'userResetPassword',
 ];
 
 // read in email templates and export them as strings

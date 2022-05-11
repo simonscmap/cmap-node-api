@@ -3,8 +3,10 @@ const notifyUserOfAdminComment = require('./notifyUserOfAdminComment')
 const notifyAdminOfDataSubmission = require('./notifyAdminOfDataSubmission');
 const notifyUserOfReceiptOfNewDataSubmission = require('./notifyUserOfReceiptOfNewDataSubmission');
 const notifyUserOfReceiptOfUpdatedDataSubmission = require('./notifyUserOfReceiptOfUpdatedDataSubmission');
+const userResetPassword = require('./userResetPassword');
 
 const templates = {
+  userResetPassword,
   notifyUserOfReceiptOfUpdatedDataSubmission,
   notifyUserOfReceiptOfNewDataSubmission,
   notifyAdminOfDataSubmission,
