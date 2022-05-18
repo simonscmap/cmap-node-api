@@ -96,11 +96,6 @@ app.use((err, req, res, next) => {
 });
 
 app.use((req, res) => {
-  log.info("res headers", {
-    sent: res.headersSent,
-    headers: res.headers,
-    url: req.originalUrl,
-  });
   res.sendStatus(404);
 });
 
