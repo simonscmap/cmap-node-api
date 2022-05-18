@@ -8,7 +8,7 @@ const multer = require("multer");
 const upload = multer();
 var useragent = require("express-useragent");
 
-const createNewLogger = require("./log-service")
+const createNewLogger = require("./log-service");
 
 const userRoutes = require("./routes/user");
 const dataRoutes = require("./routes/data");
@@ -19,14 +19,13 @@ const dataSubmissionRoutes = require("./routes/dataSubmission");
 
 const ApiCallDetails = require("./models/ApiCallDetail");
 
-const log = createNewLogger().setModule('app.js');
+const log = createNewLogger().setModule("app.js");
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-
-process.on('warning', ({ name, message, stack}) => {
-  log.warn(message, { name, stack})
+process.on("warning", ({ name, message, stack }) => {
+  log.warn(message, { name, stack });
 });
 
 // Middleware
@@ -46,7 +45,6 @@ app.use((req, res, next) => {
 });
 
 // Routes - DEPRECATED
-app.use("/user", userRoutes);
 app.use(
   "/dataretrieval",
   passport.authenticate(["headerapikey", "jwt"], { session: false }),
@@ -55,19 +53,19 @@ app.use(
 
 // serve the landing page as a static file
 app.get("/", (req, res, next) => {
-  res.cmapSkipCatchAll = true;
   res.sendFile(__dirname + "/public/landing/landing.html", null, (err) => {
-    if (err) next(err);
-    else next();
+    if (err) {
+      next(err);
+    }
   });
 });
 
 // serve the about page as a static file
 app.get("/about", (req, res, next) => {
-  res.cmapSkipCatchAll = true;
   res.sendFile(__dirname + "/public/about.html", null, (err) => {
-    if (err) next(err);
-    else next();
+    if (err) {
+      next(err);
+    }
   });
 });
 
@@ -89,19 +87,21 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  if (!res.headersSent && !res.cmapSkipCatchAll) {
-    res.sendFile(__dirname + "/public/app.html", null, (err) => {
-      if (err) next(err);
-      else next();
-    });
-  }
-});
-
 // catch-all error logging
+// NOTE this must take 4 arguments
+// see: http://expressjs.com/en/guide/using-middleware.html#middleware.error-handling
 app.use((err, req, res, next) => {
   log.error("an error occurred in the catch-all", err);
-  if (!res.headersSent && !res.cmapSkipCatchAll) res.status(500).send();
+  res.sendStatus(500);
+});
+
+app.use((req, res) => {
+  log.info("res headers", {
+    sent: res.headersSent,
+    headers: res.headers,
+    url: req.originalUrl,
+  });
+  res.sendStatus(404);
 });
 
 // start web server
