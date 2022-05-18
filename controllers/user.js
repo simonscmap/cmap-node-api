@@ -46,12 +46,12 @@ exports.signup = async (req, res, next) => {
   } catch (e) {
     log.error("error saving new user", e);
     res.sendStatus(500);
-    return next();
+    return;
   }
 
   if (!(signupResult.rowsAffected && signupResult.rowsAffected[0] > 0)) {
     res.sendStatus(400);
-    return next();
+    return;
   }
 
   let signedUpUser;
@@ -82,8 +82,6 @@ exports.signup = async (req, res, next) => {
     });
     return res.sendStatus(500);
   }
-
-  return next();
 };
 
 // Sends JWT http-only cookie
@@ -118,7 +116,6 @@ exports.signout = async (_req, res, next) => {
   res.clearCookie("UserInfo");
   res.clearCookie("jwt", jwtCookieOptions);
   res.end();
-  next();
 };
 
 // Create an API key
