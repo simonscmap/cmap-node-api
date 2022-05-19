@@ -96,6 +96,10 @@ app.use((err, req, res, next) => {
 });
 
 app.use((req, res) => {
+  if (res.headersSent) {
+    return;
+  }
+  log.info("returning 404", { originalUrl: req.originalUrl })
   res.sendStatus(404);
 });
 
