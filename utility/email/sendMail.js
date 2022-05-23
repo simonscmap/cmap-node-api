@@ -1,7 +1,11 @@
+const Future = require("fluture");
+const S = require("../sanctuary");
 const initializeLogger = require("../../log-service");
 const base64url = require("base64-url");
+const { init } = require("../oAuth");
 
-const awaitableEmailClient = require("../emailAuth");
+const { compose } = S;
+const { fork } = Future;
 
 let log = initializeLogger("utility/email/sendMail");
 
@@ -9,27 +13,33 @@ let log = initializeLogger("utility/email/sendMail");
 // 'me' is a special value, indicating to use the authenticated user
 // which, in this case, is the one stored in credentials.json
 
-const sendEmail = async (recipient, subject, content) => {
-  let notification =
-    "From: 'me'\r\n" +
+const assembleMail = recipient => subject => content => ("From: 'me'\r\n" +
     `To: ${recipient}\r\n` +
     `Subject: ${subject}\r\n` +
     "Content-Type: text/html; charset='UTF-8'\r\n" +
     "Content-Transfer-Encoding: base64\r\n\r\n" +
-    content;
+    content);
 
-  let raw = base64url.encode(notification);
+const prepareMail = compose (compose (compose (base64url.encode))) (assembleMail);
 
-  let emailClient = await awaitableEmailClient;
+const send = client => raw =>
+  client.users.messages.send({
+    userId: "me",
+    resource: { raw },
+  });
 
-  try {
-    return await emailClient.users.messages.send({
-      userId: "me",
-      resource: { raw },
-    });
-  } catch (e) {
-    log.error("error sending mail", { subject, recipient });
-  }
-};
+// TODO test this
+const sendMail = (futureClient) => (mailArgs) => {
+  let { recipient, subject, content } = mailArgs;
+  let raw = prepareMail (recipient) (subject) (content);
+  return futureClient
+    .pipe(S.map ((client) => {
+      send (client) (raw);
+    }))
+}
 
-module.exports = sendEmail;
+let sendTest = sendMail (init) ({ recipient: 'test@anthanes.com', subject: 'test', content: 'hi'})
+
+fork (log.error) (log.info) (sendTest)
+
+module.exports.sendMailF = sendMail;
