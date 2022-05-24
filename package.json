@@ -4,12 +4,25 @@
   "description": "CMAP Web API",
   "main": "app.js",
   "scripts": {
-    "test": "jest",
+    "test": "ava",
     "start": "./node_modules/pm2/bin/pm2-runtime app.js -i 2"
+  },
+  "ava": {
+    "files": [
+      "test/**/*"
+    ],
+    "concurrency": 5,
+    "failFast": true,
+    "failWithoutAssertions": false,
+    "environmentVariables": {
+
+    },
+    "verbose": true
   },
   "author": "Mike D from New York",
   "license": "ISC",
   "devDependencies": {
+    "ava": "^4.2.0",
     "jest": "^25.5.4",
     "nodemon": "^1.19.4"
   },
