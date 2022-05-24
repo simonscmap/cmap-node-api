@@ -20,26 +20,31 @@ const assembleMail = recipient => subject => content => ("From: 'me'\r\n" +
     "Content-Transfer-Encoding: base64\r\n\r\n" +
     content);
 
-const prepareMail = compose (compose (compose (base64url.encode))) (assembleMail);
+const b64 = (str) => {
+  console.log(str);
+  return base64url.encode(str);
+}
+
+const prepareMail = compose (compose (compose (b64))) (assembleMail);
 
 const send = client => raw =>
   client.users.messages.send({
     userId: "me",
-    resource: { raw },
+    resource: {
+      raw: raw
+    },
   });
 
-// TODO test this
 const sendMail = (futureClient) => (mailArgs) => {
   let { recipient, subject, content } = mailArgs;
   let raw = prepareMail (recipient) (subject) (content);
+  console.log(raw)
   return futureClient
     .pipe(S.map ((client) => {
       send (client) (raw);
     }))
 }
 
-let sendTest = sendMail (init) ({ recipient: 'test@anthanes.com', subject: 'test', content: 'hi'})
-
-fork (log.error) (log.info) (sendTest)
+// let sendTest = sendMail (init) ({ recipient: 'test@anthanes.com', subject: 'test', content: 'hi...'})
 
 module.exports.sendMailF = sendMail;

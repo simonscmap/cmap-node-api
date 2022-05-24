@@ -35,6 +35,5 @@ const init = ap (readToken)
 
 
 module.exports = {
-  generateClientFromCredentials,
   init,
 }
