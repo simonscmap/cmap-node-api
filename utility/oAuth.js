@@ -1,14 +1,10 @@
-const fs = require('fs');
 const { google } = require('googleapis');
 const S = require('./sanctuary');
 const Future = require('fluture');
+const readJSON = require('./readJSON')
 const TOKEN_PATH = "token.json";
 
-const { ap, node, resolve } = Future;
-
-const readJSON = filePath =>
-  node (done => fs.readFile(filePath, 'utf-8', done))
-    .pipe(S.chain (Future.encase (JSON.parse)))
+const { ap, resolve } = Future;
 
 const generateClientFromCredentials = (creds) => {
   const {client_secret, client_id, redirect_uris} = creds.installed;
