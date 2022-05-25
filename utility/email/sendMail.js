@@ -1,13 +1,13 @@
-const Future = require("fluture");
+// const Future = require("fluture");
 const S = require("../sanctuary");
-const initializeLogger = require("../../log-service");
+// const initializeLogger = require("../../log-service");
 const base64url = require("base64-url");
-const { init } = require("../oAuth");
+// const { init } = require("../oAuth");
 
 const { compose } = S;
-const { fork } = Future;
+// const { fork } = Future;
 
-let log = initializeLogger("utility/email/sendMail");
+// let log = initializeLogger("utility/email/sendMail");
 
 // https://developers.google.com/gmail/api/reference/rest/v1/users.messages/send
 // 'me' is a special value, indicating to use the authenticated user
@@ -20,12 +20,7 @@ const assembleMail = recipient => subject => content => ("From: 'me'\r\n" +
     "Content-Transfer-Encoding: base64\r\n\r\n" +
     content);
 
-const b64 = (str) => {
-  console.log(str);
-  return base64url.encode(str);
-}
-
-const prepareMail = compose (compose (compose (b64))) (assembleMail);
+const prepareMail = compose (compose (compose (base64url.encode))) (assembleMail);
 
 const send = client => raw =>
   client.users.messages.send({
@@ -35,16 +30,18 @@ const send = client => raw =>
     },
   });
 
+// send mail via provided client
+// @futureClient is a future of the google mail client
+// @mailArgs is a StrObj with recipient, subject and content
 const sendMail = (futureClient) => (mailArgs) => {
   let { recipient, subject, content } = mailArgs;
   let raw = prepareMail (recipient) (subject) (content);
-  console.log(raw)
   return futureClient
     .pipe(S.map ((client) => {
       send (client) (raw);
     }))
 }
 
-// let sendTest = sendMail (init) ({ recipient: 'test@anthanes.com', subject: 'test', content: 'hi...'})
-
+module.exports.assembleMail = assembleMail;
+module.exports.prepareMail = prepareMail;
 module.exports.sendMailF = sendMail;
