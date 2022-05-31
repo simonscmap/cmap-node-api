@@ -53,7 +53,7 @@ app.use(
 
 // serve the landing page as a static file
 app.get("/", (req, res, next) => {
-  res.sendFile(__dirname + "/public/landing/landing.html", null, (err) => {
+  res.sendFile(__dirname + "/public/app.html", null, (err) => {
     if (err) {
       next(err);
     }
