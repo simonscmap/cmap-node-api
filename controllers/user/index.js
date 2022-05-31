@@ -6,7 +6,8 @@ const clearCart = require("./clearCart");
 const contactUs = require("./contactUs");
 const forgotPassword = require("./forgotPassword");
 const generateAPIKey = require("./generateAPIKey");
-const getCart = require("./getCart")
+const getCart = require("./getCart");
+const getGuestToken = require("./getGuestToken");
 const googleAuth = require("./googleAuth");
 const removeCartItem = require("./removeCartItem");
 const retrieveAPIKeys = require("./retrieveAPIKeys");
@@ -26,6 +27,7 @@ module.exports = {
   forgotPassword,
   generateAPIKey,
   getCart,
+  getGuestToken,
   googleAuth,
   removeCartItem,
   retrieveAPIKeys,
