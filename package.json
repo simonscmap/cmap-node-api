@@ -14,9 +14,7 @@
     "concurrency": 5,
     "failFast": true,
     "failWithoutAssertions": false,
-    "environmentVariables": {
-
-    },
+    "environmentVariables": {},
     "verbose": true
   },
   "author": "Mike D from New York",
