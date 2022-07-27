@@ -3,15 +3,18 @@ const jwt = require("jsonwebtoken");
 const jwtConfig = require("../../config/jwtConfig");
 const UnsafeUser = require("../../models/UnsafeUser");
 const templates = require("../../utility/email/templates");
-const sendMail = require("../../utility/email/sendMail");
+const { sendMail } = require("../../utility/email/sendMail");
+const Future = require("fluture");
 
 const initializeLogger = require("../../log-service");
 const log = initializeLogger("controllers/user/forgotPassword");
 
 // Sends forgot password email to registered email address
-module.exports = async (req, res, next) => {
+module.exports = async (req, res) => {
   // Accepts post with email address, send forgotten password email with JWT in link to reset
   // TODO unhandled failure case
+  log.info("initiating password reset", { providedEmail: req.body.email });
+
   let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
 
   if (!user || !user.email) {
@@ -30,14 +33,28 @@ module.exports = async (req, res, next) => {
 
   let subject = "CMAP Password Reset Request";
 
-  try {
-    sendMail(user.email, subject, content);
-  } catch (e) {
-    res.sendStatus(500);
-    log.error("error sending password reset email", e);
-    return;
-  }
+  let args = {
+    recipient: user.email,
+    subject,
+    content,
+  };
 
-  res.sendStatus(200);
-  return next();
+  let sendMailFuture = sendMail(args);
+
+  let reject = (e) => {
+    log.error("failed to send password reset email", {
+      recipient: user.email,
+      error: e,
+    });
+    res.status(500).send("error sending password reset email");
+  };
+
+  let resolve = () => {
+    log.info("email sent", { recipient: user.email, subject });
+    res.sendStatus(200);
+  };
+
+  // execute the send function
+  // see https://github.com/fluture-js/Fluture#fork
+  Future.fork(reject)(resolve)(sendMailFuture);
 };

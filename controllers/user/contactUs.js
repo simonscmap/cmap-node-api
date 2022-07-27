@@ -9,6 +9,7 @@ const initializeLogger = require("../../log-service");
 const log = initializeLogger("controllers/user/contactUs");
 
 module.exports = async (req, res) => {
+  log.trace('contact us controller')
   let payload = req.body;
 
   let emailClient = await awaitableEmailClient;
@@ -29,6 +30,7 @@ module.exports = async (req, res) => {
       },
     });
 
+    log.trace('successfully sent message')
     res.sendStatus(200);
     return;
   } catch (e) {

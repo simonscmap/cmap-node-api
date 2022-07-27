@@ -3,6 +3,13 @@
     "ecmaVersion": 2020
   },
   "rules": {
-    "no-unused-vars": "error"
-  }
+    "no-unused-vars": "error",
+    "no-undef": "error"
+  },
+  "globals": {
+    "module": "readonly",
+    "require": "readonly",
+    "console": "readonly"
+  },
+  "extends": "eslint:recommended"
 }
