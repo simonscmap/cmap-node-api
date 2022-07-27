@@ -3,7 +3,8 @@ const jwt = require("jsonwebtoken");
 const jwtConfig = require("../../config/jwtConfig");
 const UnsafeUser = require("../../models/UnsafeUser");
 const templates = require("../../utility/email/templates");
-const sendMail = require("../../utility/email/sendMail");
+const { sendMail } = require("../../utility/email/sendMail");
+const Future = require("fluture");
 
 const initializeLogger = require("../../log-service");
 const log = initializeLogger("controllers/user/signUp");
@@ -11,6 +12,8 @@ const log = initializeLogger("controllers/user/signUp");
 // Creates a new user in DB. Sends confirmation email
 module.exports = async (req, res) => {
   // Registers a new user.
+  log.info("initiating new user sign-up", { providedEmail: req.body.email });
+
   let newUser = new UnsafeUser(req.body);
 
   let signupResult;
@@ -23,11 +26,15 @@ module.exports = async (req, res) => {
   }
 
   if (!(signupResult.rowsAffected && signupResult.rowsAffected[0] > 0)) {
-    log.error("signup was unsuccessful: failed rows affected test", {
+    log.error("signup was unsuccessful: no rows affected", {
       user: newUser,
     });
     return res.sendStatus(500);
   }
+
+  log.info("success creating new user record", {
+    providedEmail: req.body.email,
+  });
 
   let signedUpUser;
 
@@ -38,24 +45,45 @@ module.exports = async (req, res) => {
     return res.sendStatus(500);
   }
 
+  log.info("sending new user sign-up confirmation email", {
+    providedEmail: req.body.email,
+  });
+
   // jwt payload is just `{ iss, sub }`
   let jwtPayload = signedUpUser.getJWTPayload();
   let token = jwt.sign(jwtPayload, jwtConfig.secret, {
     expiresIn: 60 * 60 * 24,
   });
 
-  let addressee = signedUpUser.firstName;
+  let args = {
+    recipient: req.body.email,
+    subject: "Simons CMAP: Confirm Account",
+    content: templates.signupConfirmEmail({
+      jwt: token,
+      addressee: signedUpUser.firstName,
+    }),
+  };
 
-  let content = templates.signupConfirmEmail({ jwt: token, addressee });
-  let subject = "Simons CMAP: Confirm Account";
-  try {
-    await sendMail(req.body.email, subject, content);
-    return res.sendStatus(200);
-  } catch (e) {
-    log.error("error sending mail, check if token is valid", {
+  // send Future
+  let sendF = sendMail(args);
+
+  let reject = (e) => {
+    log.error("failed to send sign-up email; ensure token is valid", {
+      recipient: args.recipient,
       error: e,
-      result,
     });
-    return res.sendStatus(500);
-  }
+    res.status(500).send("error sending sign-up confirmation email");
+  };
+
+  let resolve = () => {
+    log.info("email sent", {
+      recipient: args.recipient,
+      subject: args.subject,
+    });
+    res.sendStatus(200);
+  };
+
+  // execute the send function
+  // see https://github.com/fluture-js/Fluture#fork
+  Future.fork(reject)(resolve)(sendF);
 };

@@ -6,6 +6,10 @@ const TOKEN_PATH = "token.json";
 
 const { ap, resolve } = Future;
 
+// this module initializes a new gmail client with OAuth
+// it does the same thing as emailAuth.js
+// TODO incorporate a mechanism for generating a new token
+
 const generateClientFromCredentials = (creds) => {
   const {client_secret, client_id, redirect_uris} = creds.installed;
   return new google.auth.OAuth2(
@@ -25,6 +29,7 @@ const getGmailClient = client => token => {
   return google.gmail({ version: 'v1', auth: client });
 }
 
+// Return a resolved future with the gmail client
 const init = ap (readToken)
                (ap (readCredentials)
                  (resolve(getGmailClient)))
