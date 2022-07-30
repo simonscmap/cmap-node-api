@@ -38,7 +38,7 @@ router.use((err, req, res, next) => {
   res.sendStatus(500);
 });
 
-router.use((req, res) => {
+router.use((req, res, next) => {
   if (res.headersSent) {
     return;
   }

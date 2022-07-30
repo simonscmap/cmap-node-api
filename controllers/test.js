@@ -25,7 +25,7 @@ const testEmailHandler = async (req, res) => {
     res.sendStatus(200);
   } else {
     res.sendStatus(400);
-    log.error('no template found', {recipients, temlpateName, mockData});
+    log.error('no template found', {recipients, templateName, mockData});
   }
 };
 
