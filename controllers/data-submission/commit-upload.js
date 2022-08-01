@@ -1,8 +1,10 @@
 const sql = require("mssql");
 const { dropbox } = require("../../utility/Dropbox");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const sendMail = require("../../utility/email/sendMail");
+const { sendMail } = require("../../utility/email/sendMail");
+const Future = require("fluture");
 const templates = require("../../utility/email/templates");
+
 const initializeLogger = require("../../log-service");
 let log = initializeLogger("controllers/data-submission/commit-upload");
 const {
@@ -107,57 +109,72 @@ const commitUpload = async (req, res) => {
       try {
         await transaction.rollback();
       } catch (err) {
-        log.error('rollback failed', err);
+        log.error("rollback failed", err);
       }
       res.sendStatus(500);
       return;
     }
   } catch (e) {
-    log.error('failed to commit dropbox upload', e);
+    log.error("failed to commit dropbox upload", e);
     res.sendStatus(500);
     return;
   }
 
   res.sendStatus(200);
 
+  // RESPONSE HAS BEEN SENT
+
   // NOTIFY ADMIN
+  let subject =
+    submissionType === "New"
+      ? `CMAP Data Submission - ${fileName}`
+      : `Re: CMAP Data Submission - ${fileName}`;
 
-  let subject; // NOTE: same subject is used for both mailings
-  if (submissionType === "New") {
-    subject = `CMAP Data Submission - ${fileName}`;
-  } else {
-    subject = `Re: CMAP Data Submission - ${fileName}`;
-  }
+  let notifyAdminArgs = {
+    subject,
+    recipient: CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
+    content: templates.notifyAdminOfDataSubmission({
+      datasetName: fileName,
+      user: req.user,
+      submissionType,
+    }),
+  };
 
-  let notifyAdminContent = templates.notifyAdminOfDataSubmission({
-    datasetName: fileName,
-    user: req.user,
-    submissionType,
-  });
-
-  try {
-    sendMail(CMAP_DATA_SUBMISSION_EMAIL_ADDRESS, subject, notifyAdminContent);
-  } catch (e) {
+  let rejectNotifyAdmin = (e) => {
     log.error("failed to notify admin of new data submission", {
       subject,
+      error: e,
     });
-  }
+  };
+
+  let resolveNotifyAdmin = () =>
+    log.info("notified admin of new data submission", {
+      fileName,
+      user: req.user.id,
+    });
+
+  let sendNotifyAdmin = sendMail(notifyAdminArgs);
+
+  Future.fork(rejectNotifyAdmin)(resolveNotifyAdmin)(sendNotifyAdmin);
 
   // NOTIFY USER
-
   let contentTemplate =
     submissionType === "New"
       ? templates.notifyUserOfReceiptOfNewDataSubmission
       : templates.notifyUserOfReceiptOfUpdatedDataSubmission;
 
-  let notifyUserContent = contentTemplate({
-    datasetName: fileName,
-    user: req.user,
-  });
+  let notifyUserArgs = {
+    subject,
+    recipient: req.user.email,
+    content: contentTemplate({
+      datasetName: fileName,
+      user: req.user,
+    }),
+  };
 
-  try {
-    sendMail(req.user.email, subject, notifyUserContent);
-  } catch (e) {
+  let sendNotifyUser = sendMail(notifyUserArgs);
+
+  let rejectNotifyUser = (e) => {
     log.error(
       `failed to notify user of receipt of ${
         submissionType === "New" ? "new" : "updated"
@@ -165,9 +182,15 @@ const commitUpload = async (req, res) => {
       {
         subject,
         recipientId: req.user.id,
+        error: e,
       }
     );
-  }
+  };
+
+  let resolveNotifyUser = () =>
+    log.info("notified user of receipt of data submission", { subject });
+
+  Future.fork(rejectNotifyUser)(resolveNotifyUser)(sendNotifyUser);
 };
 
 module.exports = commitUpload;
