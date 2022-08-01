@@ -4,12 +4,16 @@
   },
   "rules": {
     "no-unused-vars": "error",
-    "no-undef": "error"
+    "no-undef": "error",
+    "no-unexpected-multiline": "off"
   },
   "globals": {
     "module": "readonly",
     "require": "readonly",
-    "console": "readonly"
+    "console": "readonly",
+    "__dirname": "readonly",
+    "process": "readonly",
+    "Promise": "readonly"
   },
   "extends": "eslint:recommended"
 }

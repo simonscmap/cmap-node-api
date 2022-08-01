@@ -1,5 +1,6 @@
 const fs = require("fs");
-
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
 // get api version from its package.json file
 
 let apiPackage = fs.readFileSync(process.cwd() + "/package.json", {
@@ -25,16 +26,17 @@ try {
     flag: "r",
   });
 } catch (e) {
-  console.error("error trying to read web app version file");
-  console.error("if this file is missing, make sure it was produced in the web app build step");
-  console.log(e);
+  if (isProduction) {
+    console.error("error trying to read web app version file");
+    console.error("if this file is missing, make sure it was produced in the web app build step");
+  }
 }
 
 let wp;
 try {
   if (webPackage) {
     wp = JSON.parse(webPackage);
-  } else {
+  } else if (isProduction) {
     console.log("no version file for web app")
   }
 } catch (e) {

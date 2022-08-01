@@ -1,7 +1,8 @@
 {
-  "name": "test",
+
+  "name": "SimonsCMAPAPI",
   "version": "1.2.3",
-  "description": "CMAP Web API",
+  "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
     "test": "ava",
@@ -9,7 +10,8 @@
   },
   "ava": {
     "files": [
-      "test/**/*"
+      "test/**/*",
+      "!test/controllers/lib/mock*"
     ],
     "concurrency": 5,
     "failFast": true,
@@ -17,10 +19,11 @@
     "environmentVariables": {},
     "verbose": true
   },
-  "author": "Mike D from New York",
+  "author": "Simons CMAP",
   "license": "ISC",
   "devDependencies": {
     "ava": "^4.2.0",
+    "eslint": "^8.22.0",
     "jest": "^25.5.4",
     "nodemon": "^1.19.4"
   },

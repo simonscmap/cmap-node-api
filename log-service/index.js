@@ -1,7 +1,33 @@
-const { versions } = require('./get-versions');
-const { id: workerId } = require('./get-worker');
+const { versions } = require("./get-versions");
+const { id: workerId } = require("./get-worker");
+const {
+  head,
+  filter,
+  map,
+  pipe,
+  last,
+  parseInt: parseInteger,
+  chain,
+  fromMaybe
+} = require("../utility/sanctuary");
 
-const isProduction = process.env.NODE_ENV === 'production';
+// the development server will use 'staging' in order to enable news preview
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+
+let includesLogLevel = (term) => term.includes("logLevel");
+let split = (term) => term.split("=");
+
+let logThresholdFromArgv = pipe([
+  filter (includesLogLevel), // filter argv for one with "logLevel"
+  head, // get the logLevel arg; head returns a Maybe
+  map(split), // term should be logLevel=n
+  chain (last), // get the part after '='; returns a Maybe, so we chain
+  chain (parseInteger (10)), // parseInt retuns a maybe, so we chain
+  fromMaybe (5) // default to the most inclusive threshold
+]);
+
+let logThreshhold = logThresholdFromArgv (process.argv);
 
 const tagInfo = {
   versions: {
@@ -25,6 +51,12 @@ const logLevel = {
 };
 
 function log(level, tags, context, message, isError, data) {
+  // 0. exit if over the log threshhold
+
+  if (isProduction && level > 3 || logThreshhold < level) {
+    return;
+  }
+
   // 1. ensure that log will have full context
 
   if (typeof level !== "number") {
@@ -51,10 +83,6 @@ function log(level, tags, context, message, isError, data) {
     return;
   }
 
-  // 2. don't log trace or debug in production
-  if (isProduction && level > 3) {
-    return;
-  }
 
   // 3. prepare log
   let payload = {
@@ -62,13 +90,14 @@ function log(level, tags, context, message, isError, data) {
     message,
   };
 
-  if (context) {
-    payload.context = context;
+  // only log time and tags in production
+  if (isProduction) {
+    payload.time = Date.now();
+    payload.tags = tags;
   }
 
-  if (isProduction) {
-    time: Date.now(),
-    payload.tags = tags;
+  if (context) {
+    payload.context = context;
   }
 
   if (isError) {
@@ -88,8 +117,11 @@ function log(level, tags, context, message, isError, data) {
   }
 }
 
-function createNewLogger() {
-  let logger = Object.assign({}, { tags: tagInfo, context: {} });
+function createNewLogger(moduleName) {
+  let logger = Object.assign(
+    {},
+    { tags: tagInfo, context: { module: moduleName } }
+  );
   logger.setModule = (x) => {
     logger.context.module = x;
     return logger;

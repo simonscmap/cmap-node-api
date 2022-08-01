@@ -2,6 +2,7 @@ const router = require("express").Router();
 const multer = require("multer");
 const passport = require("../middleware/passport");
 const upload = multer();
+const newsRoutes = require("./news");
 const userRoutes = require("./user");
 const dataRoutes = require("./data");
 const catalogRoutes = require("./catalog");
@@ -14,6 +15,7 @@ const log = createNewLogger().setModule("routes/apiRouter.js");
 let passportMethods = ["headerapikey", "jwt"];
 let passportOptions = { session: false };
 
+router.use("/news", newsRoutes);
 router.use("/user", userRoutes);
 router.use("/data", dataRoutes);
 router.use("/catalog", catalogRoutes);
