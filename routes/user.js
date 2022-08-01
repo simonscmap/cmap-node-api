@@ -68,7 +68,6 @@ router.post(
 // Route for transmitted submitted contact us forms
 router.post("/contactus", asyncControllerWrapper(userController.contactUs));
 
-// Route for transmitted submitted contact us forms
 router.post(
   "/changeemail",
   passport.authenticate("local", { session: false }),
