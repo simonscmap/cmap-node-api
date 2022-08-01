@@ -9,7 +9,10 @@
   "globals": {
     "module": "readonly",
     "require": "readonly",
-    "console": "readonly"
+    "console": "readonly",
+    "__dirname": "readonly",
+    "process": "readonly",
+    "Promise": "readonly"
   },
   "extends": "eslint:recommended"
 }

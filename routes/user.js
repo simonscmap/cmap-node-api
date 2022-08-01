@@ -7,7 +7,7 @@ const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper"
 // Signup route
 router.post(
   "/signup",
-  asyncControllerWrapper(asyncControllerWrapper(userController.signUp))
+  asyncControllerWrapper(userController.signUp)
 );
 
 // Signin route
