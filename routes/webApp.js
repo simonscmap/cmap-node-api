@@ -24,6 +24,7 @@ router.get("/documentation", sendSPA);
 router.get("/about", sendSPA);
 router.get("/contact", sendSPA);
 router.get("/apikeymanagement", sendSPA);
+router.get("/choosepassword", sendSPA);
 router.get("/profile", sendSPA);
 router.get("/register", sendSPA);
 router.get("/forgotpass", sendSPA);
