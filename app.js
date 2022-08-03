@@ -87,6 +87,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// send react app
+app.use((req, res, next) => {
+  if (!res.headersSent && !res.cmapSkipCatchAll) {
+    res.sendFile(__dirname + "/public/app.html", null, (err) => {
+      if (err) next(err);
+      else next();
+    });
+  }
+});
+
 // catch-all error logging
 // NOTE this must take 4 arguments
 // see: http://expressjs.com/en/guide/using-middleware.html#middleware.error-handling
