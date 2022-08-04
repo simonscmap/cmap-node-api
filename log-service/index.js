@@ -88,8 +88,8 @@ function log(level, tags, context, message, isError, data) {
   }
 }
 
-function createNewLogger() {
-  let logger = Object.assign({}, { tags: tagInfo, context: {} });
+function createNewLogger(moduleName) {
+  let logger = Object.assign({}, { tags: tagInfo, context: { module: moduleName } });
   logger.setModule = (x) => {
     logger.context.module = x;
     return logger;

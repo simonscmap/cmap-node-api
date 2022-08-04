@@ -11,7 +11,8 @@
     "require": "readonly",
     "console": "readonly",
     "__dirname": "readonly",
-    "process": "readonly"
+    "process": "readonly",
+    "Promise": "readonly"
   },
   "extends": "eslint:recommended"
 }
