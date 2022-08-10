@@ -4,6 +4,7 @@ const log = initializeLogger("controllers/user/changePassword");
 
 // Endpoint for user profile self-update password
 module.exports = async (req, res) => {
+  log.info("change password", { userId: req.user && req.user.UserID })
   let user = new UnsafeUser({ ...req.user, password: req.body.newPassword });
   // TODO unhandled failure case
   let result = await user.updatePassword();

@@ -1,12 +1,12 @@
 const sql = require("mssql");
-const createNewLogger = require('../log-service');
+const createNewLogger = require("../log-service");
 const mapPathToRouteId = require("../config/routeMapping");
 // const userDBConfig = require("../config/dbConfig").userTableConfig;
 var pools = require("../dbHandlers/dbPools");
 const apiCallsTable = "tblApi_Calls";
 // const apiCallDetailsTable = "tblApi_Call_Details";
 
-const log = createNewLogger().setModule('ApiCallDetail');
+const log = createNewLogger().setModule("ApiCallDetail");
 
 // Model for tblApi_Calls
 module.exports = class ApiCallDetail {
@@ -37,6 +37,7 @@ module.exports = class ApiCallDetail {
 
     let pool = await pools.userReadAndWritePool;
     let request = await new sql.Request(pool);
+    let requestDuration = new Date() - this.startTime;
 
     request.input("Ip_Address", sql.VarChar, this.ip);
     request.input("Client_Host_Name", sql.VarChar, this.clientHostName || null);
@@ -47,10 +48,23 @@ module.exports = class ApiCallDetail {
     request.input("Auth_Method", sql.Int, this.authMethod || 0);
     request.input("Query", sql.VarChar, this.query || null);
     request.input("Api_Key_ID", sql.Int, this.apiKeyID || null);
-    request.input("Request_Duration", sql.Int, new Date() - this.startTime);
+    request.input("Request_Duration", sql.Int, requestDuration);
     request.input("URL_Path", sql.VarChar, this.requestPath);
 
     request.on("error", log.error);
+
+    log.info("api call detail", {
+      ip: this.ip,
+      clientHostName: this.clientHostName,
+      clientOS: this.clientOS,
+      userId: this.userID || 1,
+      routeId: this.routeID,
+      authMethod: this.authMethod || 0,
+      query: this.query,
+      apiKeyId: this.apiKeyID || null,
+      requestDuration,
+      urlPath: this.requestPath,
+    });
 
     var query = `INSERT INTO ${apiCallsTable} (
             Ip_Address,
@@ -81,7 +95,7 @@ module.exports = class ApiCallDetail {
     try {
       await request.query(query);
     } catch (e) {
-      log.error('error while making insert into api calls table', e);
+      log.error("error while making insert into api calls table", e);
     }
   }
 };

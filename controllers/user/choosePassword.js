@@ -9,8 +9,9 @@ module.exports = async (req, res) => {
   let payload;
   try {
     payload = await jwt.verify(req.body.token, jwtConfig.secret);
+    log.info("choose new password", { user: payload.sub })
   } catch (e) {
-    log.error("error verifying jwt");
+    log.error("error verifying jwt during choose new password", e);
     return res.sendStatus(400);
   }
 
