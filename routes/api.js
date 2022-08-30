@@ -27,6 +27,13 @@ router.use(
   dataSubmissionRoutes
 );
 
+// Usage metrics logging
+router.use((req, res, next) => {
+  log.trace("save call details");
+  req.cmapApiCallDetails.save();
+  next();
+});
+
 // catch-all error logging
 // NOTE this must take 4 arguments
 // see: http://expressjs.com/en/guide/using-middleware.html#middleware.error-handling
@@ -44,7 +51,7 @@ router.use((req, res) => {
   if (res.headersSent) {
     return;
   }
-  log.info("returning 404 from api", { originalUrl: req.originalUrl })
+  log.info("returning 404 from api", { originalUrl: req.originalUrl });
   res.sendStatus(404);
 });
 

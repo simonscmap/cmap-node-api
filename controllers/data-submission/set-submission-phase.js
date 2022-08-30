@@ -6,6 +6,8 @@ const awaitableEmailClient = require("../../utility/emailAuth");
 const emailTemplates = require("../../utility/emailTemplates");
 const base64url = require("base64-url");
 
+const emailSubjectRoot = "CMAP Data Submission -";
+
 // Changes the current phase of a submission. User by admin dashboard. Automatically sends relevant email to user
 const setSubmissionPhase = async (req, res) => {
   let pool = await userReadAndWritePool;

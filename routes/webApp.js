@@ -1,12 +1,15 @@
 const router = require("express").Router();
-const process = require("process");
+// const process = require("process");
 const createNewLogger = require("../log-service");
 const log = createNewLogger().setModule("routes/webApp.js");
 
 const sendSPA = (req, res, next) => {
+  log.trace('sending spa')
   res.sendFile("/public/app.html", { root: process.cwd() }, (err) => {
     if (err) {
       next(err);
+    } else {
+      next();
     }
   });
 };
@@ -29,6 +32,13 @@ router.get("/profile", sendSPA);
 router.get("/register", sendSPA);
 router.get("/forgotpass", sendSPA);
 router.get("/education", sendSPA);
+
+// Usage metrics logging
+router.use((req, res, next) => {
+  log.trace('save call details');
+  req.cmapApiCallDetails.save();
+  next();
+});
 
 // catch-all error logging
 // NOTE this must take 4 arguments

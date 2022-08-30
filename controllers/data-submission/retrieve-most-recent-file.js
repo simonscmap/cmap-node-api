@@ -4,7 +4,7 @@ const { dropbox } = require("../../utility/Dropbox");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
 
 // Generates a temporary download link to the most recent version of a submission, and sends to client
-exports.retrieveMostRecentFile = async (req, res) => {
+const retrieveMostRecentFile = async (req, res) => {
   let pool = await userReadAndWritePool;
   let request = await new sql.Request(pool);
 
@@ -37,3 +37,5 @@ exports.retrieveMostRecentFile = async (req, res) => {
     return res.sendStatus(500);
   }
 };
+
+module.exports = retrieveMostRecentFile;

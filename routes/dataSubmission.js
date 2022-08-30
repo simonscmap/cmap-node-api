@@ -14,7 +14,8 @@ const {
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 const checkAdminAuth = require("../middleware/checkAdminAuth");
-const passport = require("../middleware/passport");
+
+// all endpoints defined on this router undergo auth upstream in the apiRouter
 
 router.post("/beginuploadsession", asyncControllerWrapper(beginUploadSession));
 router.post("/uploadfilepart", asyncControllerWrapper(uploadFilePart));
@@ -22,7 +23,6 @@ router.post("/commitupload", asyncControllerWrapper(commitUpload));
 
 router.post(
   "/addcomment",
-  // passport.authenticate(['jwt'], { session: false }),
   asyncControllerWrapper(addComment)
 );
 

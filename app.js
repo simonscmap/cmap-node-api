@@ -31,6 +31,7 @@ app.use(useragent.express());
 
 // Attaching call details to request object for usage tracking
 app.use((req, res, next) => {
+  log.trace('attach ApiCallDetails to req');
   req.cmapApiCallDetails = new ApiCallDetails(req);
   req.cmapApiCallDetails.checkIp();
   next();
@@ -51,6 +52,7 @@ app.use(webApp);
 
 // Usage metrics logging
 app.use((req, res, next) => {
+  log.trace('save call details');
   req.cmapApiCallDetails.save();
   next();
 });

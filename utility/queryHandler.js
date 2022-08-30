@@ -77,9 +77,9 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   csvStream.on("error", (err) => {
     if (poolName === rainier) {
       if (!res.headersSent) {
-        return res.status(400).end(err);
+        res.status(400).end(err);
       } else {
-        return res.end();
+        res.end();
       }
     }
   });
@@ -137,9 +137,9 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
       });
 
       if (res.headersSent) {
-        return res.end();
+        res.end();
       } else if (req.query.servername || poolName === rainier) {
-        return res.status(400).end(generateError(err));
+        res.status(400).end(generateError(err));
       } else {
         log.error("unknown error case", { error: err });
       }
@@ -159,10 +159,12 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     accumulator.unpipe(res);
 
     log.warning("retrying query on ranier", {
-      query: api.cmapApiCallDetails.query,
+      query: req.cmapApiCallDetails.query,
     });
 
     await handleQuery(req, res, next, query, true);
+  } else {
+    return next();
   }
 };
 

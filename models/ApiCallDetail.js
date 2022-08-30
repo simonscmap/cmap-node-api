@@ -11,6 +11,7 @@ const log = createNewLogger().setModule('ApiCallDetail');
 // Model for tblApi_Calls
 module.exports = class ApiCallDetail {
   constructor(req) {
+    log.trace('api call detail constructor');
     this.ip = req.headers["x-forwarded-for"]
       ? req.headers["x-forwarded-for"].split(",")[0]
       : req.ip || "None";
@@ -32,6 +33,7 @@ module.exports = class ApiCallDetail {
 
   // Save the usage details to SQL
   async save() {
+    log.debug('this query', { query: this.query});
     if (this.ignore) return;
     if (this.clientBrowser === "ELB-HealthChecker") return;
 
@@ -50,7 +52,7 @@ module.exports = class ApiCallDetail {
     request.input("Request_Duration", sql.Int, new Date() - this.startTime);
     request.input("URL_Path", sql.VarChar, this.requestPath);
 
-    request.on("error", log.error);
+    request.on("error", (e) => log.error("error", { error: e }));
 
     var query = `INSERT INTO ${apiCallsTable} (
             Ip_Address,
