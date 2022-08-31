@@ -11,6 +11,7 @@ const log = createNewLogger().setModule("ApiCallDetail");
 // Model for tblApi_Calls
 module.exports = class ApiCallDetail {
   constructor(req) {
+    log.debug("api call details constructed", { route: `${req.baseUrl || ""}${req.path}`});
     this.ip = req.headers["x-forwarded-for"]
       ? req.headers["x-forwarded-for"].split(",")[0]
       : req.ip || "None";
@@ -32,26 +33,7 @@ module.exports = class ApiCallDetail {
 
   // Save the usage details to SQL
   async save() {
-    if (this.ignore) return;
-    if (this.clientBrowser === "ELB-HealthChecker") return;
-
-    let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
     let requestDuration = new Date() - this.startTime;
-
-    request.input("Ip_Address", sql.VarChar, this.ip);
-    request.input("Client_Host_Name", sql.VarChar, this.clientHostName || null);
-    request.input("Client_OS", sql.VarChar, this.clientOS || null);
-    request.input("Client_Browser", sql.VarChar, this.clientBrowser || null);
-    request.input("User_ID", sql.Int, this.userID || 1);
-    request.input("Route_ID", sql.Int, this.routeID);
-    request.input("Auth_Method", sql.Int, this.authMethod || 0);
-    request.input("Query", sql.VarChar, this.query || null);
-    request.input("Api_Key_ID", sql.Int, this.apiKeyID || null);
-    request.input("Request_Duration", sql.Int, requestDuration);
-    request.input("URL_Path", sql.VarChar, this.requestPath);
-
-    request.on("error", log.error);
 
     log.info("api call detail", {
       ip: this.ip,
@@ -65,6 +47,26 @@ module.exports = class ApiCallDetail {
       requestDuration,
       urlPath: this.requestPath,
     });
+
+    if (this.ignore) return;
+    if (this.clientBrowser === "ELB-HealthChecker") return;
+
+    let pool = await pools.userReadAndWritePool;
+    let request = await new sql.Request(pool);
+
+    request.input("Ip_Address", sql.VarChar, this.ip);
+    request.input("Client_Host_Name", sql.VarChar, this.clientHostName || null);
+    request.input("Client_OS", sql.VarChar, this.clientOS || null);
+    request.input("Client_Browser", sql.VarChar, this.clientBrowser || null);
+    request.input("User_ID", sql.Int, this.userID || 1);
+    request.input("Route_ID", sql.Int, this.routeID);
+    request.input("Auth_Method", sql.Int, this.authMethod || 0);
+    request.input("Query", sql.VarChar, this.query || null);
+    request.input("Api_Key_ID", sql.Int, this.apiKeyID || null);
+    request.input("Request_Duration", sql.Int, requestDuration);
+    request.input("URL_Path", sql.VarChar, this.requestPath);
+
+    request.on("error", (e) => log.error("error", { error: e }));
 
     var query = `INSERT INTO ${apiCallsTable} (
             Ip_Address,
