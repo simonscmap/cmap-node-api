@@ -33,11 +33,13 @@ module.exports = async (req, res) => {
 
   if (result) {
     log.trace("returning news results");
+
     res.status(200).send(result.recordset);
     return;
   }
 
   log.error("unknown error listing news")
   res.status(500).send("unknown error");
+
   return;
 };

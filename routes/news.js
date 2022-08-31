@@ -28,6 +28,4 @@ router.post(
   asyncControllerWrapper(newsController.delete)
 );
 
-
-
 module.exports = router;
