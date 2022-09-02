@@ -8,6 +8,9 @@
     "test": "ava",
     "start": "./node_modules/pm2/bin/pm2-runtime app.js -i 2"
   },
+  "engines": {
+    "node": ">=12.18.1"
+  },
   "ava": {
     "files": [
       "test/**/*",
