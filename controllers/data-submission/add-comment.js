@@ -123,7 +123,7 @@ const sendNotificationToAdmin = async (datasetInfo, comment, userName, qc1WasCom
 const sendNotificationToUser = async (datasetInfo, comment, userName) => {
   let { datasetName, ownerFirstName, ownerEmail } = datasetInfo;
 
-  mailContent = templates.notifyUserOfAdminComment({
+  let mailContent = templates.notifyUserOfAdminComment({
     datasetName,
     userMessage: comment,
     userName, // admin name
