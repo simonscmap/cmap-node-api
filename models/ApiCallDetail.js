@@ -33,7 +33,21 @@ module.exports = class ApiCallDetail {
 
   // Save the usage details to SQL
   async save() {
-    log.debug('this query', { query: this.query});
+    let requestDuration = new Date() - this.startTime;
+
+    log.info("api call detail", {
+      ip: this.ip,
+      clientHostName: this.clientHostName,
+      clientOS: this.clientOS,
+      userId: this.userID || 1,
+      routeId: this.routeID,
+      authMethod: this.authMethod || 0,
+      query: this.query,
+      apiKeyId: this.apiKeyID || null,
+      requestDuration,
+      urlPath: this.requestPath,
+    });
+
     if (this.ignore) return;
     if (this.clientBrowser === "ELB-HealthChecker") return;
 
@@ -49,7 +63,7 @@ module.exports = class ApiCallDetail {
     request.input("Auth_Method", sql.Int, this.authMethod || 0);
     request.input("Query", sql.VarChar, this.query || null);
     request.input("Api_Key_ID", sql.Int, this.apiKeyID || null);
-    request.input("Request_Duration", sql.Int, new Date() - this.startTime);
+    request.input("Request_Duration", sql.Int, requestDuration);
     request.input("URL_Path", sql.VarChar, this.requestPath);
 
     request.on("error", (e) => log.error("error", { error: e }));

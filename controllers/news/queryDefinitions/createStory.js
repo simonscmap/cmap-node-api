@@ -18,7 +18,7 @@ let {
   Right,
 } = S;
 
-let maybeNothingToRight = ifElse (isJust) (() => Right("")) (maybeToEither ("Oops"));
+let maybeNothingToRight = ifElse (isJust) (maybeToEither ("Oops")) ((arg) => Right(arg));
 
 let makeErrorMessage = (e) => {
   if (typeof e === 'object') {

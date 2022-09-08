@@ -39,6 +39,14 @@ router.post(
 );
 
 router.post(
+  "/draft",
+  passport.authenticate(passportMethods, passportOptions),
+  checkAdminAuth,
+  ensureContentType(contentTypes.json),
+  asyncControllerWrapper(newsController.draft)
+);
+
+router.post(
   "/unpublish",
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,

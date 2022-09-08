@@ -34,7 +34,7 @@ let {
    WHERE ID in (2, 3, 5)
  */
 
-let rankToCaseStatement = ({ id, rank }) => `WHEN ID = ${id} THEN ${rank}`;
+let rankToCaseStatement = ({ ID, rank }) => `WHEN ID = ${ID} THEN ${rank}`;
 
 let getCaseStatement = pipe([
   map(map(rankToCaseStatement)), // map the Array inside the Maybe
@@ -43,7 +43,7 @@ let getCaseStatement = pipe([
 ]);
 
 let getCommaSeparatedIds = pipe ([
-  map (map (prop('id'))),
+  map (map (prop('ID'))),
   map (map (x => `${x}`)),
   map (joinWith(', ')),
   fromMaybe('')
@@ -51,13 +51,13 @@ let getCommaSeparatedIds = pipe ([
 
 let reconcileArgsWithExistingRanks = (requestedRanks) => (existingRanks) => {
   // get ids from existing ranks
-  let currentIds = map (({ id }) => id) (existingRanks)
+  let currentIds = map (({ ID }) => ID) (existingRanks)
   // get ids from requested ranks
-  let requestedIds = map (({ id}) => id) (requestedRanks);
+  let requestedIds = map (({ ID }) => ID) (requestedRanks);
   // make a list of ids that are missing, and set rank to null
   let remainingIds = filter ((cId) => none ((rId) => rId === cId) (requestedIds)) (currentIds)
   // re-form objects with ranks to be nulled
-  let nulledIds = map ((id) => ({ id, rank: null })) (remainingIds)
+  let nulledIds = map ((ID) => ({ ID, rank: null })) (remainingIds)
   // return merged lists
   return concat (requestedRanks) (nulledIds)
 }
@@ -97,7 +97,7 @@ let rejectEmptyArrays = (x) => {
 let rejectNonUniqueRanks = (x) => {
   if (isRight (x)) {
     let ranks = fromRight ([]) (x);
-    let rankValues = ranks.map(({ rank}) => rank );
+    let rankValues = ranks.map(({ rank }) => rank );
     let uniqueRanks = new Set(rankValues);
     if (rankValues.length !== uniqueRanks.size) {
       return Left("ranks must be unique"); // TODO should return 400
@@ -127,7 +127,6 @@ let updateRankedItemsQueryDefinition = {
       defaultTo: [],
       resolver:  pipe ([
         gets (is ($.Array ($.StrMap ($.Integer)))) (["currentlyRankedItems"]),
-        map (map (({ ID, rank }) => ({ id: ID, rank }))), // normalize ID -> id
         maybeToEither ("could not resolve current ranks")
       ])
     },

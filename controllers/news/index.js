@@ -1,4 +1,5 @@
 const create = require('./createF');
+const draft = require('./draft');
 const list = require('./list');
 const preview = require('./preview');
 const publish = require('./publish');
@@ -8,6 +9,7 @@ const unpublish = require('./unpublish');
 
 module.exports = {
   create,
+  draft,
   list,
   preview,
   publish,
