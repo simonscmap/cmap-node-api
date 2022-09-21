@@ -95,7 +95,7 @@ const commitUpload = async (req, res) => {
         await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
       }
 
-      dataSubmissionFilesInsert = new sql.Request(transaction);
+      let dataSubmissionFilesInsert = new sql.Request(transaction);
       let dataSubmissionFilesInsertQuery = `
                 INSERT INTO [dbo].[tblData_Submission_Files]
                 (Submission_ID, Timestamp)

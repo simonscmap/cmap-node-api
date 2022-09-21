@@ -35,10 +35,9 @@ const checkOwner = async (submissionId, userId) => {
   } catch (e) {
     log.error("error requesting dataset owner information", e);
     throw new Error("error requesting dataset owner");
-    return;
   }
 
-  owner = result.recordset[0].Submitter_ID;
+  let owner = result.recordset[0].Submitter_ID;
   userIsOwner = owner === userId;
   qc1WasCompleted = !!result.recordset[0].QC1_Completion_Date_Time;
 
