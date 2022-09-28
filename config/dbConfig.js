@@ -1,6 +1,8 @@
 // Define database connection configs
 // used by node-mssql connection
 
+// node "DB_SERVER" is "Ranier"
+// validator interactions use Ranier exclusively
 
 const baseConfig = {
   port: Number(process.env.DB_PORT),

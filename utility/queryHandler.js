@@ -12,13 +12,24 @@ function formatDate(date) {
   return date.toISOString();
 }
 
+// headers for streamed response
+const headers = {
+  "Transfer-Encoding": "chunked",
+  "Content-Type": "text/plain",
+  "Cache-Control": "max-age=86400",
+};
+
 const mariana = "mariana";
 const rainier = "rainier";
 const rossby = "rossby";
 const skipLogging = new Set(["ECANCEL"]);
 
 // Streaming data handler used by /data routes
+// - recurses on error
+// - chooses database target
 const handleQuery = async (req, res, next, query, forceRainier) => {
+  // 1. initialize new request with pool
+
   let pool;
   let poolName;
   let requestError = false;
@@ -63,9 +74,11 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   let request = await new sql.Request(pool);
 
+  // stream the response
+  // https://www.npmjs.com/package/mssql#streaming
   request.stream = true;
 
-  res.cmapSkipCatchAll = true;
+  // 2. create stream and define event handlers
 
   let csvStream = stringify({
     header: true,
@@ -75,6 +88,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   });
 
   csvStream.on("error", (err) => {
+    // if the query targeted ranier, we will not re-try it
     if (poolName === rainier) {
       if (!res.headersSent) {
         res.status(400).end(err);
@@ -87,12 +101,6 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   let accumulator = new Accumulator();
 
   csvStream.pipe(accumulator).pipe(res);
-
-  const headers = {
-    "Transfer-Encoding": "chunked",
-    "Content-Type": "text/plain",
-    "Cache-Control": "max-age=86400",
-  };
 
   request.on("recordset", (recordset) => {
     if (!res.headersSent) {
@@ -109,7 +117,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   request.on("done", () => {
     if (poolName === mariana && requestError === true) {
-      log.trace("mariana or requestError")
+      log.trace("mariana or requestError");
       accumulator.unpipe(res);
     }
     csvStream.end();
@@ -146,8 +154,11 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     }
   });
 
+  // 3. execute
+
   await request.query(query);
 
+  // 4. handle result: either retry or next()
   // if there is an error, and query was not already run on ranier, and no servername was specified
   // then rerun on ranier
   if (

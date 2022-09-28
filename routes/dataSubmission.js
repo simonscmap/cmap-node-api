@@ -49,6 +49,7 @@ router.get(
   asyncControllerWrapper(mostRecentFile)
 );
 
+// TODO: why is this a GET?
 router.get(
   "/deletesubmission",
   checkAdminAuth,

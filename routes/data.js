@@ -1,28 +1,42 @@
-const router = require('express').Router();
-const passport = require('../middleware/passport');
+const router = require("express").Router();
+const passport = require("../middleware/passport");
 
-const dataController = require('../controllers/data');
+const dataController = require("../controllers/data");
 
-const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
+const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 
 // Custom query statement route
-router.get('/query', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), asyncControllerWrapper(dataController.customQuery));
+router.get(
+  "/query",
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  asyncControllerWrapper(dataController.customQuery)
+);
 
 // Stored procedure route
-router.get('/sp', passport.authenticate(['headerapikey', 'jwt', 'guest'], {session: false}), asyncControllerWrapper(dataController.storedProcedure));
+router.get(
+  "/sp",
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  asyncControllerWrapper(dataController.storedProcedure)
+);
 
-router.get('/ancillary-datasets', asyncControllerWrapper(dataController.ancillaryDatasets));
+router.get(
+  "/ancillary-datasets",
+  asyncControllerWrapper(dataController.ancillaryDatasets)
+);
 
 // Get list of cruises
-router.get('/cruiselist', asyncControllerWrapper(dataController.cruiseList));
+router.get("/cruiselist", asyncControllerWrapper(dataController.cruiseList));
 
 // Get cruise trajectory
-router.get('/cruisetrajectory', asyncControllerWrapper(dataController.cruiseTrajectory));
+router.get(
+  "/cruisetrajectory",
+  asyncControllerWrapper(dataController.cruiseTrajectory)
+);
 
 // Table stats
-router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
+router.get("/tablestats", asyncControllerWrapper(dataController.tableStats));
 
 // Protobuf test
-router.get('/proto', asyncControllerWrapper(dataController.testProto));
+router.get("/proto", asyncControllerWrapper(dataController.testProto));
 
 module.exports = router;
