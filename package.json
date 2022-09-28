@@ -27,7 +27,7 @@
     "ava": "^4.2.0",
     "eslint": "^8.22.0",
     "jest": "^25.5.4",
-    "nodemon": "^1.19.4"
+    "nodemon": "^2.0.20"
   },
   "dependencies": {
     "base64-url": "^2.3.3",
