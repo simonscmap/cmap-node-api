@@ -1,8 +1,9 @@
-// const Future = require("fluture");
+const Future = require("fluture");
 const S = require("../sanctuary");
 const initializeLogger = require("../../log-service");
 const base64url = require("base64-url");
 const { init } = require("../oAuth");
+const { getGmailClient } = require("../serviceAccountAuth");
 const { compose } = S;
 
 let log = initializeLogger("utility/email/sendMail");
@@ -12,22 +13,23 @@ let log = initializeLogger("utility/email/sendMail");
 // which, in this case, is the one stored in credentials.json
 
 // assemble mail
-const assembleMail = recipient => subject => content => ("From: 'me'\r\n" +
-    `To: ${recipient}\r\n` +
-    `Subject: ${subject}\r\n` +
-    "Content-Type: text/html; charset='UTF-8'\r\n" +
-    "Content-Transfer-Encoding: base64\r\n\r\n" +
-    content);
+const assembleMail = (recipient) => (subject) => (content) =>
+  "From: 'me'\r\n" +
+  `To: ${recipient}\r\n` +
+  `Subject: ${subject}\r\n` +
+  "Content-Type: text/html; charset='UTF-8'\r\n" +
+  "Content-Transfer-Encoding: base64\r\n\r\n" +
+  content;
 
 // produce raw, base64 encoded mail
 const prepareMail = compose (compose (compose (base64url.encode))) (assembleMail);
 
 // curried send function, wrapping the google client
-const send = client => raw =>
+const send = (client) => (raw) =>
   client.users.messages.send({
     userId: "me",
     resource: {
-      raw: raw
+      raw: raw,
     },
   });
 
@@ -46,13 +48,31 @@ const sendMail = (futureClient) => (mailArgs) => {
 
   let raw = prepareMail (recipient) (subject) (content);
 
-  return futureClient
-    .pipe(S.map ((client) => {
-      send (client) (raw);
-    }))
-}
+  return futureClient.pipe(
+    S.map((client) => {
+      send(client)(raw);
+    }));
+};
+
+// send mail via a service account with JWT
+// depends upon the presence of the key file to
+// generate a working gmailClient
+const sendServiceMail = (mailArgs) => {
+  let { recipient, subject, content } = mailArgs;
+
+  log.info("preparing to send service mail", { recipient, subject });
+
+  let raw = prepareMail (recipient) (subject) (content);
+  let gmailClient = getGmailClient();
+
+  return Future.attemptP(() => gmailClient.users.messages.send({
+    userId: "me",
+    resource: { raw },
+  }));
+};
 
 module.exports.assembleMail = assembleMail;
 module.exports.prepareMail = prepareMail;
 module.exports.sendMailF = sendMail;
-module.exports.sendMail = sendMail (init);
+module.exports.sendMail = sendMail(init);
+module.exports.sendServiceMail = sendServiceMail;
