@@ -1,9 +1,8 @@
 const jwt = require("jsonwebtoken");
-
 const jwtConfig = require("../../config/jwtConfig");
 const UnsafeUser = require("../../models/UnsafeUser");
 const templates = require("../../utility/email/templates");
-const { sendMail } = require("../../utility/email/sendMail");
+const { sendServiceMail } = require("../../utility/email/sendMail");
 const Future = require("fluture");
 
 const initializeLogger = require("../../log-service");
@@ -65,7 +64,7 @@ module.exports = async (req, res) => {
   };
 
   // send Future
-  let sendF = sendMail(args);
+  let sendF = sendServiceMail (args);
 
   let reject = (e) => {
     log.error("failed to send sign-up email; ensure token is valid", {
@@ -85,5 +84,5 @@ module.exports = async (req, res) => {
 
   // execute the send function
   // see https://github.com/fluture-js/Fluture#fork
-  Future.fork(reject)(resolve)(sendF);
+  Future.fork (reject) (resolve) (sendF);
 };

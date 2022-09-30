@@ -1,7 +1,7 @@
 const sql = require("mssql");
 const { dropbox } = require("../../utility/Dropbox");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const { sendMail } = require("../../utility/email/sendMail");
+const { sendServiceMail } = require("../../utility/email/sendMail");
 const Future = require("fluture");
 const templates = require("../../utility/email/templates");
 
@@ -153,7 +153,7 @@ const commitUpload = async (req, res) => {
       user: req.user.id,
     });
 
-  let sendNotifyAdmin = sendMail(notifyAdminArgs);
+  let sendNotifyAdmin = sendServiceMail (notifyAdminArgs);
 
   Future.fork(rejectNotifyAdmin)(resolveNotifyAdmin)(sendNotifyAdmin);
 
@@ -172,7 +172,7 @@ const commitUpload = async (req, res) => {
     }),
   };
 
-  let sendNotifyUser = sendMail(notifyUserArgs);
+  let sendNotifyUser = sendServiceMail (notifyUserArgs);
 
   let rejectNotifyUser = (e) => {
     log.error(

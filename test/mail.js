@@ -35,7 +35,9 @@ test("prepare mail", (t) => {
 });
 
 // Test that a properly applied sendMailF returns a future, which is forkable
-test("sendMail", (t) => {
+// NOTE: this function is no longer used; use sendServiceMail instead
+// see test/serviceMail.js for example of use
+test("sendMail", () => {
   let future = M.sendMailF(C$1.init)(X$1);
 
   // ava needs a promise to do async testing

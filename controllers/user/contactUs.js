@@ -1,41 +1,45 @@
-const base64url = require("base64-url");
-const awaitableEmailClient = require("../../utility/emailAuth");
-const emailTemplates = require("../../utility/emailTemplates");
 const initializeLogger = require("../../log-service");
-// TODO switch to sendMail
-// const templates = require("../../utility/email/templates");
-// const sendMail = require("../../utility/email/sendMail");
+const templates = require("../../utility/email/templates");
+const { sendServiceMail } = require("../../utility/email/sendMail");
+const {
+  CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
+} = require("../../utility/constants");
+const Future = require("fluture");
 
 const log = initializeLogger("controllers/user/contactUs");
 
 module.exports = async (req, res) => {
-  log.trace('contact us controller')
+  log.trace("contact us controller");
   let payload = req.body;
 
-  let emailClient = await awaitableEmailClient;
-  let content = emailTemplates.contactUs(payload);
-  let message =
-    "From: 'me'\r\n" +
-    "To: simonscmap@uw.edu\r\n" +
-    "Subject: Message from Simons CMAP User\r\n" +
-    content;
+  let content = templates.notifyAdminOfUserContact(payload);
 
-  let raw = base64url.encode(message);
+  let mailArgs = {
+    recipient: CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
+    subject: "New Contact-Us Submision",
+    content,
+  };
 
-  try {
-    await emailClient.users.messages.send({
-      userId: "me",
-      resource: {
-        raw,
-      },
+  let sendMailFuture = sendServiceMail (mailArgs);
+
+  let reject = (e) => {
+    log.error("failed to notify admin of new comment", {
+      recipient: mailArgs.recipient,
+      error: e,
     });
+    res.status(500).send("error sending message");
+  };
 
-    log.trace('successfully sent message')
+  let resolve = () => {
+    log.info("email sent", {
+      recipient: mailArgs.recipient,
+      subject: mailArgs.subject,
+    });
     res.sendStatus(200);
-    return;
-  } catch (e) {
-    log.error("error generating email from user contactUs message", { content });
-    res.sendStatus(500);
-    return;
-  }
+  };
+
+  // execute the send function
+  // see https://github.com/fluture-js/Fluture#fork
+
+  Future.fork (reject) (resolve) (sendMailFuture);
 };

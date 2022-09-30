@@ -1,7 +1,7 @@
 const sql = require("mssql");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
 const templates = require("../../utility/email/templates");
-const { sendMail } = require("../../utility/email/sendMail");
+const { sendServiceMail } = require("../../utility/email/sendMail");
 const initializeLogger = require("../../log-service");
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
@@ -131,7 +131,7 @@ const sendNotificationToAdmin = async (
     content,
   };
 
-  let sendMailFuture = sendMail (mailArgs)
+  let sendMailFuture = sendServiceMail (mailArgs)
 
   let reject = (e) => {
     log.error("failed to notify admin of new comment", {
@@ -165,7 +165,7 @@ const sendNotificationToUser = async (datasetInfo, comment, userName) => {
     content: mailContent,
   };
 
-  let sendMailFuture = sendMail (mailArgs);
+  let sendMailFuture = sendServiceMail (mailArgs);
 
   let reject = (e) => {
     log.error("failed to notify user of new comment", {

@@ -24,6 +24,40 @@ const assembleMail = (recipient) => (subject) => (content) =>
 // produce raw, base64 encoded mail
 const prepareMail = compose (compose (compose (base64url.encode))) (assembleMail);
 
+
+
+// send mail via a service account with JWT
+// depends upon the presence of the key file to
+// generate a working gmailClient
+const sendServiceMail = (mailArgs) => {
+  let { recipient, subject, content } = mailArgs;
+
+  log.info("preparing to send service mail", { recipient, subject });
+
+  let raw = prepareMail (recipient) (subject) (content);
+  let gmailClient = getGmailClient();
+
+  return Future.attemptP(() => gmailClient.users.messages.send({
+    userId: "me",
+    resource: { raw },
+  }));
+};
+
+module.exports.assembleMail = assembleMail;
+module.exports.prepareMail = prepareMail;
+module.exports.sendServiceMail = sendServiceMail;
+
+
+
+/*
+*
+*  Below are the older sendMail functions which read the token file
+*  when using the now-deprecated oauth method
+*
+*  They are no longer used, but kept here in case a similar use arises in the future
+*/
+
+
 // curried send function, wrapping the google client
 const send = (client) => (raw) =>
   client.users.messages.send({
@@ -54,25 +88,5 @@ const sendMail = (futureClient) => (mailArgs) => {
     }));
 };
 
-// send mail via a service account with JWT
-// depends upon the presence of the key file to
-// generate a working gmailClient
-const sendServiceMail = (mailArgs) => {
-  let { recipient, subject, content } = mailArgs;
-
-  log.info("preparing to send service mail", { recipient, subject });
-
-  let raw = prepareMail (recipient) (subject) (content);
-  let gmailClient = getGmailClient();
-
-  return Future.attemptP(() => gmailClient.users.messages.send({
-    userId: "me",
-    resource: { raw },
-  }));
-};
-
-module.exports.assembleMail = assembleMail;
-module.exports.prepareMail = prepareMail;
 module.exports.sendMailF = sendMail;
 module.exports.sendMail = sendMail(init);
-module.exports.sendServiceMail = sendServiceMail;

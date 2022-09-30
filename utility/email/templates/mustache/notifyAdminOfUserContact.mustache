@@ -1,0 +1,33 @@
+<table>
+  <tr>
+    <td style="padding: 0 0 10px 0">
+      <p>
+        There is a new message submitted via the "contact us" form.
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 10px 0">
+      <p>
+        Name: {{ name }}
+      </p>
+      <p>
+        Reply Address: {{ email }}
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding: 10px 0">
+      <p>
+        Message:
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td  style="border-left: 2px solid #22a3b9; padding: 0 10px">
+      {{#message}}
+        <p>{{.}}</p>
+      {{/message}}
+    </td>
+  </tr>
+</table>

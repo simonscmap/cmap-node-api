@@ -1,3 +1,9 @@
+// Test Email Controller
+
+// This controller is not wired up in the api router, but can easily be plugged
+// in during local development to test a variety of templates:
+// the controller reads a template name as a parameter and tries to send an email
+// with the body.mockData (which varies with the template)
 const { userComment, adminComment } = require('../utility/email/templates');
 const logWrapper = require("../log-service");
 const sendMail = require('../utility/email/sendMail');

@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const jwtConfig = require("../../config/jwtConfig");
 const UnsafeUser = require("../../models/UnsafeUser");
 const templates = require("../../utility/email/templates");
-const { sendMail } = require("../../utility/email/sendMail");
+const { sendServiceMail } = require("../../utility/email/sendMail");
 const Future = require("fluture");
 
 const initializeLogger = require("../../log-service");
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
     content,
   };
 
-  let sendMailFuture = sendMail(args);
+  let sendMailFuture = sendServiceMail(args);
 
   let reject = (e) => {
     log.error("failed to send password reset email", {
