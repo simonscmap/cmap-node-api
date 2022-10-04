@@ -66,7 +66,7 @@ const variableCatalog = `
 `;
 
 // No longer used by web app
-exports.retrieve = async (req, res, next) => {
+module.exports.retrieve = async (req, res, next) => {
   log.error("deprecated", {
     route: req.originalUrl,
     controller: "catalog.retrieve",
@@ -75,7 +75,7 @@ exports.retrieve = async (req, res, next) => {
 };
 
 // No longer used by web app
-exports.datasets = async (req, res, next) => {
+module.exports.datasets = async (req, res, next) => {
   log.error("deprecated", {
     route: req.originalUrl,
     controller: "catalog.retrieve",
@@ -83,7 +83,7 @@ exports.datasets = async (req, res, next) => {
   queryHandler(req, res, next, "SELECT * FROM tblDatasets", true);
 };
 
-exports.description = async (req, res, next) => {
+module.exports.description = async (req, res) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -94,7 +94,7 @@ exports.description = async (req, res, next) => {
 };
 
 // Used internally for identifying name mismatches
-exports.auditCatalogVariableNames = async (req, res, next) => {
+module.exports.auditCatalogVariableNames = async (req, res) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -103,7 +103,7 @@ exports.auditCatalogVariableNames = async (req, res, next) => {
   let result = await request.query(query);
   let tables = {};
 
-  result.recordset.forEach((record, index) => {
+  result.recordset.forEach((record) => {
     if (!tables[record.Table_Name]) {
       tables[record.Table_Name] = new Set();
     }
@@ -112,7 +112,7 @@ exports.auditCatalogVariableNames = async (req, res, next) => {
 
   let columns = await request.query("SELECT * FROM INFORMATION_SCHEMA.COLUMNS");
 
-  columns.recordset.forEach((column, index) => {
+  columns.recordset.forEach((column) => {
     if (tables[column.TABLE_NAME]) {
       tables[column.TABLE_NAME].delete(column.COLUMN_NAME);
     }
@@ -130,7 +130,7 @@ exports.auditCatalogVariableNames = async (req, res, next) => {
 };
 
 // Retrieves lists of available options for search and data submission components
-exports.submissionOptions = async (req, res, next) => {
+module.exports.submissionOptions = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
 
   let request = await new sql.Request(pool);
@@ -170,7 +170,7 @@ exports.submissionOptions = async (req, res, next) => {
 };
 
 // No longer in use in web app
-exports.keywords = async (req, res, next) => {
+module.exports.keywords = async (req, res, next) => {
   let keywords = nodeCache.get("keywords");
 
   if (keywords == undefined) {
@@ -194,7 +194,7 @@ exports.keywords = async (req, res, next) => {
 };
 
 // Web app /catalog search endpoint
-exports.searchCatalog = async (req, res, next) => {
+module.exports.searchCatalog = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -222,7 +222,7 @@ exports.searchCatalog = async (req, res, next) => {
   let query = datasetCatalogQuery;
 
   if (keywords && keywords.length) {
-    keywords.forEach((keyword, i) => {
+    keywords.forEach((keyword) => {
       if (keyword.length) {
         query += `\nAND (
                     aggs.Variable_Long_Names LIKE '%${keyword}%'
@@ -304,7 +304,7 @@ exports.searchCatalog = async (req, res, next) => {
   let result = await request.query(query);
 
   let catalogSearchResponse = result.recordset;
-  catalogSearchResponse.forEach((e, i) => {
+  catalogSearchResponse.forEach((e) => {
     e.Sensors = [...new Set(e.Sensors.split(","))];
   });
 
@@ -317,7 +317,7 @@ exports.searchCatalog = async (req, res, next) => {
 };
 
 // Retrieves dataset and variable information for catalog pages
-exports.datasetFullPage = async (req, res, next) => {
+module.exports.datasetFullPage = async (req, res, next) => {
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -390,7 +390,7 @@ exports.datasetFullPage = async (req, res, next) => {
 };
 
 // Retrieves datasets associated with a cruise
-exports.datasetsFromCruise = async (req, res, next) => {
+module.exports.datasetsFromCruise = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { cruiseID } = req.query;
@@ -408,7 +408,7 @@ exports.datasetsFromCruise = async (req, res, next) => {
   let result = await request.query(query);
 
   let catalogResponse = result.recordset;
-  catalogResponse.forEach((e, i) => {
+  catalogResponse.forEach((e) => {
     e.Sensors = [...new Set(e.Sensors.split(","))];
   });
 
@@ -421,7 +421,7 @@ exports.datasetsFromCruise = async (req, res, next) => {
 };
 
 // Retrieves cruises associated with a dataset
-exports.cruisesFromDataset = async (req, res, next) => {
+module.exports.cruisesFromDataset = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { datasetID } = req.query;
@@ -448,7 +448,7 @@ exports.cruisesFromDataset = async (req, res, next) => {
 };
 
 // Retrieves information for rendering a cruise page (as linked in cruise exploration component or from catalog dataset page)
-exports.cruiseFullPage = async (req, res, next) => {
+module.exports.cruiseFullPage = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -485,7 +485,7 @@ exports.cruiseFullPage = async (req, res, next) => {
 };
 
 // Not currently in use. Cruise search is fully client-side
-exports.searchCruises = async (req, res, next) => {
+module.exports.searchCruises = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -583,7 +583,7 @@ exports.searchCruises = async (req, res, next) => {
 };
 
 // Retrieves all member variables of a dataset
-exports.memberVariables = async (req, res, next) => {
+module.exports.memberVariables = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { datasetID } = req.query;
@@ -604,7 +604,7 @@ exports.memberVariables = async (req, res, next) => {
 };
 
 // Variable search used by viz plots page
-exports.variableSearch = async (req, res, next) => {
+module.exports.variableSearch = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -709,7 +709,7 @@ exports.variableSearch = async (req, res, next) => {
 
   if (searchTerms && searchTerms.length) {
     searchTerms = searchTerms.split(" ");
-    searchTerms.forEach((keyword, i) => {
+    searchTerms.forEach((keyword) => {
       clauses.push(`\nAND (
                 Long_Name LIKE '%${keyword}%'
                 OR Variable LIKE '%${keyword}%'
@@ -821,7 +821,7 @@ exports.variableSearch = async (req, res, next) => {
 };
 
 // No longer in use by web app
-exports.autocompleteVariableNames = async (req, res, next) => {
+module.exports.autocompleteVariableNames = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -861,7 +861,7 @@ exports.autocompleteVariableNames = async (req, res, next) => {
 };
 
 // Retrieve a single variable
-exports.variable = async (req, res, next) => {
+module.exports.variable = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -884,7 +884,7 @@ exports.variable = async (req, res, next) => {
 };
 
 // Retrieve partial information for a dataset
-exports.datasetSummary = async (req, res, next) => {
+module.exports.datasetSummary = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
