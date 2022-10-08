@@ -1,11 +1,14 @@
-const pools = require("../dbHandlers/dbPools");
+// const pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
 const stringify = require("csv-stringify");
-const initializeLogger = require("../log-service");
-
 const Accumulator = require("../utility/AccumulatorStream");
 const generateError = require("../errorHandling/generateError");
+const initializeLogger = require("../log-service");
+const { getCandidateList } = require("./queryToDatabaseTarget");
+const { roundRobin, mapServerNameToPoolConnection } = require("./roundRobin");
+const { SERVER_NAMES } = require("./constants");
 
+// init logger
 const log = initializeLogger("utility/queryHandler");
 
 function formatDate(date) {
@@ -19,58 +22,45 @@ const headers = {
   "Cache-Control": "max-age=86400",
 };
 
-const mariana = "mariana";
-const rainier = "rainier";
-const rossby = "rossby";
 const skipLogging = new Set(["ECANCEL"]);
 
 // Streaming data handler used by /data routes
 // - recurses on error
 // - chooses database target
 const handleQuery = async (req, res, next, query, forceRainier) => {
-  // 1. initialize new request with pool
+  // 0. fetch candidate list
+  let candidateList = await getCandidateList(query);
+  log.debug("candidate list", { candidateList, query });
 
+  if (!candidateList || candidateList.length === 0) {
+    log.error("no candidate servers identified", { candidateList, query });
+    res.status(400).send(`no candidate servers available for the given query`);
+    return;
+  }
+
+  // 1. initialize new request with pool
   let pool;
-  let poolName;
+  let poolName; // used to determine if there should be a retry
   let requestError = false;
 
-  if (forceRainier) {
-    pool = await pools.dataReadOnlyPool;
-    poolName = rainier;
+  if (forceRainier) { // this flag is only set after determining ranier is a candidate
+    pool = await mapServerNameToPoolConnection(SERVER_NAMES.ranier);
+    poolName = SERVER_NAMES.ranier;
   } else if (req.query.servername) {
-    if (req.query.servername === mariana) {
-      pool = await pools.mariana;
-      poolName = mariana;
-    } else if (req.query.servername === rainier) {
-      pool = await pools.dataReadOnlyPool;
-      poolName = rainier;
-    } else if (req.query.servername === rossby) {
-      pool = await pools.rossby;
-      poolName = rossby;
+    if (SERVER_NAMES[req.query.servername]) {
+      pool = await mapServerNameToPoolConnection(req.query.servername);
+      poolName = SERVER_NAMES[req.query.servername];
+    } else {
+      res.status(400).send(`servername "${req.query.servername}" is not valid`);
+      return;
     }
   } else {
-    switch (Math.floor(Math.random() * 3)) {
-      case 0:
-        pool = await pools.dataReadOnlyPool;
-        poolName = rainier;
-        break;
-      case 1:
-        pool = await pools.dataReadOnlyPool;
-        poolName = rainier;
-        // pool = await pools.mariana;
-        // poolName = mariana;
-        break;
-      case 2:
-        pool = await pools.dataReadOnlyPool;
-        poolName = rainier;
-        // pool = await pools.rossby;
-        // poolName = rossby;
-        break;
-      default:
-        pool = pools.dataReadOnlyPool;
-        poolName = rainier;
-    }
+    poolName = roundRobin(candidateList);
+    // this mapping will default to ranier
+    pool = await mapServerNameToPoolConnection(poolName);
   }
+
+  log.debug("making request", { poolName });
 
   let request = await new sql.Request(pool);
 
@@ -89,9 +79,9 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   csvStream.on("error", (err) => {
     // if the query targeted ranier, we will not re-try it
-    if (poolName === rainier) {
+    if (poolName === SERVER_NAMES.ranier) {
       if (!res.headersSent) {
-        res.status(400).end(err);
+        res.status(500).end(err);
       } else {
         res.end();
       }
@@ -102,7 +92,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   csvStream.pipe(accumulator).pipe(res);
 
-  request.on("recordset", (recordset) => {
+  request.on("recordset", (/*recordset*/) => {
     if (!res.headersSent) {
       res.writeHead(200, headers);
       request.on("row", (row) => {
@@ -116,7 +106,8 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   csvStream.on("drain", () => request.resume());
 
   request.on("done", () => {
-    if (poolName === mariana && requestError === true) {
+    // TODO Question: why is mariana singled out here?
+    if (poolName === SERVER_NAMES.mariana && requestError === true) {
       log.trace("mariana or requestError");
       accumulator.unpipe(res);
     }
@@ -146,8 +137,8 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
       if (res.headersSent) {
         res.end();
-      } else if (req.query.servername || poolName === rainier) {
-        res.status(400).end(generateError(err));
+      } else if (req.query.servername || poolName === SERVER_NAMES.ranier) {
+        res.status(500).end(generateError(err));
       } else {
         log.error("unknown error case", { error: err });
       }
@@ -156,23 +147,31 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   // 3. execute
 
-  await request.query(query);
+  try {
+    await request.query(query);
+  } catch (e) {
+    res.status(500).send(`query execution error`);
+    log.error("error executing query", { error: e });
+    return;
+  }
 
   // 4. handle result: either retry or next()
-  // if there is an error, and query was not already run on ranier, and no servername was specified
-  // then rerun on ranier
+  // IF (1) there is an error, and (2) query was not already run on ranier,
+  // and (3) and no servername was specified
+  // and (4) ranier is in the candidate locations list,
+  // THEN rerun on ranier
   if (
     !req.query.servername &&
-    (poolName === mariana || poolName === rossby) &&
-    requestError === true
+    (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&
+    requestError === true &&
+    candidateList.includes(SERVER_NAMES.ranier)
   ) {
     // Rerun query with forceRainier flag
-    accumulator.unpipe(res);
-
     log.warning("retrying query on ranier", {
       query: req.cmapApiCallDetails.query,
     });
 
+    accumulator.unpipe(res);
     await handleQuery(req, res, next, query, true);
   } else {
     return next();

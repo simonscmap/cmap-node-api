@@ -19,6 +19,9 @@ if (isDevelopment) {
   cache.on("expired", (key) => {
     log.debug("node cache: set", { key })
   });
+  cache.on("flush", () => {
+    log.trace("node flush")
+  });
 }
 
 module.exports = cache;

@@ -4,7 +4,7 @@
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
-    "test": "ava",
+    "test": "ava -- -- logLevel=2",
     "start": "./node_modules/pm2/bin/pm2-runtime app.js -i 2"
   },
   "engines": {
@@ -13,9 +13,9 @@
   "ava": {
     "files": [
       "test/**/*",
-      "!test/controllers/lib/mock*"
+      "!test/controllers/lib/mock*",
+      "!test/fixtures/*"
     ],
-    "concurrency": 5,
     "failFast": true,
     "failWithoutAssertions": false,
     "environmentVariables": {},
