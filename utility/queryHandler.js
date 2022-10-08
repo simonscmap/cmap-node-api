@@ -1,11 +1,12 @@
 const pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
 const stringify = require("csv-stringify");
-const initializeLogger = require("../log-service");
-
 const Accumulator = require("../utility/AccumulatorStream");
 const generateError = require("../errorHandling/generateError");
+const initializeLogger = require("../log-service");
+const { determineDatabase } = require("./queryToDatabaseTarget");
 
+// init logger
 const log = initializeLogger("utility/queryHandler");
 
 function formatDate(date) {
@@ -28,6 +29,11 @@ const skipLogging = new Set(["ECANCEL"]);
 // - recurses on error
 // - chooses database target
 const handleQuery = async (req, res, next, query, forceRainier) => {
+  console.log('query', query)
+  // 0. test fetch
+  let datasetMap = await determineDatabase(query);
+  log.debug("in queryHandler", { test: datasetMap.get(1) })
+
   // 1. initialize new request with pool
 
   let pool;
