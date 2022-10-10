@@ -1,6 +1,8 @@
 const sql = require("mssql");
 const dbConfig = require("../config/dbConfig");
 const Future = require("fluture");
+const { SERVER_NAMES } = require("../utility/constants");
+
 
 // Note, the mssql ConnectionPool connect method returns a promise
 
@@ -14,16 +16,16 @@ const pools = {
     dbConfig.userTableConfig
   ).connect(),
   // Mariana
-  mariana: new sql.ConnectionPool(dbConfig.mariana).connect(),
+  [SERVER_NAMES.mariana]: new sql.ConnectionPool(dbConfig.mariana).connect(),
   // Rossby
-  rossby: new sql.ConnectionPool(dbConfig.rossby).connect(),
+  [SERVER_NAMES.rossby]: new sql.ConnectionPool(dbConfig.rossby).connect(),
 };
 
 module.exports = {
   dataReadOnlyPool: pools.dataReadOnlyPool,
   userReadAndWritePool: pools.userReadAndWritePool,
-  mariana: pools.mariana,
-  rossby: pools.rossby,
+  [SERVER_NAMES.mariana]: pools.mariana,
+  [SERVER_NAMES.rossby]: pools.rossby,
   // also return Futures of these pool connections
   futures: {
     dataReadOnlyPool: Future.attemptP(() => pools.dataReadOnlyPool),

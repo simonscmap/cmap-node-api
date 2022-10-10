@@ -5,7 +5,7 @@ const sql = require("mssql");
 const cacheAsync = require("./cacheAsync");
 const { Parser } = require("node-sql-parser");
 
-const CACHE_KEY_DATASET_SERVERS = "datesetServers";
+const CACHE_KEY_DATASET_SERVERS = "datasetServers";
 const CACHE_KEY_DATASET_IDS = "datasetIds";
 
 const parserOptions = {
@@ -124,8 +124,9 @@ const fetchDatasetIds = async () => {
     log.error("error fetching dataset ids", { error: e });
     return [true, []];
   }
+
   if (result && result.recordset && result.recordset.length) {
-    return [false, result.recordest];
+    return [false, result.recordset];
   } else {
     log.error("error fetching dataset ids: no recordset returned", {
       result,
@@ -216,16 +217,15 @@ const calculateCandidateTargets = (tableNames, datasetIds, datasetLocations) => 
 };
 
 // Execute
-const run = (query) => {
+const run = async (query) => {
   // 1. parse query and get table names
   let tableNames = extractTableNamesFromQuery(query);
 
   // 2. get dataset ids from table names
-
-  let datasetIds = fetchDatasetIdsWithCache();
+  let datasetIds = await fetchDatasetIdsWithCache();
 
   // 3. look up locations for dataset ids
-  let datasetLocations = fetchDatasetLocationsWithCache();
+  let datasetLocations = await fetchDatasetLocationsWithCache();
 
   // 4. calculate candidate locations
   let candidateLocations = calculateCandidateTargets(
@@ -248,5 +248,5 @@ module.exports = {
   // main decision-making function:
   calculateCandidateTargets,
   // execution:
-  run,
+  getCandidateList: run
 };
