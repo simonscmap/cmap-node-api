@@ -32,13 +32,18 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   let candidateList = await getCandidateList(query);
   log.debug("candidate list", { candidateList, query });
 
-  // 1. initialize new request with pool
+  if (!candidateList || candidateList.length === 0) {
+    log.error("no candidate servers identified", { candidateList, query });
+    res.status(400).send(`no candidate servers available for the given query`);
+    return;
+  }
 
+  // 1. initialize new request with pool
   let pool;
   let poolName; // used to determine if there should be a retry
   let requestError = false;
 
-  if (forceRainier) { // TODO question: allow force ranied if it is not in candidate list?
+  if (forceRainier) { // this flag is only set after determining ranier is a candidate
     pool = await mapServerNameToPoolConnection(SERVER_NAMES.ranier);
     poolName = SERVER_NAMES.ranier;
   } else if (req.query.servername) {
@@ -46,11 +51,12 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
       pool = await mapServerNameToPoolConnection(req.query.servername);
       poolName = SERVER_NAMES[req.query.servername];
     } else {
-      res.status(400).send(`servername ${req.query.servername} is not valid`);
+      res.status(400).send(`servername "${req.query.servername}" is not valid`);
       return;
     }
   } else {
     poolName = roundRobin(candidateList);
+    // this mapping will default to ranier
     pool = await mapServerNameToPoolConnection(poolName);
   }
 
@@ -75,7 +81,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     // if the query targeted ranier, we will not re-try it
     if (poolName === SERVER_NAMES.ranier) {
       if (!res.headersSent) {
-        res.status(400).end(err);
+        res.status(500).end(err);
       } else {
         res.end();
       }
@@ -132,7 +138,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
       if (res.headersSent) {
         res.end();
       } else if (req.query.servername || poolName === SERVER_NAMES.ranier) {
-        res.status(400).end(generateError(err));
+        res.status(500).end(generateError(err));
       } else {
         log.error("unknown error case", { error: err });
       }
@@ -150,20 +156,22 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   }
 
   // 4. handle result: either retry or next()
-  // if there is an error, and query was not already run on ranier, and no servername was specified
-  // then rerun on ranier
+  // IF (1) there is an error, and (2) query was not already run on ranier,
+  // and (3) and no servername was specified
+  // and (4) ranier is in the candidate locations list,
+  // THEN rerun on ranier
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&
-    requestError === true
+    requestError === true &&
+    candidateList.includes(SERVER_NAMES.ranier)
   ) {
     // Rerun query with forceRainier flag
-    accumulator.unpipe(res);
-
     log.warning("retrying query on ranier", {
       query: req.cmapApiCallDetails.query,
     });
 
+    accumulator.unpipe(res);
     await handleQuery(req, res, next, query, true);
   } else {
     return next();

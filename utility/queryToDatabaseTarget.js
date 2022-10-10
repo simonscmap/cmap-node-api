@@ -41,12 +41,12 @@ const transformDatasetServersListToMap = (recordset) => {
  */
 const extractTableNamesFromAST = (ast) => {
   try {
-   return ast.ast.from.map((exp) => exp.table);
+    return ast.ast.from.map((exp) => exp.table);
   } catch (e) {
-    log.error('error parsing ast', { ast });
+    log.error("error parsing ast", { ast });
     return [];
   }
-}
+};
 
 /* Extract table names from EXEC
  * :: AST -> [TableName]
@@ -177,7 +177,11 @@ const extractTableNamesFromQuery = (query) => {
 /*
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
  */
-const calculateCandidateTargets = (tableNames, datasetIds, datasetLocations) => {
+const calculateCandidateTargets = (
+  tableNames,
+  datasetIds,
+  datasetLocations
+) => {
   // 1. get ids of tables named in query
   let targetIds = datasetIds
     .filter(({ Table_Name }) => tableNames.includes(Table_Name))
@@ -195,11 +199,16 @@ const calculateCandidateTargets = (tableNames, datasetIds, datasetLocations) => 
   // -- working from the first table's array, for each compatible server
   // check to see if that server is also compatible for remaining tables (i.e., is present
   // in all compatability arrays)
+  // NOTE this iteration will work even if the array contains only one set of candidate server
+  // names, i.e., when only one table is visited by the query -- this is ensured by the `slice`
+  // returning an empty array if there are no more members of the `locationCandidatesPerTable` array
   locationCandidatesPerTable[0].forEach((serverName) => {
     let serverIsCandidateForAllTables = locationCandidatesPerTable
       .slice(1)
       .every((candidateList) => candidateList.includes(serverName));
     if (serverIsCandidateForAllTables) {
+      // add to the Set
+      // multiple adds of the same name will be discarded by the Set
       candidates.add(serverName);
     }
   });
@@ -248,5 +257,5 @@ module.exports = {
   // main decision-making function:
   calculateCandidateTargets,
   // execution:
-  getCandidateList: run
+  getCandidateList: run,
 };

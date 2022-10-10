@@ -1,8 +1,8 @@
 const test = require("ava");
 const {
   extractTableNamesFromQuery,
-  transformDatasetServersListToMap,
   extractTableNamesFromAST,
+  transformDatasetServersListToMap,
   queryToAST,
   calculateCandidateTargets,
 } = require("../../utility/queryToDatabaseTarget");
