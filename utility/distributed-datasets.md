@@ -15,7 +15,7 @@ With the advent of distributed data, the query handler now also analyzes the inc
 
 The `queryToDatabaseTarget` module takes as its only parameter the query in question. This query string is parsed with one of two code paths: first, a string parsing is performed if the query is an "EXEC" query; otherwise the query is parsed with a query parser, [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser). Either code path will yiel a list of tables the query will visit.
 
-Note, however, that some sprocs do not need table names in their arguments list (for example, uspDatasetsWithAncillary). For this reason, queries are allowed to continue if no table names are extracted an the query is an EXEC. In these cases, the query will be run on the default pool, which targets the `ranier` server. See `mapServerNameToPoolConnection` in [roundRobin.js](/utility/roundRobin.js).
+Note, however, that some sprocs do not need table names in their arguments list (for example, uspDatasetsWithAncillary). For this reason, queries are allowed to continue if no table names are extracted an the query is an EXEC. In these cases, the query will be run on the default pool, which targets the `rainier` server. See `mapServerNameToPoolConnection` in [roundRobin.js](/utility/roundRobin.js).
 
 ### Cache
 
@@ -41,13 +41,13 @@ In-query comments are a difficult problem. On the one hand, there must be an ini
 
 A set strings representing the available servers is stored in [constants.js](/utility/constants.js). This must be manually updated if any additional servers are added.
 
-## Round Robin & default to ranier
+## Round Robin & default to rainier
 
 The round robin behavior alternates randomly across viable server targets on a per-query basis. This is realized by a simple function that takes a list, generates a random index based on the length of the list, and then returns the value at that index of the list.
 
 Note, if no list is provided, it will default to an empty list, and will return undefined.
 
-The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [roundRobin.js](/utility/roundRobin.js), which will default to `ranier`.
+The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [roundRobin.js](/utility/roundRobin.js), which will default to `rainier`.
 
 See implementation: [roundRobin.js](/utility/roundRobin.js)
 
