@@ -4,7 +4,7 @@ const stringify = require("csv-stringify");
 const Accumulator = require("../utility/AccumulatorStream");
 const generateError = require("../errorHandling/generateError");
 const initializeLogger = require("../log-service");
-const { getCandidateList } = require("./queryToDatabaseTarget");
+const { getCandidateList, isSPROC } = require("./queryToDatabaseTarget");
 const { roundRobin, mapServerNameToPoolConnection } = require("./roundRobin");
 const { SERVER_NAMES } = require("./constants");
 
@@ -32,10 +32,14 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   let candidateList = await getCandidateList(query);
   log.debug("candidate list", { candidateList, query });
 
-  if (!candidateList || candidateList.length === 0) {
+  if (!candidateList || candidateList.length === 0 && !isSPROC(query)) {
     log.error("no candidate servers identified", { candidateList, query });
     res.status(400).send(`no candidate servers available for the given query`);
     return;
+  }
+
+  if (candidateList.length === 0 && isSPROC(query)) {
+    log.trace("contituing with sproc execution without any table specified");
   }
 
   // 1. initialize new request with pool
@@ -55,9 +59,11 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
       return;
     }
   } else {
+    // NOTE if roundRobin is passed an empty list, it will return `undefined`
+    // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
     poolName = roundRobin(candidateList);
     // this mapping will default to ranier
-    pool = await mapServerNameToPoolConnection(poolName);
+    pool = await mapServerNameToPoolConnection(poolName || SERVER_NAMES.ranier);
   }
 
   log.debug("making request", { poolName });
