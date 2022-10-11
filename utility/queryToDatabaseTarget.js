@@ -38,6 +38,7 @@ const transformDatasetServersListToMap = (recordset) => {
 
 /* Extract table names from AST
  * :: AST -> [TableName]
+ * Note that this function will return an empty array if it fails
  */
 const extractTableNamesFromAST = (ast) => {
   try {
@@ -50,15 +51,24 @@ const extractTableNamesFromAST = (ast) => {
 
 /* Extract table names from EXEC
  * :: AST -> [TableName]
+ * Note that extractTableNamesFromEXEC provides a fallback if no query is
+ * provided, in which case it will return an empty array
  */
-const extractTableNamesFromEXEC = (query) => {
+const extractTableNamesFromEXEC = (query = "") => {
   return query
     .split(" ")
     .map((w) => w.replace(/'|,/gi, "")) // remove all ' and ,
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
-// isExec
+/* isExec
+ * Determine if a query is an EXEC
+ * Does not assume that the word EXEC is the first word of the query
+ * which would incorrectly handle query strings with initial comments
+ * However, the converse edge case is true: a commented out EXEC will
+ * lead to a false positive; in that case, the subsequent code path
+ * in extractTableNamesFromEXEC may still successfully extract table names
+ */
 const isSPROC = (query) => query.toLowerCase().includes("exec");
 
 /* parse a sql query into an AST
