@@ -16,6 +16,7 @@ const isProduction =
   process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
 
 let includesLogLevel = (term) => term.includes("logLevel");
+let includesLogFormat = (term) => term.includes("logFormat");
 let split = (term) => term.split("=");
 
 let logThresholdFromArgv = pipe([
@@ -27,7 +28,16 @@ let logThresholdFromArgv = pipe([
   fromMaybe (5) // default to the most inclusive threshold
 ]);
 
+let logFormatFromArgv = pipe([
+  filter (includesLogFormat),
+  head, // get the logLevel arg; head returns a Maybe
+  map (split), // term should be logFormat=value
+  chain (last), // get the part after '='; returns a Maybe, so we chain
+  fromMaybe ("object") // default to the most inclusive threshold
+]);
+
 let logThreshhold = logThresholdFromArgv (process.argv);
+let logFormat = logFormatFromArgv (process.argv);
 
 const tagInfo = {
   versions: {
@@ -109,7 +119,7 @@ function log(level, tags, context, message, isError, data) {
   }
 
   // 4. write log to stdout
-  if (isProduction) {
+  if (isProduction || logFormat === "json") {
     console.log(JSON.stringify(payload));
   } else {
     payload.time = new Date().toLocaleTimeString();
