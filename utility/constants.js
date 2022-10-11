@@ -1,7 +1,7 @@
 const SERVER_NAMES = Object.freeze({
   "mariana": "mariana",
   "rossby": "rossby",
-  "ranier": "ranier",
+  "rainier": "rainier",
 });
 
 module.exports = {

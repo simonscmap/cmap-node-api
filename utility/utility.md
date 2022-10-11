@@ -32,7 +32,7 @@ A critical function, through which every custom query is routed. Applies round r
 
 The distributed data router. Parses incoming queries, detemines which tables are visited, determines which databases contain those tables, and provides a list of viable database targets to the caller.
 
-See additional notes in [/utility/distributed-datasets.md](distributed-datasets).
+See additional notes in [/utility/distributed-datasets.md](/utility/distributed-datasets.md).
 
 # sanctuary
 

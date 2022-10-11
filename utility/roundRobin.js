@@ -9,11 +9,11 @@ const roundRobin = (candidates = []) => {
   return candidates[randomIndex];
 };
 
-// NOTE for historical reasons, ranier is coded as "dataReadOnlyPool"
-// NOTE default to ranier
+// NOTE for historical reasons, rainier is coded as "dataReadOnlyPool"
+// NOTE default to rainier
 const mapServerNameToPoolConnection = async (name) => {
   switch (name) {
-    case SERVER_NAMES.ranier:
+    case SERVER_NAMES.rainier:
       return await pools.dataReadOnlyPool;
     case SERVER_NAMES.rossby:
       return await pools.rossby;

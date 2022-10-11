@@ -38,6 +38,7 @@ const transformDatasetServersListToMap = (recordset) => {
 
 /* Extract table names from AST
  * :: AST -> [TableName]
+ * Note that this function will return an empty array if it fails
  */
 const extractTableNamesFromAST = (ast) => {
   try {
@@ -50,16 +51,45 @@ const extractTableNamesFromAST = (ast) => {
 
 /* Extract table names from EXEC
  * :: AST -> [TableName]
+ * Note that extractTableNamesFromEXEC provides a fallback if no query is
+ * provided, in which case it will return an empty array
  */
-const extractTableNamesFromEXEC = (query) => {
+const extractTableNamesFromEXEC = (query = "") => {
   return query
     .split(" ")
     .map((w) => w.replace(/'|,/gi, "")) // remove all ' and ,
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
-// isExec
-const isSPROC = (query) => query.toLowerCase().includes("exec");
+/* isExec
+ * Determine if a query is an EXEC
+ * Does not assume that the word EXEC is the first word of the query
+ * which would incorrectly handle query strings with initial comments
+ * However, the converse edge case is true: a commented out EXEC will
+ * lead to a false positive; in that case, the subsequent code path
+ * in extractTableNamesFromEXEC may still successfully extract table names
+ */
+// const isSPROC = (query) => query.toLowerCase().includes("exec");
+const isSPROC = (query) => {
+  let parser = new Parser();
+  let parserResult;
+  try {
+    parserResult = parser.parse(query, parserOptions);
+  } catch (e) {
+    log.trace(`parser failed in sproc check`);
+  }
+
+  if (!parserResult) {
+    // the parser was not able to extract an ast
+    // either its an EXEC or an error
+    let isEXEC = query.toLowerCase().includes("exec");
+    if (isEXEC) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /* parse a sql query into an AST
    :: Query -> AST | null
@@ -70,7 +100,7 @@ const queryToAST = (query) => {
   try {
     result = parser.parse(query, parserOptions);
   } catch (e) {
-    log.error("error parsing query", { error: e });
+    log.warn("error parsing query", { error: e, query });
     return;
   }
   return result;
@@ -82,7 +112,13 @@ const queryToAST = (query) => {
  * :: () => [Error?, Map ID [serverNames]]
  */
 const fetchDatasetLocations = async () => {
-  let pool = await pools.userReadAndWritePool;
+  let pool;
+  try {
+    pool = await pools.userReadAndWritePool;
+  } catch (e) {
+    log.error("attempt to conncet to pool failed", { error: e });
+    return [true, []];
+  }
   let request = await new sql.Request(pool);
   let query = `SELECT * from [dbo].[tblDataset_Servers]`;
   let result;
@@ -97,6 +133,7 @@ const fetchDatasetLocations = async () => {
   if (result && result.recordset && result.recordset.length) {
     let records = result.recordset;
     // TODO transform records into useable form
+
     let datasetMap = transformDatasetServersListToMap(records);
     // set results in cache
     return [false, datasetMap];
@@ -114,7 +151,13 @@ const fetchDatasetLocationsWithCache = async () =>
 
 // :: () -> [Error?, [{ Dataset_ID, Table_Name }]]
 const fetchDatasetIds = async () => {
-  let pool = await pools.userReadAndWritePool;
+  let pool;
+  try {
+    pool = await pools.userReadAndWritePool;
+  } catch (e) {
+    log.error("attempt to connect to pool failed", { error: e });
+    return [true, []]; // indicate error in return tuple
+  }
   let request = await new sql.Request(pool);
 
   let query = `SELECT DISTINCT Dataset_ID, Table_Name
@@ -151,28 +194,32 @@ const fetchDatasetIdsWithCache = async () =>
  * see: https://github.com/taozhi8833998/node-sql-parser
  */
 const extractTableNamesFromQuery = (query) => {
-  if (isSPROC(query)) {
+  log.trace("query is custom");
+  let astResult = queryToAST(query);
+  if (astResult) {
+    let tableNames = extractTableNamesFromAST(astResult);
+    log.debug("tables names", { query, ast: astResult, tableNames });
+    return tableNames;
+  } else {
+    // log.error("error parsing query: no resulting ast", { query, astResult });
+    // return [];
+  }
+
+  // could not parse the query to AST so check if it is an EXEC
+  if (query.toLowerCase().includes("exec")) {
     log.trace("query is sproc");
     let tableTerms = extractTableNamesFromEXEC(query);
-    if (tableTerms.length) {
-      log.info("table names", { tableTerms });
-      return tableTerms;
-    } else {
+    if (!tableTerms.length) {
       log.debug("no tables specified in sproc", { query, tableTerms });
-      return [];
-    }
-  } else {
-    log.trace("query is custom");
-    let astResult = queryToAST(query);
-    if (astResult) {
-      let tableNames = extractTableNamesFromAST(astResult);
-      log.debug("tables names", { query, ast: astResult, tableNames });
-      return tableNames;
     } else {
-      log.error("error parsing query: no resulting ast", { query, astResult });
-      return [];
+      log.info("table names", { tableTerms });
     }
+    return tableTerms;
   }
+
+  // looks like an invalid query
+  log.warn("query appears invalid: no parseable ast and no identifiable exec", {query});
+  return [];
 };
 
 /*

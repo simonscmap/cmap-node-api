@@ -4,6 +4,7 @@ const {
   extractTableNamesFromAST,
   transformDatasetServersListToMap,
   queryToAST,
+  isSPROC,
   calculateCandidateTargets,
 } = require("../../utility/queryToDatabaseTarget");
 const { pairs } = require("../fixtures/sample-queries");
@@ -51,6 +52,23 @@ test("extractTableNamesFromAST", (t) => {
   let ast2 = queryToAST("");
   let r2 = extractTableNamesFromAST(ast2);
   t.deepEqual(r2, []);
+
+  // parse a query with an EXEC commented out /* */, but with a SELECT command
+  let q3 = "/* EXEC sproc 'tblFake'*/ select * from myTable";
+  let ast3 = queryToAST(q3);
+  t.is(ast3.ast.from.length, 1);
+  t.is(ast3.ast.from[0].table, "myTable");
+});
+
+test("isSPROC", (t) => {
+  let q1 = "EXEC sproc 'tblMyTable'";
+  let r1 = isSPROC(q1);
+  t.truthy(r1);
+
+  let q2 = `-- EXEC sproc 'tblFakeTable'
+            SELECT * from myTable`;
+  let r2 = isSPROC(q2);
+  t.falsy(r2);
 });
 
 test("calculateCandidateTargets: success (single candidate)", (t) => {
