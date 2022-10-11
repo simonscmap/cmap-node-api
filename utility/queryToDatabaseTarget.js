@@ -58,6 +58,9 @@ const extractTableNamesFromEXEC = (query) => {
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
+// isExec
+const isSPROC = (query) => query.toLowerCase().includes("exec");
+
 /* parse a sql query into an AST
    :: Query -> AST | null
  */
@@ -148,9 +151,7 @@ const fetchDatasetIdsWithCache = async () =>
  * see: https://github.com/taozhi8833998/node-sql-parser
  */
 const extractTableNamesFromQuery = (query) => {
-  let isSPROC = query.toLowerCase().includes("exec");
-
-  if (isSPROC) {
+  if (isSPROC(query)) {
     log.trace("query is sproc");
     let tableTerms = extractTableNamesFromEXEC(query);
     if (tableTerms.length) {
@@ -182,6 +183,16 @@ const calculateCandidateTargets = (
   datasetIds,
   datasetLocations
 ) => {
+  // 0. check args
+  if (tableNames.length === 0) {
+    log.debug("no table names provided", {
+      tableNames,
+      datasetIds,
+      datasetLocations,
+    });
+    return [];
+  }
+
   // 1. get ids of tables named in query
   let targetIds = datasetIds
     .filter(({ Table_Name }) => tableNames.includes(Table_Name))
@@ -249,11 +260,12 @@ const run = async (query) => {
 
 module.exports = {
   // helpers:
-  transformDatasetServersListToMap,
   extractTableNamesFromAST,
   extractTableNamesFromEXEC,
-  queryToAST,
   extractTableNamesFromQuery,
+  queryToAST,
+  isSPROC,
+  transformDatasetServersListToMap,
   // main decision-making function:
   calculateCandidateTargets,
   // execution:

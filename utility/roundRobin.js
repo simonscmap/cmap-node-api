@@ -2,7 +2,8 @@ const pools = require("../dbHandlers/dbPools");
 const { SERVER_NAMES } = require("./constants");
 
 // :: [ServerCandidate] -> ServerCandidate
-const roundRobin = (candidates) => {
+// NOTE if an empty array is passed, the function will return undefined
+const roundRobin = (candidates = []) => {
   let numberOfCandidates = candidates.length;
   let randomIndex = Math.floor(Math.random() * numberOfCandidates);
   return candidates[randomIndex];

@@ -5,7 +5,7 @@ Some CMAP datasets are too large to reasonably store on-prem and are therefore s
 ## Query Handler
 
 All custom queries and several internal queries are routed through the [/utility/queryHandler.js](queryHandler.js) module, which:
-- uses a round robin to determine which server to direct the query to
+- uses a [/utility/roundRobin.js](round robin) to determine which server to direct the query to
 - uses an automatic retry if the query fails and there is another valid database to run the query on
 - respects a `servername` prop in the query arguments, which allows the caller to specify which server to run the query on
 
@@ -13,11 +13,15 @@ With the advent of distributed data, the query handler now also analyzes the inc
 
 ## Query-to-Database-Target
 
-The `queryToDatabaseTarget` module takes as its only parameter the query in question. This query string is parsed with one of two code paths: first, a string parsing is performed if the query is an "EXEC" query; otherwise the query is parsed with a query parser, [https://github.com/taozhi8833998/node-sql-parser](node-sql-parser). This parsing yields the list of tables the query will visit.
+The `queryToDatabaseTarget` module takes as its only parameter the query in question. This query string is parsed with one of two code paths: first, a string parsing is performed if the query is an "EXEC" query; otherwise the query is parsed with a query parser, [https://github.com/taozhi8833998/node-sql-parser](node-sql-parser). Either code path will yiel a list of tables the query will visit.
 
-In order to determine which servers are valid targets, the main function must consult the `tblDataset_Servers` table, which maps dataset ids to the names of servers that host the dataset. But in order to make sense of this mapping, it must also be able to map the names of the tables that were extracted from the query to dataset ids. This map is derrived from `tblVariables`.
+Note, however, that some sprocs do not need table names in their arguments list (for example, uspDatasetsWithAncillary). For this reason, queries are allowed to continue if no table names are extracted an the query is an EXEC. In these cases, the query will be run on the default pool, which targets the `ranier` server. See `mapServerNameToPoolConnection` in [/utility/roundRobin.js](roundRobin).
 
 ### Cache
+
+The main `getCandidateList` function in [/utility/queryToDatabaseTarget.js](queryToDatabaseTarget) makes two async fetches; both are cached:
+
+In order to determine which servers are valid targets, the main function must consult the `tblDataset_Servers` table, which maps dataset ids to the names of servers that host the dataset. But in order to make sense of this mapping, it must also be able to map the names of the tables that were extracted from the query to dataset ids. This map is derrived from `tblVariables`.
 
 Both of these calls are cached using [/utility/cacheAsync.js](cacheAsync.js). Currently the [https://github.com/node-cache/node-cache](node-cache) is configured such that keys never expire. Note also that the api does not proactively fetch these two tables during its bootstrap; instead the cache is generated on the first call to the query Handler.
 
@@ -33,9 +37,19 @@ Note, this function does not throw an error if no common denominator server can 
 
 A set strings representing the available servers is stored in [/utility/constants.js](utility/constants.js). This must be manually updated if any additional servers are added.
 
-## Errors
+## Round Robin & default to ranier
 
-A 400 error is returned if no candidate servers are identified.
+The round robin behavior alternates randomly across viable server targets on a per-query basis. This is realized by a simple function that takes a list, generates a random index based on the length of the list, and then returns the value at that index of the list.
+
+Note, if no list is provided, it will default to an empty list, and will return undefined.
+
+The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [/utility/roundRobin.js](roundRobin), which will default to `ranier`.
+
+See implementation: [/utility/roundRobin.js](roundRobin.js)
+
+## Error Responses
+
+A 400 error is returned if no candidate servers are identified (this will not trigger if the query uses EXEC, as some sprocs do not take table names as arguments).
 
 A 400 error is returned if the caller passes a `servername` argument which cannot be matched to any available server.
 
