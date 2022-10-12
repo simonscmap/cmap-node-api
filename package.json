@@ -16,7 +16,7 @@
       "!test/controllers/lib/mock*",
       "!test/fixtures/*"
     ],
-    "failFast": true,
+    "failFast": false,
     "failWithoutAssertions": false,
     "environmentVariables": {},
     "verbose": true
