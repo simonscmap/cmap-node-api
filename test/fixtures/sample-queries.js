@@ -14,6 +14,9 @@ const q3 = `SELECT TOP (1000) [ID],[User_ID]
 
 const q4 = `EXEC uspAddAncillary 'tblFalkor_2018', '2018-03-12','2018-04-10', 21.3, 24.7, -160.9, -155,4, 1001, 0`;
 
+// taken from depth profile
+const q10 =  `EXEC uspDepthProfile '[tblKM1709_mesoscope]', '[CTD_Chloropigment]', '2017-06-26', '2017-07-12T23:59:59', '21.19', '27.952', '-158.918', '-157.284', '3.9', '695.1'`;
+
 const q5 = `                        select Table_Name [name], count(Table_Name) [weight] from tblAPI_Query q                         --join tblApi_Calls c on c.id=q.call_id                        --where c.user_id not in (1,2,3,4,5,6,7,10)                                                 group by Table_Name order by [weight] desc                       `;
 
 const q6 = `/* EXEC sproc 'tblFakeTable'*/ SELECT * from tblMyTable`;
@@ -41,6 +44,7 @@ const pairs = [
   [q7, ["tblMyTable"]],
   [q8, ["tblMyTable"]],
   [q9, ["tblTN398_Influx_Underway", "tblTN398_Nutrients", "tblTN398_uw_TSG"]],
+  [q10, ["tblKM1709_mesoscope"]]
 ];
 
 module.exports = {
