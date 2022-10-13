@@ -4,7 +4,7 @@ const stringify = require("csv-stringify");
 const Accumulator = require("../utility/AccumulatorStream");
 const generateError = require("../errorHandling/generateError");
 const initializeLogger = require("../log-service");
-const { getCandidateList, isSPROC } = require("./queryToDatabaseTarget");
+const { getCandidateList, isSproc } = require("./queryToDatabaseTarget");
 const { roundRobin, mapServerNameToPoolConnection } = require("./roundRobin");
 const { SERVER_NAMES } = require("./constants");
 
@@ -28,17 +28,25 @@ const skipLogging = new Set(["ECANCEL"]);
 // - recurses on error
 // - chooses database target
 const handleQuery = async (req, res, next, query, forceRainier) => {
+  // --
+  if (typeof query !== "string") {
+    log.warn("no query", { query, originalUrl: req.originalUrl });
+    res.status(400).send("missing query");
+  }
+
   // 0. fetch candidate list
   let candidateList = await getCandidateList(query);
   log.debug("candidate list", { candidateList, query });
 
-  if (!candidateList || candidateList.length === 0 && !isSPROC(query)) {
+  const queryIsExecutingSproc = isSproc(query);
+
+  if (!candidateList || candidateList.length === 0 && !queryIsExecutingSproc) {
     log.error("no candidate servers identified", { candidateList, query });
     res.status(400).send(`no candidate servers available for the given query`);
     return;
   }
 
-  if (candidateList.length === 0 && isSPROC(query)) {
+  if (candidateList.length === 0 && queryIsExecutingSproc) {
     log.trace("contituing with sproc execution without any table specified");
   }
 
@@ -67,6 +75,9 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
   }
 
   log.debug("making request", { poolName });
+
+  res.set('X-Data-Source-Targeted', poolName);
+  res.set('Access-Control-Expose-Headers','X-Data-Source-Targeted');
 
   let request = await new sql.Request(pool);
 

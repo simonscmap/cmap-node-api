@@ -41,10 +41,16 @@ const transformDatasetServersListToMap = (recordset) => {
  * Note that this function will return an empty array if it fails
  */
 const extractTableNamesFromAST = (ast) => {
+  if (ast && !ast.tableList) {
+    return [];
+  }
   try {
-    return ast.ast.from.map((exp) => exp.table);
+    let result = ast.tableList
+      .map((tableString) => tableString.split("::").slice(-1).join())
+      .filter((tableName) => tableName.slice(0, 3) === "tbl");
+    return result;
   } catch (e) {
-    log.error("error parsing ast", { ast });
+    log.error("error parsing ast", { error: e, ast });
     return [];
   }
 };
@@ -61,35 +67,48 @@ const extractTableNamesFromEXEC = (query = "") => {
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
-/* isExec
- * Determine if a query is an EXEC
- * Does not assume that the word EXEC is the first word of the query
- * which would incorrectly handle query strings with initial comments
- * However, the converse edge case is true: a commented out EXEC will
- * lead to a false positive; in that case, the subsequent code path
- * in extractTableNamesFromEXEC may still successfully extract table names
- */
-// const isSPROC = (query) => query.toLowerCase().includes("exec");
-const isSPROC = (query) => {
-  let parser = new Parser();
-  let parserResult;
-  try {
-    parserResult = parser.parse(query, parserOptions);
-  } catch (e) {
-    log.trace(`parser failed in sproc check`);
-  }
-
-  if (!parserResult) {
-    // the parser was not able to extract an ast
-    // either its an EXEC or an error
-    let isEXEC = query.toLowerCase().includes("exec");
-    if (isEXEC) {
-      return true;
+// remove sql -- comments, which operate on the rest of the line
+const removeSQLDashComments = (query) => {
+  let stripDashComment = (line) => {
+    let indexOfDash = line.indexOf("--");
+    if (indexOfDash === -1) {
+      return line;
+    } else {
+      return line.slice(0, indexOfDash);
     }
-  }
+  };
 
-  return false;
-}
+  let stringHasLength = (line) => line.length > 0;
+
+  let lines = query.split("\n");
+  let linesWithoutDashedComments = lines
+    .map(stripDashComment)
+    .filter(stringHasLength);
+
+  return linesWithoutDashedComments.join("\n");
+};
+
+const removeSQLBlockComments = (query) => {
+  while (query.indexOf("/*") > -1) {
+    let openCommentIx = query.indexOf("/*");
+    let nextCloseIx = query.indexOf("*/", openCommentIx);
+    // its safe to mutate this, because a string arg is copied, not passed by reference
+    // note, to strip the whole comment we must account for the character length of the "*/"
+    // by adding 2 to the index of the closing comment
+    query = [query.slice(0, openCommentIx), query.slice(nextCloseIx + 2)].join(
+      ""
+    );
+  }
+  return query;
+};
+
+// isSproc -- determine if a query is executing a sproc
+const isSproc = (query) => {
+  let queryWithoutDashedComments = removeSQLDashComments(query);
+  let queryWithoutComments = removeSQLBlockComments(queryWithoutDashedComments);
+  let containsEXEC = queryWithoutComments.toLowerCase().includes("exec");
+  return containsEXEC;
+};
 
 /* parse a sql query into an AST
    :: Query -> AST | null
@@ -194,32 +213,31 @@ const fetchDatasetIdsWithCache = async () =>
  * see: https://github.com/taozhi8833998/node-sql-parser
  */
 const extractTableNamesFromQuery = (query) => {
-  log.trace("query is custom");
-  let astResult = queryToAST(query);
-  if (astResult) {
-    let tableNames = extractTableNamesFromAST(astResult);
-    log.debug("tables names", { query, ast: astResult, tableNames });
-    return tableNames;
-  } else {
-    // log.error("error parsing query: no resulting ast", { query, astResult });
-    // return [];
-  }
-
-  // could not parse the query to AST so check if it is an EXEC
-  if (query.toLowerCase().includes("exec")) {
+  if (isSproc(query)) {
     log.trace("query is sproc");
     let tableTerms = extractTableNamesFromEXEC(query);
     if (!tableTerms.length) {
       log.debug("no tables specified in sproc", { query, tableTerms });
     } else {
-      log.info("table names", { tableTerms });
+      log.debug("sproc table names", { tableTerms });
     }
     return tableTerms;
+  } else {
+    let astResult = queryToAST(query);
+    if (astResult && astResult.ast && astResult.ast.from) {
+      let tableNames = extractTableNamesFromAST(astResult);
+      log.debug("tables names", {
+        query,
+        ast: astResult,
+        tableNames,
+        tableList: astResult.tableList,
+      });
+      return tableNames;
+    } else {
+      log.error("error parsing query: no resulting ast", { query, astResult });
+      return [];
+    }
   }
-
-  // looks like an invalid query
-  log.warn("query appears invalid: no parseable ast and no identifiable exec", {query});
-  return [];
 };
 
 /*
@@ -302,6 +320,7 @@ const run = async (query) => {
   );
 
   // 4. return candidate query targets
+  log.info("distributed data router", { query, candidateLocations });
   return candidateLocations;
 };
 
@@ -311,7 +330,9 @@ module.exports = {
   extractTableNamesFromEXEC,
   extractTableNamesFromQuery,
   queryToAST,
-  isSPROC,
+  removeSQLDashComments,
+  removeSQLBlockComments,
+  isSproc,
   transformDatasetServersListToMap,
   // main decision-making function:
   calculateCandidateTargets,

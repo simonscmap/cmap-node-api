@@ -4,7 +4,9 @@ const {
   extractTableNamesFromAST,
   transformDatasetServersListToMap,
   queryToAST,
-  isSPROC,
+  removeSQLBlockComments,
+  removeSQLDashComments,
+  isSproc,
   calculateCandidateTargets,
 } = require("../../utility/queryToDatabaseTarget");
 const { pairs } = require("../fixtures/sample-queries");
@@ -41,10 +43,10 @@ test("transformDatasetServersListToMap", (t) => {
 
 test("extractTableNamesFromAST", (t) => {
   // parse a simple query
-  let q = "select * from myTable";
+  let q = "select * from tblMyTable";
   let ast = queryToAST(q);
   let r = extractTableNamesFromAST(ast);
-  t.deepEqual(r, ["myTable"]);
+  t.deepEqual(r, ["tblMyTable"]);
 
   // parse an empty query
   // NOTE: extractTableNamesFromAST will get [] for an AST
@@ -54,21 +56,59 @@ test("extractTableNamesFromAST", (t) => {
   t.deepEqual(r2, []);
 
   // parse a query with an EXEC commented out /* */, but with a SELECT command
-  let q3 = "/* EXEC sproc 'tblFake'*/ select * from myTable";
+  let q3 = "/* EXEC sproc 'tblFake'*/ select * from tblMyTable";
   let ast3 = queryToAST(q3);
   t.is(ast3.ast.from.length, 1);
-  t.is(ast3.ast.from[0].table, "myTable");
+  t.is(ast3.ast.from[0].table, "tblMyTable");
+});
+
+test("removeSQLBlockComments", (t) => {
+  let q1 = `here is a /**/ block comment`;
+  let r1 = removeSQLBlockComments(q1);
+  t.is(r1, "here is a  block comment");
+
+  let q0 = `here are several /**/ block /**/ comments /**/`;
+  let r0 = removeSQLBlockComments(q0);
+  t.is(r0, "here are several  block  comments ");
+
+  let q2 = `here is
+a multiline /*
+ comment
+ comment
+*/ block comment`;
+  let r2 = removeSQLBlockComments(q2);
+  t.is(r2, "here is\na multiline  block comment");
+
+  let q3 = "here is a \n multi-line /* comment \n comment \n */ block comment";
+  let r3 = removeSQLBlockComments(q3);
+  t.is(r3, "here is a \n multi-line  block comment");
+});
+
+test("removeSQLDashComments", (t) => {
+  let q1 = `here is a -- dash comment`;
+  let r1 = removeSQLDashComments(q1);
+  t.is(r1, "here is a ");
 });
 
 test("isSPROC", (t) => {
+  // basic exec
   let q1 = "EXEC sproc 'tblMyTable'";
-  let r1 = isSPROC(q1);
+  let r1 = isSproc(q1);
   t.truthy(r1);
 
+  // commented execs, should not be false positives
   let q2 = `-- EXEC sproc 'tblFakeTable'
             SELECT * from myTable`;
-  let r2 = isSPROC(q2);
+  let r2 = isSproc(q2);
   t.falsy(r2);
+
+  let q3 = `-- EXEC sproc 'tblFakeTable'
+            /* EXEC
+               EXEC
+            */
+            SELECT * from myTable`;
+  let r3 = isSproc(q3);
+  t.falsy(r3);
 });
 
 test("calculateCandidateTargets: success (single candidate)", (t) => {
@@ -81,13 +121,9 @@ test("calculateCandidateTargets: success (single candidate)", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2", "server1"]);
 
-  let result = calculateCandidateTargets(
-    tableNames,
-    datasetIds,
-    dl,
-  );
+  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
 
-  let expected = ['server1'];
+  let expected = ["server1"];
   t.truthy(expected.every((t) => result.includes(t)));
 });
 
@@ -101,11 +137,7 @@ test("calculateCandidateTargets: success (multiple candidates)", (t) => {
   dl.set(8, ["server1", "server2", "server3"]);
   dl.set(9, ["server2", "server1", "server3"]);
 
-  let result = calculateCandidateTargets(
-    tableNames,
-    datasetIds,
-    dl,
-  );
+  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
 
   let expected = ["server1", "server2", "server3"];
   // expect all 3 servers are candidates
@@ -122,11 +154,7 @@ test("calculateCandidateTargets: failure", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2"]);
 
-  let result = calculateCandidateTargets(
-    tableNames,
-    datasetIds,
-    dl,
-  );
+  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
 
   let expected = [];
   // expect an empty result set

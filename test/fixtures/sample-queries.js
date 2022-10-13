@@ -16,13 +16,20 @@ const q4 = `EXEC uspAddAncillary 'tblFalkor_2018', '2018-03-12','2018-04-10', 21
 
 const q5 = `                        select Table_Name [name], count(Table_Name) [weight] from tblAPI_Query q                         --join tblApi_Calls c on c.id=q.call_id                        --where c.user_id not in (1,2,3,4,5,6,7,10)                                                 group by Table_Name order by [weight] desc                       `;
 
-const q6 = `/* EXEC sproc 'tblFakeTable'*/ SELECT * from myTable`;
+const q6 = `/* EXEC sproc 'tblFakeTable'*/ SELECT * from tblMyTable`;
 
 const q7 = `-- EXEC sproc tblFakeTable
-            SELECT * from myTable`;
+            SELECT * from tblMyTable`;
 
 const q8 = `SELECT -- weird EXEC comment
-            * from myTable`;
+            * from tblMyTable`;
+
+// CTE
+const q9 = `WITH cruise_join (time, lat, lon) AS
+(SELECT DISTINCT i.time, i.lat, i.lon FROM tblTN398_Influx_Underway i
+        INNER JOIN tblTN398_Nutrients n on CAST(i.time as date) = CAST(n.time as date)
+)
+SELECT * from cruise_join c INNER JOIN tblTN398_uw_TSG t on c.time  = t.time`;
 
 const pairs = [
   [q1, ["tblOrgSubTrophics"]], // test simple query
@@ -30,9 +37,10 @@ const pairs = [
   [q3, ["tblApi_Calls"]], // test that bracket escaped variables work
   [q4, ["tblFalkor_2018"]], // test exec
   [q5, ["tblAPI_Query"]], // test -- comments
-  [q6, ["myTable"]],
-  [q7, ["myTable"]],
-  [q8, ["myTable"]],
+  [q6, ["tblMyTable"]],
+  [q7, ["tblMyTable"]],
+  [q8, ["tblMyTable"]],
+  [q9, ["tblTN398_Influx_Underway", "tblTN398_Nutrients", "tblTN398_uw_TSG"]],
 ];
 
 module.exports = {
