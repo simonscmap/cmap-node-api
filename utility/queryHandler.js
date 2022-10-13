@@ -11,6 +11,8 @@ const { SERVER_NAMES } = require("./constants");
 // init logger
 const log = initializeLogger("utility/queryHandler");
 
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
+// UTC & simplified ISO 8601
 function formatDate(date) {
   return date.toISOString();
 }
@@ -76,7 +78,7 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
 
   log.debug("making request", { poolName });
 
-  res.set('X-Data-Source-Targeted', poolName);
+  res.set('X-Data-Source-Targeted', poolName || 'default');
   res.set('Access-Control-Expose-Headers','X-Data-Source-Targeted');
 
   let request = await new sql.Request(pool);
@@ -172,11 +174,13 @@ const handleQuery = async (req, res, next, query, forceRainier) => {
     return;
   }
 
-  // 4. handle result: either retry or next()
-  // IF (1) there is an error, and (2) query was not already run on rainier,
-  // and (3) and no servername was specified
-  // and (4) rainier is in the candidate locations list,
+  // 4. handle result, either retry or next()
+  // IF  (1) there is an error,
+  // AND (2) query was not already run on rainier,
+  // AND (3) and no servername was specified
+  // AND (4) rainier is in the candidate locations list,
   // THEN rerun on rainier
+  // ELSE return next()
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&

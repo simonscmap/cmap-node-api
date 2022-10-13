@@ -63,7 +63,7 @@ const extractTableNamesFromAST = (ast) => {
 const extractTableNamesFromEXEC = (query = "") => {
   return query
     .split(" ")
-    .map((w) => w.replace(/'|,/gi, "")) // remove all ' and ,
+    .map((w) => w.replace(/'|,|\[|\]/gi, "")) // remove all: ' , [ ]
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
@@ -320,7 +320,7 @@ const run = async (query) => {
   );
 
   // 4. return candidate query targets
-  log.info("distributed data router", { query, candidateLocations });
+  log.info("distributed data router", { query, candidates: candidateLocations.join(" ") });
   return candidateLocations;
 };
 
