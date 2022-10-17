@@ -90,7 +90,7 @@ test("removeSQLDashComments", (t) => {
   t.is(r1, "here is a ");
 });
 
-test("isSPROC", (t) => {
+test("isSproc", (t) => {
   // basic exec
   let q1 = "EXEC sproc 'tblMyTable'";
   let r1 = isSproc(q1);
