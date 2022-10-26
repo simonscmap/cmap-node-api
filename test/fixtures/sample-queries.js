@@ -34,6 +34,8 @@ const q9 = `WITH cruise_join (time, lat, lon) AS
 )
 SELECT * from cruise_join c INNER JOIN tblTN398_uw_TSG t on c.time  = t.time`;
 
+const q11 = `SELECT COLUMN_NAME [Columns] FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'tblESV'`;
+
 const pairs = [
   [q1, ["tblOrgSubTrophics"]], // test simple query
   [q2, ["tblHOT_PP", "tblAncillary"]], // test join of two tables
@@ -44,7 +46,8 @@ const pairs = [
   [q7, ["tblMyTable"]],
   [q8, ["tblMyTable"]],
   [q9, ["tblTN398_Influx_Underway", "tblTN398_Nutrients", "tblTN398_uw_TSG"]],
-  [q10, ["tblKM1709_mesoscope"]]
+  [q10, ["tblKM1709_mesoscope"]],
+  [q11, ["tblESV"]]
 ];
 
 module.exports = {
