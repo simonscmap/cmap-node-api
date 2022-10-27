@@ -1,14 +1,18 @@
 const test = require("ava");
 const {
-  extractTableNamesFromQuery,
   extractTableNamesFromAST,
   transformDatasetServersListToMap,
   queryToAST,
   removeSQLBlockComments,
   removeSQLDashComments,
   isSproc,
+} = require("../../utility/router/pure");
+
+const {
+  extractTableNamesFromQuery,
   calculateCandidateTargets,
 } = require("../../utility/queryToDatabaseTarget");
+
 const { pairs } = require("../fixtures/sample-queries");
 
 test("extractTableNamesFromQuery", (t) => {
