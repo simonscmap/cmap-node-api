@@ -8,6 +8,8 @@ const { Readable } = require("stream");
 
 const log = initializeLogger("utility/queryHandler/queryCluster");
 
+const MAX_ROWS = process.env.CLUSTER_CHUNK_MAX_ROWS || CLUSTER_CHUNK_MAX_ROWS;
+
 const connOptions = {
   host: process.env.CLUSTER_HOST,
   path: process.env.CLUSTER_WAREHOUSE_PATH,
@@ -48,7 +50,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.trace("executing statement");
   const queryOperation = await session.executeStatement(query, {
     runAsync: true,
-    maxRows: CLUSTER_CHUNK_MAX_ROWS,
+    maxRows: MAX_ROWS,
   });
 
   // 2. set up a streamed response
@@ -80,10 +82,11 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   let count = 0;
   let rowCount = 0;
   do {
+    log.trace("start query");
     let result;
     try {
       result = await queryOperation.fetchChunk({
-        maxRows: CLUSTER_CHUNK_MAX_ROWS,
+        maxRows: MAX_ROWS,
       });
     } catch (e) {
       hasError = true;
@@ -101,10 +104,15 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
       let readable = Readable.from(result);
 
-      readable.on("pause", () => log.trace("pause"));
-      readable.on("resume", () => log.trace("resume"));
+      // await readable stream finishing
+      await new Promise((resolve) => {
+        readable.on("pause", () => log.trace("pause"));
+        readable.on("resume", () => log.trace("resume"));
+        readable.on("end", () => resolve());
+        readable.on("close", () => resolve());
 
-      readable.pipe(csvStream);
+        readable.pipe(csvStream);
+      });
 
     }
     // NOTE: ether an error fetching or an error emitted by the stream
