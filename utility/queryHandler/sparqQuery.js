@@ -1,6 +1,6 @@
 const { DBSQLClient } = require("@databricks/sql");
 
-const initializeLogger = require("../log-service");
+const initializeLogger = require("../../log-service");
 const log = initializeLogger("cluster connect and query");
 
 const connOptions = {

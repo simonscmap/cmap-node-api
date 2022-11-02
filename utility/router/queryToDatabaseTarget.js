@@ -1,10 +1,10 @@
-const initializeLogger = require("../log-service");
+const initializeLogger = require("../../log-service");
 const log = initializeLogger("queryToDatabaseTarget");
 const {
   fetchAllTablesWithCache,
   fetchDatasetIdsWithCache,
   fetchDatasetLocationsWithCache,
-} = require("./router/queries");
+} = require("./queries");
 const {
   extractTableNamesFromAST,
   extractTableNamesFromEXEC,
@@ -13,7 +13,7 @@ const {
   extractTableNamesFromGrammaticalQueryString,
   filterRealTables,
   assertPriority,
-} = require("./router/pure");
+} = require("./pure");
 
 // ANALYZE QUERY
 

@@ -1,5 +1,5 @@
-const pools = require("../dbHandlers/dbPools");
-const { SERVER_NAMES } = require("./constants");
+const pools = require("../../dbHandlers/dbPools");
+const { SERVER_NAMES } = require("../constants");
 
 // :: [ServerCandidate] -> ServerCandidate
 // NOTE if an empty array is passed, the function will return undefined

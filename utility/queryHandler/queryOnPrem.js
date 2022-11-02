@@ -1,22 +1,12 @@
-// const pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
 const stringify = require("csv-stringify");
-const Accumulator = require("../utility/AccumulatorStream");
-const generateError = require("../errorHandling/generateError");
-const initializeLogger = require("../log-service");
-const { getCandidateList } = require("./queryToDatabaseTarget");
-const { roundRobin, mapServerNameToPoolConnection } = require("./roundRobin");
-const queryCluster = require("../dbHandlers/sparq");
-const { SERVER_NAMES } = require("./constants");
-
-// init logger
-const log = initializeLogger("utility/queryHandler");
-
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString
-// UTC & simplified ISO 8601
-function formatDate(date) {
-  return date.toISOString();
-}
+const Accumulator = require("./AccumulatorStream");
+const generateError = require("../../errorHandling/generateError");
+const initializeLogger = require("../../log-service");
+const { SERVER_NAMES } = require("../constants");
+const { getPool } = require("./getPool");
+const formatDate = require("./formatDate");
+const log = initializeLogger("utility/queryHandler/queryOnPrem");
 
 // headers for streamed response
 const headers = {
@@ -26,85 +16,6 @@ const headers = {
 };
 
 const skipLogging = new Set(["ECANCEL"]);
-
-// Streaming data handler used by /data routes
-// - recurses on error
-// - chooses database target
-
-const routeQuery = async (req, res, next, query) => {
-  if (typeof query !== "string") {
-    log.warn("no query", { query, originalUrl: req.originalUrl });
-    res.status(400).send("missing query");
-  }
-
-  // 0. fetch candidate list
-  let {
-    commandType,
-    priorityTargetType,
-    candidateLocations,
-  } = await getCandidateList(query);
-
-  const queryIsExecutingSproc = commandType === "sproc";
-
-  if (
-    !Array.isArray(candidateLocations) ||
-    (candidateLocations.length === 0 && !queryIsExecutingSproc)
-  ) {
-    log.error("no candidate servers identified", { candidateLocations, query });
-    res.status(400).send(`no candidate servers available for the given query`);
-    return;
-  }
-
-  if (candidateLocations.length === 0 && queryIsExecutingSproc) {
-    log.trace("contituing with sproc execution without any table specified");
-  }
-
-  const targetIsCluster = priorityTargetType === "cluster";
-
-  if (targetIsCluster) {
-    executeQueryOnCluster(req, res, next, query);
-  } else {
-    executeQueryOnPrem(req, res, next, query, candidateLocations);
-  }
-};
-
-const executeQueryOnCluster = async (req, res, next, query) => {
-  res.set("X-Data-Source-Targeted", "cluster");
-  res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
-  let result = await queryCluster(query);
-
-  if (!result) {
-    res.status(500).send(`query execution error`);
-  } else {
-    res.send(result);
-  }
-};
-
-const getPool = async (candidateList = [], serverNameOverride) => {
-  let pool;
-  let poolName;
-
-  if (serverNameOverride) {
-    if (SERVER_NAMES[serverNameOverride]) {
-      pool = await mapServerNameToPoolConnection(serverNameOverride);
-      poolName = SERVER_NAMES[serverNameOverride];
-    } else {
-      return { error: true };
-    }
-  } else {
-    // NOTE if roundRobin is passed an empty list, it will return `undefined`
-    // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-    poolName = roundRobin(candidateList);
-    // this mapping will default to rainier
-    pool = await mapServerNameToPoolConnection(
-      poolName || SERVER_NAMES.rainier
-    );
-  }
-  return {
-    pool,
-    poolName,
-  };
-};
 
 const executeQueryOnPrem = async (
   req,
@@ -212,7 +123,7 @@ const executeQueryOnPrem = async (
       } else if (req.query.servername || poolName === SERVER_NAMES.rainier) {
         res.status(500).end(generateError(err));
       } else {
-        log.error("unknown error case", { error: err });
+        log.error("unknown error case", { error: err, rowCount: count });
       }
     }
   });
@@ -250,4 +161,6 @@ const executeQueryOnPrem = async (
   }
 };
 
-module.exports = routeQuery;
+module.exports = {
+  executeQueryOnPrem,
+};
