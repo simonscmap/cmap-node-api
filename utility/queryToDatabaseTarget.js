@@ -12,6 +12,7 @@ const {
   isSproc,
   extractTableNamesFromGrammaticalQueryString,
   filterRealTables,
+  assertPriority,
 } = require("./router/pure");
 
 // ANALYZE QUERY
@@ -23,22 +24,26 @@ const {
  * see: https://github.com/taozhi8833998/node-sql-parser
  */
 const extractTableNamesFromQuery = (query) => {
+  let commandType = isSproc(query) ? "sproc" : "custom";
   // Sproc
-  if (isSproc(query)) {
+  if (commandType === "sroc") {
     let tableNames = extractTableNamesFromEXEC(query);
     if (!tableNames.length) {
       log.debug("no tables specified in sproc", { query, tableNames });
     } else {
       log.debug("sproc table names", { tableNames });
     }
-    return tableNames;
+    return {
+      commandType,
+      extractedTableNames: tableNames,
+    };
   }
 
   // Grammatical Query
 
   let termsFromStringParse = extractTableNamesFromGrammaticalQueryString(query);
 
-  let termsFromAST;
+  let termsFromAST = [];
 
   let astResult = queryToAST(query);
   if (astResult && astResult.ast && astResult.ast.from) {
@@ -59,7 +64,10 @@ const extractTableNamesFromQuery = (query) => {
   termsFromAST.forEach((t) => terms.add(t));
   termsFromStringParse.forEach((t) => terms.add(t));
 
-  return Array.from(terms);
+  return {
+    commandType,
+    extractedTableNames: Array.from(terms),
+  };
 };
 
 /*
@@ -119,9 +127,9 @@ const calculateCandidateTargets = (
   let result = Array.from(candidates);
 
   log.debug("determine candidate servers", {
-    datasetLocations,
-    datasetIds,
-    tableNames,
+    // datasetLocations,
+    // datasetIds,
+    // tableNames,
     candidates: result,
   });
 
@@ -131,7 +139,7 @@ const calculateCandidateTargets = (
 // Execute
 const run = async (query) => {
   // 1. parse query and get table names
-  let extractedTableNames = extractTableNamesFromQuery(query);
+  let { extractedTableNames, commandType } = extractTableNamesFromQuery(query);
 
   // 2. get list of all tables
   let tableList = await fetchAllTablesWithCache();
@@ -152,13 +160,23 @@ const run = async (query) => {
     datasetLocations
   );
 
-  // 4. return candidate query targets
+  // 7. assert priority
+  let { prioritizedLocations, priorityTargetType } = assertPriority(
+    candidateLocations
+  );
+
   log.info("distributed data router", {
     query,
+    commandType,
     candidates: candidateLocations.join(" "),
   });
 
-  return candidateLocations;
+  // 8. return candidate query targets
+  return {
+    commandType,
+    priorityTargetType,
+    candidateLocations: prioritizedLocations,
+  };
 };
 
 module.exports = {

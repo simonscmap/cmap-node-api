@@ -38,8 +38,9 @@ const extractTableNamesFromAST = (ast) => {
     return [];
   }
   try {
-    let result = ast.tableList
-      .map((tableString) => tableString.split("::").slice(-1).join());
+    let result = ast.tableList.map((tableString) =>
+      tableString.split("::").slice(-1).join()
+    );
     // NOTE we will no longer filter out names not starting with "tbl"
     // because we want to allow queries that may visit core tables
     //.filter((tableName) => tableName.slice(0, 3) === "tbl");
@@ -64,14 +65,16 @@ const extractTableNamesFromEXEC = (query = "") => {
 
 // string parsing table names from query
 const extractTableNamesFromGrammaticalQueryString = (query = "") => {
-  return query
-    .replace(/'|,|\[|\]/gi, "") // remove ' , [ and ]
-    .split(" ") // split on space
-  // NOTE with this string parsing, we are relying on the convention
-  // that table names begin with "tbl"; this differs from the function
-  // above "extractTableNamesFromAST"
-    .filter((word) => word.slice(0, 3) === "tbl")
-}
+  return (
+    query
+      .replace(/'|,|\[|\]/gi, "") // remove ' , [ and ]
+      .split(" ") // split on space
+      // NOTE with this string parsing, we are relying on the convention
+      // that table names begin with "tbl"; this differs from the function
+      // above "extractTableNamesFromAST"
+      .filter((word) => word.slice(0, 3) === "tbl")
+  );
+};
 
 // remove sql -- comments, which operate on the rest of the line
 const removeSQLDashComments = (query) => {
@@ -120,6 +123,7 @@ const isSproc = (query) => {
    :: Query -> AST | null
  */
 const queryToAST = (query) => {
+  // TODO try both tsql and hive flavors
   const parser = new Parser();
   let result;
   try {
@@ -136,7 +140,7 @@ const queryToAST = (query) => {
 // (b) do not exist in the provided tableList
 const filterRealTables = (names = [], tableList = []) => {
   return names.reduce((validList, nextName) => {
-    if (nextName.slice(0,3) === "tbl") {
+    if (nextName.slice(0, 3) === "tbl") {
       return validList.slice().concat(nextName);
     } else if (tableList.includes(nextName)) {
       return validList.slice().concat(nextName);
@@ -144,7 +148,24 @@ const filterRealTables = (names = [], tableList = []) => {
       return validList;
     }
   }, []);
-}
+};
+
+// assert priority
+const assertPriority = (candidateLocations) => {
+  let includesCluster = candidateLocations.includes("cluster");
+
+  let prioritizedLocations = includesCluster
+    ? candidateLocations.filter((loc) => loc !== "cluster").concat("cluster")
+    : candidateLocations;
+
+  let priorityTargetType =
+    candidateLocations.length === 1 && includesCluster ? "cluster" : "prem";
+
+  return {
+    priorityTargetType,
+    prioritizedLocations,
+  };
+};
 
 module.exports = {
   transformDatasetServersListToMap,
@@ -156,4 +177,5 @@ module.exports = {
   removeSQLBlockComments,
   isSproc,
   filterRealTables,
+  assertPriority,
 };
