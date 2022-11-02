@@ -4,7 +4,7 @@ const stringify = require("csv-stringify");
 const AccumulatorStream = require("./AccumulatorStream");
 const { CLUSTER_CHUNK_MAX_ROWS } = require("../constants");
 const formatDate = require("./formatDate");
-
+const { Readable } = require("stream");
 
 const log = initializeLogger("utility/queryHandler/queryCluster");
 
@@ -24,6 +24,14 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
 
+  const endRespWithError = () => {
+    if (!res.headersSent) {
+      res.status(500).send("error");
+    } else {
+      res.end();
+    }
+  };
+
   // 1. create connection
   const client = new DBSQLClient();
 
@@ -40,12 +48,13 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.trace("executing statement");
   const queryOperation = await session.executeStatement(query, {
     runAsync: true,
+    maxRows: CLUSTER_CHUNK_MAX_ROWS,
   });
 
   // 2. set up a streamed response
   let accumulator = new AccumulatorStream();
   let csvStream = stringify({
-    // header: true,
+    header: true,
     cast: {
       date: formatDate,
     },
@@ -53,32 +62,62 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
   csvStream.pipe(accumulator).pipe(res);
 
-  csvStream.on("error", (e) => {
+  let hasError = false;
+
+  csvStream.on("error", async (e) => {
+    hasError = true;
     log.error("streaming error", { error: e });
+    endRespWithError();
   });
 
   const hasMoreRows = async () => {
     let result = await queryOperation.hasMoreRows();
-    console.log("hasMoreRows", result);
+    log.trace(`has more rows: ${result}`);
     return result;
-  }
+  };
 
   // 3. execute
-  let schema;
+  let count = 0;
+  let rowCount = 0;
   do {
-    let result = await queryOperation.fetchChunk({ maxRows: 500 });
-    console.log(result.length);
-    csvStream.write(result);
-    if (!schema) {
-      schema = await queryOperation.getSchema();
-      log.debug("schema", { schema });
+    let result;
+    try {
+      result = await queryOperation.fetchChunk({
+        maxRows: CLUSTER_CHUNK_MAX_ROWS,
+      });
+    } catch (e) {
+      hasError = true;
+      log.error("error fetching chunk", { error: e });
+      endRespWithError();
     }
-  } while (await hasMoreRows());
+
+    if (result) {
+      count++;
+      rowCount += result.length;
+
+      if (!res.headersSent) {
+        res.writeHead(200, headers);
+      }
+
+      let readable = Readable.from(result);
+
+      readable.on("pause", () => log.trace("pause"));
+      readable.on("resume", () => log.trace("resume"));
+
+      readable.pipe(csvStream);
+
+    }
+    // NOTE: ether an error fetching or an error emitted by the stream
+    // will cause this loop to terminate
+  } while ((await hasMoreRows()) && !hasError);
+
+  // 4. end
+  log.info("finished fetch", { chunks: count, rowCount });
 
   csvStream.end();
 
-
   log.trace("closing operation");
+
   await queryOperation.close();
   await session.close();
   await client.close();
