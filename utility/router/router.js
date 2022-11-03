@@ -7,8 +7,13 @@ const { executeQueryOnPrem } = require("../queryHandler/queryOnPrem");
 
 const routeQuery = async (req, res, next, query) => {
   if (typeof query !== "string") {
-    log.warn("no query", { query, originalUrl: req.originalUrl });
+    log.warn("no query", {
+      arg: typeof query,
+      query,
+      originalUrl: req.originalUrl,
+    });
     res.status(400).send("missing query");
+    next();
   }
 
   // 0. fetch candidate list
@@ -41,6 +46,5 @@ const routeQuery = async (req, res, next, query) => {
     executeQueryOnPrem(req, res, next, query, candidateLocations);
   }
 };
-
 
 module.exports = { routeQuery };
