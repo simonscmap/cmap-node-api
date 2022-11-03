@@ -11,7 +11,7 @@ const {
 const {
   extractTableNamesFromQuery,
   calculateCandidateTargets,
-} = require("../../utility/queryToDatabaseTarget");
+} = require("../../utility/router/queryToDatabaseTarget");
 
 const { pairs } = require("../fixtures/sample-queries");
 

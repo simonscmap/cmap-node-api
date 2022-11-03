@@ -122,8 +122,16 @@ function log(level, tags, context, message, isError, data) {
   if (isProduction || logFormat === "json") {
     console.log(JSON.stringify(payload));
   } else {
-    payload.time = new Date().toLocaleTimeString();
-    console.log(payload);
+    let header = `${level} - ${Object.entries(logLevel).filter(([, val]) => val === level).flat()[0].toUpperCase()}`
+    let module = payload.context.module;
+    let abbreviatedPayload = {
+      i: `${header} in ${module}`,
+      message: payload.message,
+    }
+    if (payload.data) {
+      abbreviatedPayload.data = payload.data;
+    }
+    console.log(abbreviatedPayload);
   }
 }
 
@@ -150,9 +158,6 @@ function createNewLogger(moduleName) {
       logger.level = logLevel[level];
       logger.message = content;
       logger.data = additionalData;
-      if (level === "error" || level === "fatal") {
-        logger.isError = true;
-      }
       log(
         logLevel[level],
         logger.tags,

@@ -34,6 +34,7 @@ const executeQueryOnPrem = async (
 
   if (error) {
     res.status(400).send(`servername "${req.query.servername}" is not valid`);
+    next();
   }
 
   res.set("X-Data-Source-Targeted", poolName || "default");
@@ -152,7 +153,7 @@ const executeQueryOnPrem = async (
     candidateList.includes(SERVER_NAMES.rainier)
   ) {
     // Rerun query with forceRainier flag
-    log.warning("retrying query on rainier", { query });
+    log.warn("retrying query on rainier", { query });
 
     accumulator.unpipe(res);
     await executeQueryOnPrem(req, res, next, query, [], true);
