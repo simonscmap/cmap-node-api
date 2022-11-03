@@ -1,19 +1,19 @@
 const initializeLogger = require("../../log-service");
-const log = initializeLogger("utility/router/router");
 const { getCandidateList } = require("./queryToDatabaseTarget");
-
 const { executeQueryOnCluster } = require("../queryHandler/queryCluster");
 const { executeQueryOnPrem } = require("../queryHandler/queryOnPrem");
+const { COMMAND_TYPES } = require("../constants");
+const log = initializeLogger("utility/router/router");
 
 const routeQuery = async (req, res, next, query) => {
   if (typeof query !== "string") {
     log.warn("no query", {
-      arg: typeof query,
+      typeOfQueryArg: typeof query,
       query,
       originalUrl: req.originalUrl,
     });
     res.status(400).send("missing query");
-    next();
+    return next();
   }
 
   // 0. fetch candidate list
@@ -23,7 +23,7 @@ const routeQuery = async (req, res, next, query) => {
     candidateLocations,
   } = await getCandidateList(query);
 
-  const queryIsExecutingSproc = commandType === "sproc";
+  const queryIsExecutingSproc = commandType === COMMAND_TYPES.sproc;
 
   if (
     !Array.isArray(candidateLocations) ||
