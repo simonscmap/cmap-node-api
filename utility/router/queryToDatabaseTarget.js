@@ -23,10 +23,10 @@ const {
  * NOTE: parser can handle CTEs, joins, comments
  * see: https://github.com/taozhi8833998/node-sql-parser
  */
-const extractTableNamesFromQuery = (query) => {
+const extractTableNamesFromQuery = (query = "") => {
   let commandType = isSproc(query) ? "sproc" : "custom";
   // Sproc
-  if (commandType === "sroc") {
+  if (commandType === "sproc") {
     let tableNames = extractTableNamesFromEXEC(query);
     if (!tableNames.length) {
       log.debug("no tables specified in sproc", { query, tableNames });
@@ -48,14 +48,14 @@ const extractTableNamesFromQuery = (query) => {
   let astResult = queryToAST(query);
   if (astResult && astResult.ast && astResult.ast.from) {
     termsFromAST = extractTableNamesFromAST(astResult);
-    log.debug("tables names", {
+    log.debug("tables names from AST", {
       query,
       ast: astResult,
       astTableList: astResult.tableList,
       tableList: astResult.tableList,
     });
   } else {
-    log.error("error parsing query: no resulting ast", { query, astResult });
+    log.warn("error parsing query: no resulting ast", { query, astResult });
   }
 
   // reduce results of both parses to a single set of terms
@@ -165,7 +165,7 @@ const run = async (query) => {
     candidateLocations
   );
 
-  log.info("distributed data router", {
+  log.info("router result", {
     query,
     commandType,
     candidates: candidateLocations.join(" "),
