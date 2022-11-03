@@ -17,6 +17,8 @@ const headers = {
 
 const skipLogging = new Set(["ECANCEL"]);
 
+// TODO if user specifies servername (in set) which does not match the candidate list return useful message
+
 const executeQueryOnPrem = async (
   req,
   res,
