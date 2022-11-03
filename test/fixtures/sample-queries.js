@@ -1,4 +1,6 @@
 // Export pairs of sample queries and the expected set of tables visited by the query
+const { COMMAND_TYPES } = require("../../utility/constants");
+const { sproc, custom } = COMMAND_TYPES;
 
 const q1 = "select SubTrophic_Level as [title] from tblOrgSubTrophics";
 
@@ -36,18 +38,22 @@ SELECT * from cruise_join c INNER JOIN tblTN398_uw_TSG t on c.time  = t.time`;
 
 const q11 = `SELECT COLUMN_NAME [Columns] FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'tblESV'`;
 
-const pairs = [
-  [q1, ["tblOrgSubTrophics"]], // test simple query
-  [q2, ["tblHOT_PP", "tblAncillary"]], // test join of two tables
-  [q3, ["tblApi_Calls"]], // test that bracket escaped variables work
-  [q4, ["tblFalkor_2018"]], // test exec
-  [q5, ["tblAPI_Query"]], // test -- comments
-  [q6, ["tblMyTable"]],
-  [q7, ["tblMyTable"]],
-  [q8, ["tblMyTable"]],
-  [q9, ["tblTN398_Influx_Underway", "tblTN398_Nutrients", "tblTN398_uw_TSG"]],
-  [q10, ["tblKM1709_mesoscope"]],
-  [q11, ["tblESV"]]
+const q12 = `EXEC uspSpaceTime '[tblDarwin_Nutrient]', '[*]', '1994-01-03', '1994-02-03', '-90', '90', '-180', '180', '0', '10'`;
+
+const records = [
+  [q1, custom, ["tblOrgSubTrophics"]], // test simple query
+  [q2, custom, ["tblHOT_PP", "tblAncillary"]], // test join of two tables
+  [q3, custom, ["tblApi_Calls"]], // test that bracket escaped variables work
+  [q4, sproc, ["tblFalkor_2018"]], // test exec
+  [q5, custom, ["tblAPI_Query"]], // test -- comments
+  [q6, custom, ["tblMyTable"]], // commented out EXEC with actual SELECT
+  [q7, custom, ["tblMyTable"]], // commented out EXEC with actual SELECT
+  [q8, custom, ["tblMyTable"]], // mid-command comment
+  [q9, custom, ["tblTN398_Influx_Underway", "tblTN398_Nutrients", "cruise_join", "tblTN398_uw_TSG"]],
+  [q10, sproc, ["tblKM1709_mesoscope"]],
+  [q11, custom, ["COLUMNS", "tblESV"]], // note that even though "COLUMNS" is not a real table, it will be removed
+  // when checked against the list of table names
+  [q12, sproc, ["tblDarwin_Nutrient"]],
 ];
 
 module.exports = {
@@ -56,5 +62,5 @@ module.exports = {
   q3,
   q4,
   q5,
-  pairs,
+  records,
 };
