@@ -77,7 +77,7 @@ const extractTableNamesFromGrammaticalQueryString = (query = "") => {
 };
 
 // remove sql -- comments, which operate on the rest of the line
-const removeSQLDashComments = (query) => {
+const removeSQLDashComments = (query = "") => {
   let stripDashComment = (line) => {
     let indexOfDash = line.indexOf("--");
     if (indexOfDash === -1) {
@@ -97,7 +97,7 @@ const removeSQLDashComments = (query) => {
   return linesWithoutDashedComments.join("\n");
 };
 
-const removeSQLBlockComments = (query) => {
+const removeSQLBlockComments = (query = "") => {
   while (query.indexOf("/*") > -1) {
     let openCommentIx = query.indexOf("/*");
     let nextCloseIx = query.indexOf("*/", openCommentIx);
@@ -112,7 +112,7 @@ const removeSQLBlockComments = (query) => {
 };
 
 // isSproc -- determine if a query is executing a sproc
-const isSproc = (query) => {
+const isSproc = (query = "") => {
   let queryWithoutDashedComments = removeSQLDashComments(query);
   let queryWithoutComments = removeSQLBlockComments(queryWithoutDashedComments);
   let containsEXEC = queryWithoutComments.toLowerCase().includes("exec");
@@ -122,7 +122,7 @@ const isSproc = (query) => {
 /* parse a sql query into an AST
    :: Query -> AST | null
  */
-const queryToAST = (query) => {
+const queryToAST = (query = "") => {
   // TODO try both tsql and hive flavors
   const parser = new Parser();
   let result;
