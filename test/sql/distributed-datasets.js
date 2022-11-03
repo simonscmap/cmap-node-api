@@ -6,19 +6,19 @@ const {
   removeSQLBlockComments,
   removeSQLDashComments,
   isSproc,
-} = require("../../utility/router/pure");
-
-const {
   extractTableNamesFromQuery,
   calculateCandidateTargets,
-} = require("../../utility/router/queryToDatabaseTarget");
+} = require("../../utility/router/pure");
 
-const { pairs } = require("../fixtures/sample-queries");
+const { records } = require("../fixtures/sample-queries");
+
+// Test the helper functions and core logic for the Distributed Data Router
 
 test("extractTableNamesFromQuery", (t) => {
-  pairs.forEach(([query, expected]) => {
-    let result = extractTableNamesFromQuery(query);
-    t.deepEqual(result, expected);
+  records.forEach(([query, expectedCommandType, expectedTables]) => {
+    let { commandType, extractedTableNames } = extractTableNamesFromQuery(query);
+    t.deepEqual(commandType, expectedCommandType);
+    t.deepEqual(extractedTableNames, expectedTables);
   });
 });
 
