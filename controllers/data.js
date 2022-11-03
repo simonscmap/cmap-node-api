@@ -1,49 +1,50 @@
-const queryHandler = require('../utility/queryHandler');
+const queryHandler = require("../utility/queryHandler");
 
-var pools = require('../dbHandlers/dbPools');
-const sql = require('mssql');
+var pools = require("../dbHandlers/dbPools");
+const sql = require("mssql");
 
 // Custom query endpoint
-exports.customQuery = async (req, res, next)=> {
-    req.cmapApiCallDetails.query = req.query.query;
-    queryHandler(req, res, next, req.query.query);
+const customQuery = async (req, res, next) => {
+  req.cmapApiCallDetails.query = req.query.query;
+  console.log("custom query", typeof req.query.query, req.query.query);
+  queryHandler(req, res, next, req.query.query);
 };
 
 // Stored procedure call endpoint
 // NOTE: this only serves the subset of stored procedures that power the chart visualizations
-exports.storedProcedure = async (req, res, next)=>{
-    let argSet = req.query;
+const storedProcedure = async (req, res, next) => {
+  let argSet = req.query;
 
-    let fields = argSet.fields.replace(/[\[\]']/g,'' );
-    let tableName = argSet.tableName.replace(/[\[\]']/g,'' );
+  let fields = argSet.fields.replace(/[\[\]']/g, "");
+  let tableName = argSet.tableName.replace(/[\[\]']/g, "");
 
-    let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-    req.cmapApiCallDetails.query = spExecutionQuery;
-    queryHandler(req, res, next, spExecutionQuery);
+  let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
+  req.cmapApiCallDetails.query = spExecutionQuery;
+  queryHandler(req, res, next, spExecutionQuery);
 };
 
 // Retrieves a single cruise trajectory
-exports.cruiseTrajectory = async (req, res, next) => {
-    let cruiseID = req.query.id;
-    let query = `EXEC uspCruiseTrajectory ${cruiseID}`;
-    req.cmapApiCallDetails.query = query;
-    queryHandler(req, res, next, query);
-}
+const cruiseTrajectory = async (req, res, next) => {
+  let cruiseID = req.query.id;
+  let query = `EXEC uspCruiseTrajectory ${cruiseID}`;
+  req.cmapApiCallDetails.query = query;
+  queryHandler(req, res, next, query);
+};
 
 // provide list of tables with ancillary data
 // uses sproc
-exports.ancillaryDatasets = async (req, res, next) => {
-  let query = 'EXEC uspDatasetsWithAncillary';
+const ancillaryDatasets = async (req, res, next) => {
+  let query = "EXEC uspDatasetsWithAncillary";
   req.cmapApiCallDetails.query = query;
   queryHandler(req, res, next, query);
-}
+};
 
 // Retrieves all cruises
-exports.cruiseList = async (req, res, next) => {
-    let pool = await pools.dataReadOnlyPool;
-    let request = await new sql.Request(pool);
+const cruiseList = async (req, res, next) => {
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
 
-    let query = `
+  let query = `
     SELECT
     [tblCruise].ID
     ,[tblCruise].Nickname
@@ -77,88 +78,40 @@ exports.cruiseList = async (req, res, next) => {
     WHERE [tblCruise].ID IN (SELECT DISTINCT Cruise_ID FROM tblDataset_Cruises)
     `;
 
-    let result = await request.query(query);
-    res.writeHead(200, {'Cache-Control': 'max-age=7200', 'Content-Type': 'application/json'});
-    await res.end(JSON.stringify(result.recordset));
-    next();
-}
+  let result = await request.query(query);
+  res.writeHead(200, {
+    "Cache-Control": "max-age=7200",
+    "Content-Type": "application/json",
+  });
+  await res.end(JSON.stringify(result.recordset));
+  next();
+};
 
 // Retrieves table stats for a variable
-exports.tableStats = async (req, res, next) => {
-    let pool = await pools.dataReadOnlyPool;
-    let request = await new sql.Request(pool);
+const tableStats = async (req, res, next) => {
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
 
-    let query =
-    `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
+  let query = `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
     (select tblD.ID, tblV.Table_Name FROM tblVariables tblV
     inner join tblDatasets tblD on tblV.Dataset_ID = tblD.ID) tblDV
     on tblS.Dataset_ID= tblDV.ID
-    where tblDV.Table_Name = '${req.query.table}'`
+    where tblDV.Table_Name = '${req.query.table}'`;
 
-    let result = await request.query(query);
+  let result = await request.query(query);
 
-    if(result.recordset.length < 1) {
-        res.json({error: 'Table not found'});
-        return;
-    }
-    res.send(result.recordset[0].JSON_stats);
-}
+  if (result.recordset.length < 1) {
+    res.json({ error: "Table not found" });
+    return;
+  }
+  res.send(result.recordset[0].JSON_stats);
+};
 
-// Protocol buffer test from long ago. Kept for reference
-// exports.testProto = async(req, res, next) => {
-//     let protos = await protoLib;
-//     let pool = await pools.dataReadOnlyPool;
-//     let request = await new sql.Request(pool);
-//     // request.stream = true;
-
-//     const protoStream = new ProtoTransform(protos.SpaceTimeRow, 'sst');
-
-//     let query = "EXEC uspSpaceTime 'tblSST_AVHRR_OI_NRT', 'sst', '1981-09-01', '1981-09-01', '-90', '90', '-180', '180', '0', '0'"
-
-//     // request.on('recordset', recordset => {
-//     //     if(!res.headersSent){
-//     //         res.writeHead(200, headers);
-//     //         request.on('row', row => {
-//     //             if(protoStream.write(row) === false) request.pause();
-//     //         })
-//     //     }
-//     // })
-
-//     req.on('close', () => {
-//         request.cancel();
-//     })
-
-//     protoStream.on('drain', () => request.resume());
-//     request.on('done', () => protoStream.end());
-
-//     protoStream.pipe(res);
-
-//     const headers = {
-//         'Transfer-Encoding': 'chunked',
-//         'Content-Type': "application/octet-stream"
-//     }
-//     let start = new Date();
-//     let result = await request.query(query);
-//     res.json(result.recordsets[0]);
-//     next();
-// }
-
-// class ProtoTransform extends Transform {
-//     constructor(messageClass, variableName){
-//         super({objectMode: true});
-//         this.messageClass = messageClass;
-//         this.variableName = variableName;
-//     }
-
-//     _transform(chunk, encoding, done){
-//         var row = {
-//             time: chunk.time.toISOString(),
-//             lat: chunk.lat,
-//             lon: chunk.lon,
-//             var: chunk[this.variableName]
-//         }
-
-//         this.push(this.messageClass.encodeDelimited(row).finish());
-//         done();
-//     }
-// }
+module.exports = {
+  customQuery,
+  storedProcedure,
+  cruiseTrajectory,
+  ancillaryDatasets,
+  cruiseList,
+  tableStats,
+};
