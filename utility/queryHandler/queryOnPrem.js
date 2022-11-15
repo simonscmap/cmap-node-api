@@ -28,6 +28,7 @@ const executeQueryOnPrem = async (
   forceRainier
 ) => {
   // 1. determine pool
+
   let serverNameOverride = forceRainier ? "rainier" : req.query.servername;
   let { pool, poolName, error } = await getPool(
     candidateList.filter((c) => c !== "cluster"),
@@ -35,14 +36,16 @@ const executeQueryOnPrem = async (
   );
 
   if (error) {
-    res.status(400).send(`servername "${req.query.servername}" is not valid`);
+    res.status(400).send(`specified server "${req.query.servername}" is not valid for the given query, consider specifying a different server`);
     next();
+    return;
   }
 
   res.set("X-Data-Source-Targeted", poolName || "default");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
 
   // 2. create request object
+
   log.debug("making request", { poolName });
 
   let request = await new sql.Request(pool);
@@ -54,7 +57,7 @@ const executeQueryOnPrem = async (
   // track error
   let requestError = false;
 
-  // 2. create stream and define event handlers
+  // 3. create stream and define event handlers
 
   let csvStream = stringify({
     header: true,
@@ -131,7 +134,7 @@ const executeQueryOnPrem = async (
     }
   });
 
-  // 3. execute
+  // 4. execute
 
   try {
     await request.query(query);
