@@ -280,13 +280,6 @@ const calculateCandidateTargets = (
 
   let result = Array.from(candidates);
 
-  log.debug("determine candidate servers", {
-    // datasetLocations,
-    // datasetIds,
-    // tableNames,
-    candidates: result,
-  });
-
   return result;
 };
 
