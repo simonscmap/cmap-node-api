@@ -16,7 +16,6 @@ const routeQuery = async (req, res, next, query) => {
     return next();
   }
 
-  // 0. fetch candidate list
   let {
     commandType,
     priorityTargetType,
