@@ -2,9 +2,14 @@ const { Parser } = require("node-sql-parser");
 const initializeLogger = require("../../log-service");
 const log = initializeLogger("router pure");
 
-const parserOptions = {
+// parser options: https://github.com/taozhi8833998/node-sql-parser/blob/master/src/parser.all.js
+const tsqlParserOptions = {
   database: "transactsql", // a.k.a mssql
 };
+
+const hiveParserOptions = {
+  database: "hive", // a.k.a sparq
+}
 // HELPERS
 
 /* Transform Dasaset_Servers recordset to Map
@@ -126,10 +131,15 @@ const queryToAST = (query = "") => {
   const parser = new Parser();
   let result;
   try {
-    result = parser.parse(query, parserOptions);
+    result = parser.parse(query, tsqlParserOptions);
   } catch (e) {
-    log.warn("error parsing query", { error: e, query });
-    return;
+    // if parsing as tsql fails, try as hive
+    try {
+      result = parser.parse(query, hiveParserOptions);
+    } catch (e2) {
+      log.warn("error parsing query", { error: e2, query });
+      return;
+    }
   }
   return result;
 };
