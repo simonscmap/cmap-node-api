@@ -42,8 +42,6 @@ const run = async (query) => {
     datasetLocations
   );
 
-  // TODO send useful error if there is no candidate server for multiple data sets
-
   // 7. assert priority
   let { prioritizedLocations, priorityTargetType } = assertPriority(
     candidateLocations
@@ -55,11 +53,18 @@ const run = async (query) => {
     candidates: candidateLocations.join(" "),
   });
 
-  // 8. return candidate query targets
+  // 8. determine if detailed error message is necessary
+  let errorMessage = "";
+  if (datasetLocations.length > 1 && candidateLocations.length === 0) {
+    errorMessage = "unable to perform query because datasets named in the query are distributed; you man need to perform your query locally after dowloading the constituent datasets";
+  }
+
+  // 9. return candidate query targets
   return {
     commandType,
     priorityTargetType,
     candidateLocations: prioritizedLocations,
+    errorMessage,
   };
 };
 

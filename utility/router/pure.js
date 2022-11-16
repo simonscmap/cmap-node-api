@@ -280,6 +280,14 @@ const calculateCandidateTargets = (
 
   let result = Array.from(candidates);
 
+  if (result.length === 0) {
+    log.warn("no candidate servers identified", {
+      tableNames,
+      targetIds,
+      locationCandidatesPerTable,
+    });
+  }
+
   return result;
 };
 
