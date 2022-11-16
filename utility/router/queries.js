@@ -45,7 +45,6 @@ const fetchDatasetLocations = async () => {
 
   if (result && result.recordset && result.recordset.length) {
     let records = result.recordset;
-    // TODO transform records into useable form
 
     let datasetMap = transformDatasetServersListToMap(records);
     // set results in cache

@@ -127,7 +127,6 @@ const isSproc = (query = "") => {
    :: Query -> AST | null
  */
 const queryToAST = (query = "") => {
-  // TODO try both tsql and hive flavors
   const parser = new Parser();
   let result;
   try {
