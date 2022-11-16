@@ -127,7 +127,6 @@ const isSproc = (query = "") => {
    :: Query -> AST | null
  */
 const queryToAST = (query = "") => {
-  // TODO try both tsql and hive flavors
   const parser = new Parser();
   let result;
   try {
@@ -260,9 +259,13 @@ const calculateCandidateTargets = (
   // 2. derrive common targets
 
   // -- for each table's id, look up the array of compatible locations
-  let locationCandidatesPerTable = targetIds.map((id) =>
-    datasetLocations.get(id)
-  );
+  let locationCandidatesPerTable = targetIds.map((id) => {
+    let loc = datasetLocations.get(id);
+    if (!loc) {
+      log.warn('no target found for dataset id', { id });
+    }
+    return loc;
+  }).filter((location) => location);
 
   let candidates = new Set();
 
@@ -276,17 +279,19 @@ const calculateCandidateTargets = (
    by the query -- this is ensured by the `slice` returning an empty
    array if there are no more members of the `locationCandidatesPerTable`
    array.
-  */
-  locationCandidatesPerTable[0].forEach((serverName) => {
-    let serverIsCandidateForAllTables = locationCandidatesPerTable
-      .slice(1)
-      .every((candidateList) => candidateList.includes(serverName));
-    if (serverIsCandidateForAllTables) {
-      // add to the Set
-      // multiple adds of the same name will be discarded by the Set
-      candidates.add(serverName);
-    }
-  });
+   */
+  if (locationCandidatesPerTable.length) {
+    locationCandidatesPerTable[0].forEach((serverName) => {
+      let serverIsCandidateForAllTables = locationCandidatesPerTable
+        .slice(1)
+        .every((candidateList) => candidateList.includes(serverName));
+      if (serverIsCandidateForAllTables) {
+        // add to the Set
+        // multiple adds of the same name will be discarded by the Set
+        candidates.add(serverName);
+      }
+    });
+  }
 
   let result = Array.from(candidates);
 

@@ -17,8 +17,6 @@ const headers = {
 
 const skipLogging = new Set(["ECANCEL"]);
 
-// TODO if user specifies servername (in set) which does not match the candidate list return useful message
-
 const executeQueryOnPrem = async (
   req,
   res,
@@ -30,8 +28,9 @@ const executeQueryOnPrem = async (
   // 1. determine pool
 
   let serverNameOverride = forceRainier ? "rainier" : req.query.servername;
+  let onPremCandidates = candidateList.filter((c) => c !== "cluster");
   let { pool, poolName, error } = await getPool(
-    candidateList.filter((c) => c !== "cluster"),
+    onPremCandidates,
     serverNameOverride
   );
 
