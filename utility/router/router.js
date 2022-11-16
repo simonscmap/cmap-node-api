@@ -20,6 +20,7 @@ const routeQuery = async (req, res, next, query) => {
     commandType,
     priorityTargetType,
     candidateLocations,
+    errorMessage,
   } = await getCandidateList(query);
 
   const queryIsExecutingSproc = commandType === COMMAND_TYPES.sproc;
@@ -29,7 +30,7 @@ const routeQuery = async (req, res, next, query) => {
     (candidateLocations.length === 0 && !queryIsExecutingSproc)
   ) {
     log.error("no candidate servers identified", { candidateLocations, query });
-    res.status(400).send(`no candidate servers available for the given query`);
+    res.status(400).send(errorMessage || `no candidate servers available for the given query`);
     return;
   }
 
