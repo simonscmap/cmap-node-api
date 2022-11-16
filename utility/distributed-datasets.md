@@ -30,10 +30,11 @@ The `queryToDatabaseTarget` module exports a `run` function, which takes as its 
 - `candidateLocations`: the array of viable server names (e.g. `["ranier", "cluster]`)
 - `errorMessage`: in cases where a detailed error message is needed
 
+Here are a few major inflection points of the implementation:
 
-### EXEC queries versus Custom Queries
+### EXEC queries versus Custom Queries and the Extraction of Table Names
 
-Internally, the function accommodates two cases, based on whether it determines if the query is executing a sproc with an `EXEC` command.
+The first analytical job the module must perform is the extraction of the names of the tables that will be visited by the query (see [extractTableNamesFromQuery](/utility/router/pure.js). But, the approach varies based on the type of query. The module accommodates two exclusive and exhaustive categories: the query is either executing a sproc (stored procedure) with an `EXEC` command, or it is executing a custom query, such as a `SELECT`.
 
 1. if it is an `EXEC`: the table names (if any) in the `EXEC` query are extracted with custom string parsing
 2. otherwise: the query is parsed with a query parser [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser), and table names are yielded by the resulting `AST`.
@@ -42,13 +43,12 @@ Note that the `AST` will include the names of the result of joins, so further fi
 
 Note also that some sprocs do not take any table names as parameters, and therefore no table names are extricable from the query string. For example, `uspDatasetsWithAncillary`. For this reason, queries are allowed to continue if no table names are extracted AND the query is an `EXEC`. In these cases, the query will be run on the default pool, which targets the `rainier` server.
 
-Either code path will yield a list of tables the query will visit.
+Note finally that the router must accomodate both the Transact SQL and Hive SQL flavors of query syntax. Therefore in the `queryToAST` helper it first tries to provide an AST by parsing the query as `transactsql`, and if it fails it will try again as `hive`.
 
-See `mapServerNameToPoolConnection` in [roundRobin.js](/utility/roundRobin.js).
 
 ### Cache
 
-After the list of table names is extracted from the query, the main `getCandidateList` function in [queryToDatabaseTarget.js](/utility/queryToDatabaseTarget.js) makes two async fetches; both are cached.
+After the list of table names is extracted from the query, the main `getCandidateList` function in [queryToDatabaseTarget.js](/utility/router/queryToDatabaseTarget.js) makes two async fetches; both are cached.
 
 In order to determine which servers are valid targets, the main function must first consult the `tblDataset_Servers` table, which maps dataset ids to the names of servers that host the dataset. But in order to make sense of this mapping, it must also be able to map the names of the tables that were extracted from the query to dataset ids. This map is derived from the `tblVariables` table.
 
@@ -68,9 +68,17 @@ and returns an the array of viable server names.
 
 Note, this function does not throw an error if no common denominator server can be found; it will just return an empty list. However, the `queryHandler` will, under certain conditions, send the user a 400 if no candidate servers can be identified.
 
+## Note on Code Organization
+
+Modules pertaining to the router can be found in `/utility/queryHandler/` ande `/utility/router`;
+
+`queryHandler/` contains the entry point, called by route controllers, as well as the implementation of the calls to the on-prem or cluster node, and the subsequent streaming of the response data (`AccumulatorStream.js`), and helpers for getting the correct pool connection (`getPool.js`).
+
+`router/` contains both the main `getCandidateList` function which orchestrates the logical steps to determine the candidate list, including querying the database for information about table locations, and a slough of helper functions that break down the work into the smallest possible logical parts. Most of these are contained in [pure.js](/utility/router/pure.js), which denotes that none of the functions implement side effects (such as making fetches or providing responses). Also in `router/` are the implementations for the `roundRobin` and the internal queries for table information.
+
 ## Server Names
 
-A set strings representing the available servers is stored in [constants.js](/utility/constants.js). This must be manually updated if any additional servers are added.
+A set of strings representing the available servers is stored in [constants.js](/utility/constants.js). This must be manually updated if any additional servers are added.
 
 ## Round Robin & default to rainier
 
@@ -78,9 +86,7 @@ The round robin behavior alternates randomly across viable server targets on a p
 
 Note, if no list is provided, it will default to an empty list, and will return undefined.
 
-The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [roundRobin.js](/utility/roundRobin.js), which will default to `rainier`.
-
-See implementation: [roundRobin.js](/utility/roundRobin.js)
+The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [roundRobin.js](/utility/router/roundRobin.js), which will default to `rainier`.
 
 ## Error Responses
 
@@ -89,6 +95,8 @@ A 400 error is returned if no candidate servers are identified (this will not tr
 A 400 error is returned if the caller passes a `servername` argument which cannot be matched to any available server.
 
 A 500 is returned if an error is encountered during query execution.
+
+We want to provide useful error messages: if a query is submitted which cannot be executed because we could not resolve a viable server, the user may still be able to perform the analysis by downloading the datasets separately; in this case we provide a descriptive error message without naming specific servers or tables. This case is indentified when more than one table is named in a query, but no candidate servers are identified.
 
 ## Tests
 
@@ -112,7 +120,7 @@ In order to determine if a query is an `EXEC`, any comments must first be remove
 
 When data is fetched from `tblDataset_Servers` it comes back in record format, with one row matching a dataset id to one server; therefore, many rows are used to describe the available servers for a dataset. This record-set is transformed into a Map, and stored via `node-cache` (wrapped by [/utility/nodeCache.js](/utility/nodeCache.js)) as a [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map). This test tests the correct transformation from record-set to Map.
 
-As noted in inline comments in [queryToDatabaseTarget.js](/utility/queryToDatabaseTarget.js), a Map data structure was chosen over an Object because Maps are optimized for frequent read/writes (even though this map will only be written once), and Maps allow numbers to be used as keys. This lookup should be as performant as possible, since it is made before executing every query.
+As noted in inline comments in [queryToDatabaseTarget.js](/utility/router/queryToDatabaseTarget.js), a Map data structure was chosen over an Object because Maps are optimized for frequent read/writes (even though this map will only be written once), and Maps allow numbers to be used as keys. This lookup should be as performant as possible, since it is made before executing every query.
 
 ### calculateCandidateTargets
 
