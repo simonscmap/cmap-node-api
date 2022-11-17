@@ -1,0 +1,48 @@
+#+Title: Manual Tests for Distributed Router
+
+A set of queries executed by curl which test various cases of the distributed data router.
+
+#+begin_src sh
+  # Test a simple select statement (expect success)
+  simpleSelect="select top 10 * from tblchl_rep"
+
+  # Test a join (expect success)
+  joinQuery="SELECT distinct Subtrophic_Level as [title] from tblOrgTrophic_Level ot left join tblOrgSubtrophics s on s.Subtrophic_ID=ot.Subtrophic_ID select SubTrophic_Level as [title] from tblOrgSubTrophics"
+
+  # Test a sproc (expect success)
+  sprocQuery="EXEC uspSpaceTime 'tblArgo_MLD_Climatology', 'mld_da_median_argo_clim', '2014-12-10', '2014-12-10', 22.2743193899782, 23.2743193899782, -158.479283660131, -157.479283660131, 0, 10"
+
+  # Test sproc with tsql specific syntax (expect success)
+  sprocQuery2="EXEC uspSpaceTime '[tblDarwin_Nutrient]', '[*]', '1994-01-03', '1994-02-03', '80', '90', '150', '180', '0', '10'"
+
+  # Test a cluster query (expect success)
+  clusterQuery="select * from tblMITgcm_SWOT_3D where time between '2012-10-12 00:00:00' and '2012-10-12 01:00:00' and lat between -57 and -56.5 and lon between 148 and 149 and depth between 100 and 120"
+
+  # Test a query that names a table that does not exist (expect failure)
+  failingQuery="select * from tblDoesNotExist"
+
+  # Test query that visits multiple tables and has no viable target
+  failingMultiTableQuery="SELECT onRossby.[time]
+      ,onRossby.[lat]
+      ,onRossby.[lon]
+      ,onRossby.[N_Samples]
+      ,onRossby.[N_Stations]
+      ,onRossby.[Cruise]
+  FROM [Opedia].[dbo].[tbl48526781] onRossby
+  INNER JOIN [Opedia].[dbo].[tblGeotraces_Seawater] onRainier
+  ON onRossby.time = onRainier.time and onRossby.N_Samples = onRainier.N_Samples and onRossby.N_Stations = onRainier.N_Stations
+  WHERE onRossby.cruise = 'GP12' and day(onRossby.time) = 22"
+
+  # Provide Api Key and alter query reference
+  alias queryLocal="curl -ssLG -H \"Authorization: Api-Key <???>\" -X GET http://localhost:8080/api/data/query --data-urlencode \"query=$simpleSelect\""
+  alias queryDev="curl -ssLG -i -H \"Authorization: Api-Key <???>\" -X GET http://simonscmap.dev/api/data/query --data-urlencode \"query=$simpleSelect\""
+  alias queryMariana="curl -ssLG -i -H \"Authorization: Api-Key <???>\" -X GET http://simonscmap.dev/api/data/query -d "@servername.json" --data-urlencode \"query=$simpleSelect\""
+#+end_src
+
+Curl can refer to a json file to read query argments:
+#+name: servername.json
+#+begin_src json
+ {
+   "servername": "mariana"
+ }
+#+end_src

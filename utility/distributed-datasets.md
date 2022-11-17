@@ -4,37 +4,60 @@ Refer to the spec for distributed data: [CAMP-582](https://simonscmap.atlassian.
 
 Some CAMP datasets are too large to reasonably store on-Perm and are therefore stored in a distributed fashion. Consequently some queries will only work on specific servers. Moreover, queries which visit multiple tables may not be serviceable, if the tables specified do not reside on the same server.
 
-The on-Perm servers are named `rainier`, `Ross`, and `Mariana`. The initial spar cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
+The on-Perm servers are named `rainier`, `Ross`, and `Mariana`. The initial sparq cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
 
 The Distributed Datasets Router detects which datasets an incoming query will visit and routes the query to a valid database.
 
-How is this implemented here in this co debase?
+## Tracing the path of the request through the router
 
-## Query Handler
+Here is a synoptic view of the sequence of function calls that make up the router.
 
-All custom queries and several internal queries are routed through the [query handler](/utility/queryHandler/index.js) module. Some on the functional features of the `queryHandler` are that it:
-- uses a [round robin](/utility/router/roundRobin.js) to determine which server to direct the query to
-- uses an automatic retry if the query fails and the query can be rerun on `rainier`
-- respects a `server name` prop in the query arguments, which allows the caller to specify which server to run the query on
+- When a route controller delegates to the `queryHandler` in engages the router; the entry point is [/queryHandler/index.js](/utility/queryHandler/index.js) which calls [/router/router.js::routeQuery](/utility/router/router.js).
+- The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and the delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/queryCluster.js](/utility/queryHandler/queryCluster.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
+- `getCandidateList` contains the core function of the router, which includes analyzing the query to identify which datasets are requested, determining where those datasets are available, and calculating a viable server that has all required datasets.
 
-With the advent of distributed data, the query handler now also:
-- analyzes the incoming query in order to determine the set of valid databases; via [queryToDatabaseTarget.js](/utility/router/queryToDatabaseTarget.js).
-- if the query can run on both on-prem and on a cluster, priority is given to on-prem
-- if the query is determined to run on-prem, the round-robin is applied to the set of available database targets
+What follows are explanations of a few important implementation details.
+
+## Round Robin
+
+The [round robin](/utility/router/roundRobin.js) is used to determine which server to direct the query to when multiple on-prem servers are valid targets. The round robin is called by `getPool` within `queryOnPrem`. It does not yet apply to cluster queries.
+
+The round robin function takes a list of viable server names, generates a random index based on the length of the list, and then returns the value at that index of the list.
+
+Note, if no list is provided, it will default to an empty list, and will return undefined.
+
+The calling function `getPool` accomodates this `undefined` return by defaulting (via `mapServerNameToPoolConnection` in [roundRobin.js](/utility/router/roundRobin.js)) to `rainier`.
+
+## Automatic Retry on Ranier
+
+`executeQueryOnPrem` uses an automatic retry on `rainier` if the query fails on a server other than ranier, and if the query can be rerun on `rainier`.
+
+## Respecting `servername` query arg
+
+A query parameter `servername` can be used to specify which server to run the query on. If this argument exists, the router does not try to run the query elsewhere. However, the router will return an error and decline to run the query if the provided server is not a valid target for the query.
 
 ## Query-to-Database-Target
 
-The `queryToDatabaseTarget` module exports a `run` function, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
+The `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
 - `commandType`: a string indicating whether the query is a sproc or a custom query (`sproc` | `custom`)
 - `priorityTargetType`: a string indicating whether the query should run on-prem or on cluster (`cluster` | `prem`)
 - `candidateLocations`: the array of viable server names (e.g. `["ranier", "cluster]`)
 - `errorMessage`: in cases where a detailed error message is needed
 
-Here are a few major inflection points of the implementation:
+`queryToDatabaseTarget` proceeds in 8 distinct steps, which are commented clearly in the module itself:
+1. parse the query and extract the names of the tables that will be visited by the query
+2. fetch a list of all tables in the database (cached)
+3. filter the table names extracted from the query, remove and table names that do not exist
+4. fetch an index of dataset ids
+5. fetch an index of dataset locations (map dataset id to server name)
+6. calculate valid servers for the set of tables that must be visited to run the query
+7. apply prioritization (on-prem before cluster)
+8. determine if a detailed error message is necessary
+9. return result (as specified above)
 
 ### EXEC queries versus Custom Queries and the Extraction of Table Names
 
-The first analytical job the module must perform is the extraction of the names of the tables that will be visited by the query (see [extractTableNamesFromQuery](/utility/router/pure.js). But, the approach varies based on the type of query. The module accommodates two exclusive and exhaustive categories: the query is either executing a sproc (stored procedure) with an `EXEC` command, or it is executing a custom query, such as a `SELECT`.
+The first analytical job the `getCandidateList` function must perform is the extraction of the names of the tables that will be visited by the query (see [extractTableNamesFromQuery](/utility/router/pure.js). But, the approach varies based on the type of query. The module accommodates two exclusive and exhaustive categories: the query is either executing a sproc (stored procedure) with an `EXEC` command, or it is executing a custom query, such as a `SELECT`.
 
 1. if it is an `EXEC`: the table names (if any) in the `EXEC` query are extracted with custom string parsing
 2. otherwise: the query is parsed with a query parser [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser), and table names are yielded by the resulting `AST`.
@@ -44,15 +67,6 @@ Note that the `AST` will include the names of the result of joins, so further fi
 Note also that some sprocs do not take any table names as parameters, and therefore no table names are extricable from the query string. For example, `uspDatasetsWithAncillary`. For this reason, queries are allowed to continue if no table names are extracted AND the query is an `EXEC`. In these cases, the query will be run on the default pool, which targets the `rainier` server.
 
 Note finally that the router must accomodate both the Transact SQL and Hive SQL flavors of query syntax. Therefore in the `queryToAST` helper it first tries to provide an AST by parsing the query as `transactsql`, and if it fails it will try again as `hive`.
-
-
-### Cache
-
-After the list of table names is extracted from the query, the main `getCandidateList` function in [queryToDatabaseTarget.js](/utility/router/queryToDatabaseTarget.js) makes two async fetches; both are cached.
-
-In order to determine which servers are valid targets, the main function must first consult the `tblDataset_Servers` table, which maps dataset ids to the names of servers that host the dataset. But in order to make sense of this mapping, it must also be able to map the names of the tables that were extracted from the query to dataset ids. This map is derived from the `tblVariables` table.
-
-Both of these calls are cached using [cacheAsync.js](/utility/cacheAsync.js). Currently the [node-cache](https://github.com/node-cache/node-cache) is configured such that keys never expire. Note also that the api does not proactively fetch these two tables during its bootstrap; instead the cache is generated on the first call to the query Handler.
 
 ### Generating the Candidate List
 
@@ -68,7 +82,17 @@ and returns an the array of viable server names.
 
 Note, this function does not throw an error if no common denominator server can be found; it will just return an empty list. However, the `queryHandler` will, under certain conditions, send the user a 400 if no candidate servers can be identified.
 
-## Note on Code Organization
+### Cache
+
+The 3 fetches made within `getCandidateList` are all cached. The fetches and their caching behavior are specified in [/utility/router/queries.js](/utility/router/queries.js).
+
+In order to determine which servers are valid targets, the router must first consult the `tblDataset_Servers` table, which maps dataset ids to the names of servers that host the dataset. But in order to make sense of this mapping, it must also be able to map the names of the tables that were extracted from the query to dataset ids. This map is derived from the `tblVariables` table.
+
+Additionally, a fetch is made to retrieve the full set of table names on the server, which is used to filter out any tables named in queries that do not exist.
+
+All of these calls are cached using [cacheAsync.js](/utility/cacheAsync.js). Currently the [node-cache](https://github.com/node-cache/node-cache) is configured such that keys never expire. Note also that the api does not proactively fetch these two tables during its bootstrap; instead the cache is generated on the first call to the query Handler. If a successful fetch is not yet cached, a failed request will not be cached, but will result in that particular request failing. The fetch will be attempted next request cycle.
+
+## Code Organization
 
 Modules pertaining to the router can be found in `/utility/queryHandler/` ande `/utility/router`;
 
@@ -79,14 +103,6 @@ Modules pertaining to the router can be found in `/utility/queryHandler/` ande `
 ## Server Names
 
 A set of strings representing the available servers is stored in [constants.js](/utility/constants.js). This must be manually updated if any additional servers are added.
-
-## Round Robin & default to rainier
-
-The round robin behavior alternates randomly across viable server targets on a per-query basis. This is realized by a simple function that takes a list, generates a random index based on the length of the list, and then returns the value at that index of the list.
-
-Note, if no list is provided, it will default to an empty list, and will return undefined.
-
-The caller, `queryHandler` works with this behavior by depending on the default behavior of `mapServerNameToPoolConnection`, in [roundRobin.js](/utility/router/roundRobin.js), which will default to `rainier`.
 
 ## Error Responses
 
