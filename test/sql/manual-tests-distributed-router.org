@@ -36,7 +36,7 @@ A set of queries executed by curl which test various cases of the distributed da
   # Provide Api Key and alter query reference
   alias queryLocal="curl -ssLG -H \"Authorization: Api-Key <???>\" -X GET http://localhost:8080/api/data/query --data-urlencode \"query=$simpleSelect\""
   alias queryDev="curl -ssLG -i -H \"Authorization: Api-Key <???>\" -X GET http://simonscmap.dev/api/data/query --data-urlencode \"query=$simpleSelect\""
-  alias queryMariana="curl -ssLG -i -H \"Authorization: Api-Key <???>\" -X GET http://simonscmap.dev/api/data/query -d "@servername.json" --data-urlencode \"query=$simpleSelect\""
+  alias queryMariana="curl -ssLG -i -H \"Authorization: Api-Key <???>\" -X GET http://localhost:8080/api/data/query --data-urlencode \"servername=mariana\" --data-urlencode \"query=$simpleSelect\""
 #+end_src
 
 Curl can refer to a json file to read query argments:
