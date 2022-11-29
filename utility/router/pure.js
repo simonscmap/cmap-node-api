@@ -2,6 +2,8 @@ const { Parser } = require("node-sql-parser");
 const initializeLogger = require("../../log-service");
 const log = initializeLogger("router pure");
 
+const toLowerCase = (str = "") => str.toLowerCase();
+
 // parser options: https://github.com/taozhi8833998/node-sql-parser/blob/master/src/parser.all.js
 const tsqlParserOptions = {
   database: "transactsql", // a.k.a mssql
@@ -253,7 +255,8 @@ const calculateCandidateTargets = (
 
   // 1. get ids of tables named in query
   let targetIds = datasetIds
-    .filter(({ Table_Name }) => tableNames.includes(Table_Name))
+    .filter(({ Table_Name }) => {
+      return tableNames.map(toLowerCase).includes(Table_Name.toLowerCase())})
     .map(({ Dataset_ID }) => Dataset_ID);
 
   // 2. derrive common targets
