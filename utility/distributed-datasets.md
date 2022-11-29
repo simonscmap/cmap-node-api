@@ -38,7 +38,7 @@ A query parameter `servername` can be used to specify which server to run the qu
 
 ## Query-to-Database-Target
 
-The `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
+Tiihe `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
 - `commandType`: a string indicating whether the query is a sproc or a custom query (`sproc` | `custom`)
 - `priorityTargetType`: a string indicating whether the query should run on-prem or on cluster (`cluster` | `prem`)
 - `candidateLocations`: the array of viable server names (e.g. `["ranier", "cluster]`)
@@ -144,3 +144,7 @@ Three cases are split into three different tests in order to ensure the expected
 1. case where a only a single server is a candidate
 2. case where multiple candidates are available
 3. case where no common candidates are available
+
+## Manual Testing
+
+A set of curl commands have been recorded to assist with manual testing in `/test/sql/manual-tests-distributed-router.org`
