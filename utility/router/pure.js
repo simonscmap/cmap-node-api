@@ -79,7 +79,8 @@ const extractTableNamesFromGrammaticalQueryString = (query = "") => {
   return q
     .replace(/'|,|\[|\]/gi, " ") // it is critical that these be replaced by spaces
     .split(" ") //
-    .filter((word) => word.slice(0, 3) === "tbl");
+    .filter((word) => word.slice(0, 3) === "tbl")
+    .map((word) => word.replace(/\)/gi, "")) // replace parens
 };
 
 // remove sql -- comments, which operate on the rest of the line
@@ -130,18 +131,21 @@ const isSproc = (query = "") => {
  */
 const queryToAST = (query = "") => {
   const parser = new Parser();
-  let result;
+  let result = {}
   try {
-    result = parser.parse(query, tsqlParserOptions);
+    result.parserResult = parser.parse(query, tsqlParserOptions);
+    result.flavor = tsqlParserOptions.database;
   } catch (e) {
     // if parsing as tsql fails, try as hive
     try {
-      result = parser.parse(query, hiveParserOptions);
+      result.parserResult = parser.parse(query, hiveParserOptions);
+      result.flavor = hiveParserOptions.database;
     } catch (e2) {
       log.warn("error parsing query", { error: e2, query });
       return;
     }
   }
+  log.debug("queryToAst result", result);
   return result;
 };
 
@@ -210,17 +214,21 @@ const extractTableNamesFromQuery = (query = "") => {
 
   let termsFromAST = [];
 
-  let astResult = queryToAST(query);
-  if (astResult && astResult.ast && astResult.ast.from) {
-    termsFromAST = extractTableNamesFromAST(astResult);
-    log.debug("tables names from AST", {
-      query,
-      ast: astResult,
-      astTableList: astResult.tableList,
-      tableList: astResult.tableList,
-    });
+  let result = queryToAST(query);
+  if (!result) {
+    log.warn("error parsing query: no resulting ast", { query, result });
   } else {
-    log.warn("error parsing query: no resulting ast", { query, astResult });
+    let parserResult = result.parserResult;
+    if (parserResult && parserResult.ast && parserResult.ast.from) {
+      termsFromAST = extractTableNamesFromAST(parserResult);
+      log.debug("tables names from AST", {
+        query,
+        flavor: result.flavor,
+        ast: parserResult,
+        astTableList: parserResult.tableList,
+        tableList: parserResult.tableList,
+      });
+    }
   }
 
   // reduce results of both parses to a single set of terms

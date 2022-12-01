@@ -50,12 +50,13 @@ const run = async (query) => {
   log.info("router result", {
     query,
     commandType,
+    tablesIdentified: tableNames,
     candidates: candidateLocations.join(" "),
   });
 
   // 8. determine if detailed error message is necessary
   let errorMessage = "";
-  if (datasetLocations.length > 1 && candidateLocations.length === 0) {
+  if (tableNames.length > 1 && candidateLocations.length === 0) {
     errorMessage = "unable to perform query because datasets named in the query are distributed; you man need to perform your query locally after dowloading the constituent datasets";
   }
 

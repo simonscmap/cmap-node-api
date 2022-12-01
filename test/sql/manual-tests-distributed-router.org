@@ -21,6 +21,8 @@ A set of queries executed by curl which test various cases of the distributed da
 
     clusterQuery="select * from tblMITgcm_SWOT_3D where time between '2012-10-12 00:00:00' and '2012-10-12 01:00:00' and lat between -57 and -56.5 and lon between 148 and 149 and depth between 100 and 120"
 
+    clusterQuery2="with c1 as (select max(time) mx1 from tblMITgcm_SWOT_3D), c2 as (select max(time) mx2 from tblMITgcm_SWOT_2D) select * from c1, c2"
+
     failingMultiTableQuery="SELECT onRossby.[time]
       ,onRossby.[lat]
       ,onRossby.[lon]
@@ -31,6 +33,8 @@ A set of queries executed by curl which test various cases of the distributed da
   INNER JOIN [Opedia].[dbo].[tblGeotraces_Seawater] onRainier
   ON onRossby.time = onRainier.time and onRossby.N_Samples = onRainier.N_Samples and onRossby.N_Stations = onRainier.N_Stations
   WHERE onRossby.cruise = 'GP12' and day(onRossby.time) = 22"
+
+
 
 
   # Provide Api Key and alter query reference to one of the queries above
