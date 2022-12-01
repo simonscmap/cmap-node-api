@@ -29,7 +29,7 @@ const routeQuery = async (req, res, next, query) => {
     !Array.isArray(candidateLocations) ||
     (candidateLocations.length === 0 && !queryIsExecutingSproc)
   ) {
-    log.error("no candidate servers identified", { candidateLocations, query });
+    log.error((errorMessage || "no candidate servers identified"), { candidateLocations, query });
     res.status(400).send(errorMessage || `no candidate servers available for the given query`);
     return;
   }
