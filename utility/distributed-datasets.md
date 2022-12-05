@@ -2,7 +2,7 @@
 
 Refer to the spec for distributed data: [CAMP-582](https://simonscmap.atlassian.net/browse/CMAP-582)
 
-Some CAMP datasets are too large to reasonably store on-Perm and are therefore stored in a distributed fashion. Consequently some queries will only work on specific servers. Moreover, queries which visit multiple tables may not be serviceable, if the tables specified do not reside on the same server.
+Some CAMP datasets are too large to reasonably store on-prem and are therefore stored in a distributed fashion. Consequently some queries will only work on specific servers. Moreover, queries which visit multiple tables may not be serviceable, if the tables specified do not reside on the same server.
 
 The on-prem servers are named `rainier`, `Ross`, and `Mariana`. The initial sparq cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
 
