@@ -50,7 +50,7 @@ const run = async (query) => {
   log.info("router result", {
     query,
     commandType,
-    tablesIdentified: tableNames,
+    tablesIdentified: tableNames || "none",
     candidates: candidateLocations.join(" "),
   });
 

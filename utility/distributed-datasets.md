@@ -4,7 +4,7 @@ Refer to the spec for distributed data: [CAMP-582](https://simonscmap.atlassian.
 
 Some CAMP datasets are too large to reasonably store on-prem and are therefore stored in a distributed fashion. Consequently some queries will only work on specific servers. Moreover, queries which visit multiple tables may not be serviceable, if the tables specified do not reside on the same server.
 
-The on-prem servers are named `rainier`, `Ross`, and `Mariana`. The initial sparq cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
+The on-prem servers are named `rainier`, `rossby`, and `mariana`. The initial sparq cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
 
 The Distributed Datasets Router detects which datasets an incoming query will visit and routes the query to a valid database.
 
@@ -13,7 +13,7 @@ The Distributed Datasets Router detects which datasets an incoming query will vi
 Here is a synoptic view of the sequence of function calls that make up the router.
 
 - When a route controller delegates to the `queryHandler` in engages the router; the entry point is [/queryHandler/index.js](/utility/queryHandler/index.js) which calls [/router/router.js::routeQuery](/utility/router/router.js).
-- The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and the delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/queryCluster.js](/utility/queryHandler/queryCluster.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
+- The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and then delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/queryCluster.js](/utility/queryHandler/queryCluster.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
 - `getCandidateList` contains the core function of the router, which includes analyzing the query to identify which datasets are requested, determining where those datasets are available, and calculating a viable server that has all required datasets.
 
 What follows are explanations of a few important implementation details.
@@ -38,7 +38,7 @@ A query parameter `servername` can be used to specify which server to run the qu
 
 ## Query-to-Database-Target
 
-Tiihe `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
+The `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
 - `commandType`: a string indicating whether the query is a sproc or a custom query (`sproc` | `custom`)
 - `priorityTargetType`: a string indicating whether the query should run on-prem or on cluster (`cluster` | `prem`)
 - `candidateLocations`: the array of viable server names (e.g. `["ranier", "cluster]`)
@@ -66,7 +66,7 @@ Note that the `AST` will include the names of the result of joins, so further fi
 
 Note also that some sprocs do not take any table names as parameters, and therefore no table names are extricable from the query string. For example, `uspDatasetsWithAncillary`. For this reason, queries are allowed to continue if no table names are extracted AND the query is an `EXEC`. In these cases, the query will be run on the default pool, which targets the `rainier` server.
 
-Note finally that the router must accomodate both the Transact SQL and Hive SQL flavors of query syntax. Therefore in the `queryToAST` helper it first tries to provide an AST by parsing the query as `transactsql`, and if it fails it will try again as `hive`.
+Note finally that the router must accomodate both the Transact SQL and Hive SQL flavors of query syntax. Therefore in the `queryToAST` helper it first tries to provide an AST by parsing the query as `transactsql`, and if it fails it will try again as `hive`. The type of query syntax has been added to logs, to assist in debugging.
 
 ### Generating the Candidate List
 
