@@ -38,7 +38,7 @@
     "cors": "^2.8.5",
     "csv-stringify": "^5.5.0",
     "dropbox": "^4.0.30",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-useragent": "^1.0.15",
     "fluture": "^14.0.0",
     "fluture-sanctuary-types": "^7.1.0",
