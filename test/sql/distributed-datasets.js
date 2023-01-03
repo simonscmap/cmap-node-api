@@ -1,5 +1,6 @@
 const test = require("ava");
 const {
+  removeBrackets,
   extractTableNamesFromAST,
   transformDatasetServersListToMap,
   queryToAST,
@@ -11,6 +12,12 @@ const {
 } = require("../../utility/router/pure");
 
 const { records } = require("../fixtures/sample-queries");
+
+test("removeBrackets", (t) => {
+  let tsqlQuery1 = 'select max([time]) from tblMITgcm_SWOT_2D';
+  let result = removeBrackets(tsqlQuery1);
+  t.is(result, 'select max(time) from tblMITgcm_SWOT_2D');
+});
 
 // Test the helper functions and core logic for the Distributed Data Router
 
@@ -49,21 +56,21 @@ test("extractTableNamesFromAST", (t) => {
   // parse a simple query
   let q = "select * from tblMyTable";
   let ast = queryToAST(q);
-  let r = extractTableNamesFromAST(ast);
+  let r = extractTableNamesFromAST(ast.parserResult);
   t.deepEqual(r, ["tblMyTable"]);
 
   // parse an empty query
   // NOTE: extractTableNamesFromAST will get [] for an AST
   // and will swallow an error trying to access the prop it wants
   let ast2 = queryToAST("");
-  let r2 = extractTableNamesFromAST(ast2);
+  let r2 = extractTableNamesFromAST(ast2.parserResult);
   t.deepEqual(r2, []);
 
   // parse a query with an EXEC commented out /* */, but with a SELECT command
   let q3 = "/* EXEC sproc 'tblFake'*/ select * from tblMyTable";
   let ast3 = queryToAST(q3);
-  t.is(ast3.ast.from.length, 1);
-  t.is(ast3.ast.from[0].table, "tblMyTable");
+  t.is(ast3.parserResult.ast.from.length, 1);
+  t.is(ast3.parserResult.ast.from[0].table, "tblMyTable");
 });
 
 test("removeSQLBlockComments", (t) => {
