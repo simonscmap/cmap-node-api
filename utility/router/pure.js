@@ -12,7 +12,13 @@ const tsqlParserOptions = {
 const hiveParserOptions = {
   database: "hive", // a.k.a sparq
 }
+
 // HELPERS
+
+// strip brackets from query
+const removeBrackets = (query) =>
+  query.replace(/'|,|\[|\]/gi, "");
+
 
 /* Transform Dasaset_Servers recordset to Map
  * :: [{Dataset_ID, ServerName}] => Map ID [ServerName]
@@ -42,6 +48,7 @@ const transformDatasetServersListToMap = (recordset) => {
  */
 const extractTableNamesFromAST = (ast) => {
   if (ast && !ast.tableList) {
+    log.debug('no tableList in ast');
     return [];
   }
   try {
@@ -70,10 +77,11 @@ const extractTableNamesFromEXEC = (query = "") => {
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
-// string parsing table names from query
-// NOTE with this string parsing, we are relying on the convention
-// that table names begin with "tbl"; this differs from the function
-// above "extractTableNamesFromAST"
+/* string parsing table names from query
+ * NOTE with this string parsing, we are relying on the convention
+ * that table names begin with "tbl"; this differs from the function
+ * above "extractTableNamesFromAST"
+ */
 const extractTableNamesFromGrammaticalQueryString = (query = "") => {
   let q = removeSQLBlockComments(removeSQLDashComments(query));
   return q
@@ -154,11 +162,13 @@ const queryToAST = (query = "") => {
 // (b) do not exist in the provided tableList
 const filterRealTables = (names = [], tableList = []) => {
   return names.reduce((validList, nextName) => {
-    if (nextName.slice(0, 3) === "tbl") {
-      return validList.slice().concat(nextName);
-    } else if (tableList.includes(nextName)) {
+    // if (nextName.slice(0, 3) === "tbl") {
+    //  return validList.slice().concat(nextName);
+    // } else
+    if (tableList.find(({ table_name }) => table_name === nextName)) {
       return validList.slice().concat(nextName);
     } else {
+      log.warn('table filtered out', nextName);
       return validList;
     }
   }, []);
@@ -267,6 +277,9 @@ const calculateCandidateTargets = (
       return tableNames.map(toLowerCase).includes(Table_Name.toLowerCase())})
     .map(({ Dataset_ID }) => Dataset_ID);
 
+  if (targetIds.length !== tableNames.length) {
+    log.warn('could not match all ids', targetIds);
+  }
   // 2. derrive common targets
 
   // -- for each table's id, look up the array of compatible locations
@@ -318,6 +331,7 @@ const calculateCandidateTargets = (
 };
 
 module.exports = {
+  removeBrackets,
   transformDatasetServersListToMap,
   extractTableNamesFromAST,
   extractTableNamesFromEXEC,
