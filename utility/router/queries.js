@@ -11,7 +11,7 @@ const CACHE_KEY_DB_TABLES = "dbTables";
 const log = initializeLogger("router queries");
 
 /*
-   NOTE: if these fetchs fail, they will return an empty Array.
+   NOTE: if these fetches fail, they will return an empty Array.
    But, the cacheAsync wrapper will not cache the result, and
    they will attempt the fetch again next time.
 
@@ -99,7 +99,8 @@ const fetchDatasetIdsWithCache = async () =>
 
 // Fetch a list of all tables
 // Used to check if non-dataset table names extracted from a query are real
-const fetchAllTables = async () => {
+// CAVEAT: this does not return any tables on clusters
+const fetchAllOnPremTables = async () => {
   let pool;
   try {
     pool = await pools.userReadAndWritePool;
@@ -131,12 +132,12 @@ const fetchAllTables = async () => {
   }
 };
 
-const fetchAllTablesWithCache = async () =>
-  await cacheAsync(CACHE_KEY_DB_TABLES, fetchAllTables);
+const fetchAllOnPremTablesWithCache = async () =>
+  await cacheAsync(CACHE_KEY_DB_TABLES, fetchAllOnPremTables);
 
 
 module.exports = {
   fetchDatasetIdsWithCache,
   fetchDatasetLocationsWithCache,
-  fetchAllTablesWithCache,
+  fetchAllOnPremTablesWithCache,
 };
