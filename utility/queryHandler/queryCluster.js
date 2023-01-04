@@ -5,6 +5,7 @@ const AccumulatorStream = require("./AccumulatorStream");
 const { CLUSTER_CHUNK_MAX_ROWS } = require("../constants");
 const formatDate = require("./formatDate");
 const { Readable } = require("stream");
+const { removeBrackets } = require('../router/pure');
 
 const log = initializeLogger("utility/queryHandler/queryCluster");
 
@@ -48,7 +49,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   const session = await client.openSession();
 
   log.trace("executing statement");
-  const queryOperation = await session.executeStatement(query, {
+  const clusterQuery = removeBrackets(query);
+  const queryOperation = await session.executeStatement(clusterQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,
   });
