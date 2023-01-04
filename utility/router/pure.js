@@ -278,7 +278,8 @@ const extractTableNamesFromQuery = (query = "") => {
 };
 
 /*
- *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
+ *:: MatchingTables -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName]
+ *   -> [ String Errors, [ ServerName ] ]
  */
 const calculateCandidateTargets = (
   matchingTables,
@@ -288,13 +289,20 @@ const calculateCandidateTargets = (
 
   let errorMessages = [];
 
+  let joinErrorsOrNull = () => {
+    if (errorMessages.length) {
+      return errorMessages.join('; ');
+    }
+    return null;
+  }
+
   // 0. check args
   if (matchingTables.noTablesWarning) {
     log.debug("no table names provided", {
       matchingTables
     });
     errorMessages.push('no target tables');
-    return [errorMessages, []];
+    return [ joinErrorsOrNull() , []];
   }
 
 
@@ -377,7 +385,7 @@ const calculateCandidateTargets = (
       locationCandidatesPerTable,
     });
 
-    return [errorMessages, result];
+    return [ joinErrorsOrNull(), result ];
   }
 
   // if there are core tables named in query,
@@ -389,11 +397,11 @@ const calculateCandidateTargets = (
     errorMessages.push(
       'query references core table(s), but also datasets which are not accessible on the same server'
     );
-    result = [errorMessages, []];
+    result = [ joinErrorsOrNull(), []];
   }
 
   // default
-  return [errorMessages, result];
+  return [ joinErrorsOrNull, result];
 };
 
 module.exports = {

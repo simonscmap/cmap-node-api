@@ -65,7 +65,7 @@ const run = async (query) => {
     commandType,
     priorityTargetType,
     candidateLocations: prioritizedLocations,
-    errorMessage: errors.join('; '),
+    errorMessage: errors ? errors.join('; ') : null,
   };
 };
 
