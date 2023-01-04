@@ -167,7 +167,7 @@ const queryToAST = (query = "") => {
     // if parsing as tsql fails, try as hive
     log.warn("attempt to parse query as tsql failed", { error: e });
     try {
-      result.parserResult = parser.parse(query, hiveParserOptions);
+      result.parserResult = parser.parse(removeBrackets(query), hiveParserOptions);
       result.flavor = hiveParserOptions.database;
     } catch (e2) {
       log.warn("attempt to parse query an ansi sql failed", { error: e2, query });
