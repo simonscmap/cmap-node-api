@@ -123,7 +123,12 @@ test("isSproc", (t) => {
 });
 
 test("calculateCandidateTargets: success (single candidate)", (t) => {
-  let tableNames = ["table1", "table2"];
+  let matchingTables = {
+    matchingCoreTables: [],
+    matchingDatasetTables: ["table1", "table2"],
+    omittedTables: [],
+    noTablesWarning: false,
+  };
   let datasetIds = [
     { Dataset_ID: 8, Table_Name: "table1" },
     { Dataset_ID: 9, Table_Name: "table2" },
@@ -132,14 +137,19 @@ test("calculateCandidateTargets: success (single candidate)", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2", "server1"]);
 
-  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
+  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   let expected = ["server1"];
   t.truthy(expected.every((t) => result.includes(t)));
 });
 
 test("calculateCandidateTargets: success (multiple candidates)", (t) => {
-  let tableNames = ["table1", "table2"];
+  let matchingTables = {
+    matchingCoreTables: [],
+    matchingDatasetTables: ["table1", "table2"],
+    omittedTables: [],
+    noTablesWarning: false,
+  };
   let datasetIds = [
     { Dataset_ID: 8, Table_Name: "table1" },
     { Dataset_ID: 9, Table_Name: "table2" },
@@ -148,7 +158,7 @@ test("calculateCandidateTargets: success (multiple candidates)", (t) => {
   dl.set(8, ["server1", "server2", "server3"]);
   dl.set(9, ["server2", "server1", "server3"]);
 
-  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
+  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   let expected = ["server1", "server2", "server3"];
   // expect all 3 servers are candidates
@@ -156,7 +166,12 @@ test("calculateCandidateTargets: success (multiple candidates)", (t) => {
 });
 
 test("calculateCandidateTargets: failure", (t) => {
-  let tableNames = ["table1", "table2"];
+  let matchingTables = {
+    matchingCoreTables: [],
+    matchingDatasetTables: ["table1", "table2"],
+    omittedTables: [],
+    noTablesWarning: false,
+  };
   let datasetIds = [
     { Dataset_ID: 8, Table_Name: "table1" },
     { Dataset_ID: 9, Table_Name: "table2" },
@@ -165,7 +180,7 @@ test("calculateCandidateTargets: failure", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2"]);
 
-  let result = calculateCandidateTargets(tableNames, datasetIds, dl);
+  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   let expected = [];
   // expect an empty result set

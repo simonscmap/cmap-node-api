@@ -2,13 +2,14 @@ const initializeLogger = require("../../log-service");
 // queries used are stored in ./queries.js
 // each is cached without expiration
 const {
-  fetchAllTablesWithCache,
+  fetchAllOnPremTablesWithCache,
   fetchDatasetIdsWithCache,
   fetchDatasetLocationsWithCache,
 } = require("./queries");
 // all helper functions that are pure, i.e., have no side effects,
 // are imported from ./pure.js
 const {
+  compareTableAndDatasetLists,
   filterRealTables,
   assertPriority,
   extractTableNamesFromQuery,
@@ -24,20 +25,22 @@ const run = async (query) => {
   let { extractedTableNames, commandType } = extractTableNamesFromQuery(query);
 
   // 2. get list of all tables
-  let tableList = await fetchAllTablesWithCache();
+  let onPremTableList = await fetchAllOnPremTablesWithCache();
 
-  // 3. filter out any invalid table names
-  let tableNames = filterRealTables(extractedTableNames, tableList);
-
-  // 4. get dataset ids from table names
+  // 3. get dataset ids from table names
   let datasetIds = await fetchDatasetIdsWithCache();
+
+  let { coreTables, datasetTables } = compareTableAndDatasetLists(onPremTableList, datasetIds);
+
+  // 4. match table names in query to core & data tables
+  let matchingTables = filterRealTables(extractedTableNames, coreTables, datasetTables);
 
   // 5. look up locations for dataset ids
   let datasetLocations = await fetchDatasetLocationsWithCache();
 
   // 6. calculate candidate locations
-  let candidateLocations = calculateCandidateTargets(
-    tableNames,
+  let [errors, candidateLocations] = calculateCandidateTargets(
+    matchingTables,
     datasetIds,
     datasetLocations
   );
@@ -50,22 +53,19 @@ const run = async (query) => {
   log.info("router result", {
     query,
     commandType,
-    tablesIdentified: tableNames || "none",
+    coreTablesIdentified: matchingTables.matchingCoreTables,
+    datasetTablesIdentified: matchingTables.matchingDatasetTables,
+    omittedTables: matchingTables.omittedTables,
     candidates: candidateLocations.join(" "),
+    errorMessages: errors,
   });
 
-  // 8. determine if detailed error message is necessary
-  let errorMessage = "";
-  if (tableNames.length > 1 && candidateLocations.length === 0) {
-    errorMessage = "unable to perform query because datasets named in the query are distributed; you man need to perform your query locally after dowloading the constituent datasets";
-  }
-
-  // 9. return candidate query targets
+  // 8. return candidate query targets
   return {
     commandType,
     priorityTargetType,
     candidateLocations: prioritizedLocations,
-    errorMessage,
+    errorMessage: errors.join('; '),
   };
 };
 

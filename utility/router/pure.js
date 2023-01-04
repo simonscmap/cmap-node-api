@@ -1,6 +1,7 @@
 const { Parser } = require("node-sql-parser");
 const initializeLogger = require("../../log-service");
 const log = initializeLogger("router pure");
+const { SERVER_NAMES } = require("../constants");
 
 const toLowerCase = (str = "") => str.toLowerCase();
 
@@ -41,6 +42,25 @@ const transformDatasetServersListToMap = (recordset) => {
 
   return map;
 };
+
+/* produce list of core tables, and a list of dataset tables
+ * :: [ String tableName ] -> [ { Dataset_Id, Table_Name } ] -> { CoreTables, DatasetTables }
+ * - tableList is a list of all tables on prem
+ * - datasetList is a list of all datasets (and their ids)
+ */
+const compareTableAndDatasetLists = (tableList = [], datasetList = []) => {
+  let coreTables = tableList
+    .filter((tableName) => datasetList
+      .some(({ Table_Name }) => Table_Name === tableName));
+
+  let datasetTables = datasetList.map(({ Table_Name }) => Table_Name);
+
+  return {
+    coreTables,
+    datasetTables,
+  };
+};
+
 
 /* Extract table names from AST
  * :: AST -> [TableName]
@@ -145,11 +165,12 @@ const queryToAST = (query = "") => {
     result.flavor = tsqlParserOptions.database;
   } catch (e) {
     // if parsing as tsql fails, try as hive
+    log.warn("attempt to parse query as tsql failed", { error: e });
     try {
       result.parserResult = parser.parse(query, hiveParserOptions);
       result.flavor = hiveParserOptions.database;
     } catch (e2) {
-      log.warn("error parsing query", { error: e2, query });
+      log.warn("attempt to parse query an ansi sql failed", { error: e2, query });
       return;
     }
   }
@@ -157,21 +178,24 @@ const queryToAST = (query = "") => {
   return result;
 };
 
-// given a list of table names, remove any that both
-// (a) do not begin with "tbl" and
-// (b) do not exist in the provided tableList
-const filterRealTables = (names = [], tableList = []) => {
-  return names.reduce((validList, nextName) => {
-    // if (nextName.slice(0, 3) === "tbl") {
-    //  return validList.slice().concat(nextName);
-    // } else
-    if (tableList.find(({ table_name }) => table_name === nextName)) {
-      return validList.slice().concat(nextName);
-    } else {
-      log.warn('table filtered out', nextName);
-      return validList;
-    }
-  }, []);
+// given lists of core and dataset tables, return matching table names
+// (also return a list of omitted table names);
+const filterRealTables = (names = [], coreTables = [], datasetTables = []) => {
+  let matchingCoreTables = coreTables
+    .filter((coreTbl) => names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()));
+  let matchingDatasetTables = datasetTables
+    .filter((dataTbl) => names.some((name) => name.toLowerCase() === dataTbl.toLowerCase()));
+  let omittedTables = names.filter((name) => {
+    !matchingCoreTables.includes(name) && !matchingDatasetTables.includes(name);
+  });
+  let noTablesWarning = matchingCoreTables.length === 0 && matchingDatasetTables.length === 0;
+
+  return {
+    matchingCoreTables,
+    matchingDatasetTables,
+    omittedTables,
+    noTablesWarning
+  };
 };
 
 // assert priority
@@ -257,42 +281,53 @@ const extractTableNamesFromQuery = (query = "") => {
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
  */
 const calculateCandidateTargets = (
-  tableNames,
+  matchingTables,
   datasetIds,
   datasetLocations
 ) => {
+
+  let errorMessages = [];
+
   // 0. check args
-  if (tableNames.length === 0) {
+  if (matchingTables.noTablesWarning) {
     log.debug("no table names provided", {
-      tableNames,
-      datasetIds,
-      datasetLocations,
+      matchingTables
     });
-    return [];
+    errorMessages.push('no target tables');
+    return [errorMessages, []];
   }
 
-  // 1. get ids of tables named in query
-  let targetIds = datasetIds
-    .filter(({ Table_Name }) => {
-      return tableNames.map(toLowerCase).includes(Table_Name.toLowerCase())})
+
+  // 1. get ids of dataset tables named in query
+  let { matchingCoreTables, matchingDatasetTables } = matchingTables;
+  let targetDatasetIds = datasetIds
+    .filter(({ Table_Name }) =>
+      matchingDatasetTables
+        .map(toLowerCase)
+        .includes(Table_Name.toLowerCase())
+    )
     .map(({ Dataset_ID }) => Dataset_ID);
 
-  if (targetIds.length !== tableNames.length) {
-    log.warn('could not match all ids', targetIds);
+  if (targetDatasetIds.length !== matchingDatasetTables.length - matchingCoreTables.length) {
+    log.warn('could not match all ids', targetDatasetIds);
   }
+
   // 2. derrive common targets
 
-  // -- for each table's id, look up the array of compatible locations
-  let locationCandidatesPerTable = targetIds.map((id) => {
-    let loc = datasetLocations.get(id);
-    if (!loc) {
-      log.warn('no target found for dataset id', { id });
-    }
-    return loc;
-  }).filter((location) => location);
+  // for each dataset table's id, look up the array of compatible locations
+  // :: [ ids ] -> [ [ CompatibleServerNames ] ]
+  let locationCandidatesPerTable = targetDatasetIds
+    .map((id) => {
+      let loc = datasetLocations.get(id);
+      if (!loc) {
+        log.warn('no target found for dataset id', { id });
+      }
+      return loc;
+    })
+    .filter((location) => location);
 
-  let candidates = new Set();
 
+  // 3. make compatibility calculation
   /*
    Working from the first table's array, for each compatible server
    check to see if that server is also compatible for all remaining
@@ -304,6 +339,9 @@ const calculateCandidateTargets = (
    array if there are no more members of the `locationCandidatesPerTable`
    array.
    */
+
+  let candidates = new Set();
+
   if (locationCandidatesPerTable.length) {
     locationCandidatesPerTable[0].forEach((serverName) => {
       let serverIsCandidateForAllTables = locationCandidatesPerTable
@@ -319,20 +357,49 @@ const calculateCandidateTargets = (
 
   let result = Array.from(candidates);
 
-  if (result.length === 0) {
-    log.warn("no candidate servers identified", {
-      tableNames,
-      targetIds,
-      locationCandidatesPerTable,
-    });
+  // 4. factor in core tables
+
+  // if there are no candidate server after comparing dataset tables,
+  // and there are core tables named in the query,
+  // offer rainier as a candidate,
+  if (matchingCoreTables.length && !result.length) {
+    result.push(SERVER_NAMES.rainier);
   }
 
-  return result;
+  // return a distribution error if there were dataset tables but no candidate server
+  if (matchingDatasetTables.length && result.length === 0) {
+    let message = "unable to perform query because datasets named in the query are distributed; " +
+                  "you man need to perform your join locally after dowloading the datasets individually";
+    errorMessages.push(message);
+    log.warn("no candidate servers identified", {
+      matchingTables,
+      targetDatasetIds,
+      locationCandidatesPerTable,
+    });
+
+    return [errorMessages, result];
+  }
+
+  // if there are core tables named in query,
+  // and if there are candidates for dataset tables,
+  // but the candidates do not include rainier,
+  // return a detailed error message
+  // and an empty result array
+  if (matchingCoreTables.length && result.length && !result.includes(SERVER_NAMES.rainier)) {
+    errorMessages.push(
+      'query references core table(s), but also datasets which are not accessible on the same server'
+    );
+    result = [errorMessages, []];
+  }
+
+  // default
+  return [errorMessages, result];
 };
 
 module.exports = {
   removeBrackets,
   transformDatasetServersListToMap,
+  compareTableAndDatasetLists,
   extractTableNamesFromAST,
   extractTableNamesFromEXEC,
   extractTableNamesFromGrammaticalQueryString,
