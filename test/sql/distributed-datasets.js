@@ -167,6 +167,11 @@ test("isSproc", (t) => {
   t.falsy(r3);
 });
 
+
+
+test.todo("compareTableAndDatasetList");
+test.todo("filterRealTables");
+
 test("calculateCandidateTargets: success (single candidate)", (t) => {
   let matchingTables = {
     matchingCoreTables: [],
