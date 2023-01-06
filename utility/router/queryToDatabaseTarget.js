@@ -53,6 +53,7 @@ const run = async (query) => {
   log.info("router result", {
     query,
     commandType,
+    namedTables: extractedTableNames,
     coreTablesIdentified: matchingTables.matchingCoreTables,
     datasetTablesIdentified: matchingTables.matchingDatasetTables,
     omittedTables: matchingTables.omittedTables,
@@ -65,7 +66,7 @@ const run = async (query) => {
     commandType,
     priorityTargetType,
     candidateLocations: prioritizedLocations,
-    errorMessage: errors.join('; '),
+    errorMessage: errors,
   };
 };
 
