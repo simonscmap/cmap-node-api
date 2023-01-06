@@ -14,6 +14,10 @@ const hiveParserOptions = {
   database: "hive", // a.k.a sparq
 }
 
+const locationIncompatibilityMessage =
+  "unable to perform query because datasets named in the query are distributed; " +
+  "you man need to perform your join locally after dowloading the datasets individually";
+
 // HELPERS
 
 // strip brackets from query
@@ -49,9 +53,10 @@ const transformDatasetServersListToMap = (recordset) => {
  * - datasetList is a list of all datasets (and their ids)
  */
 const compareTableAndDatasetLists = (tableList = [], datasetList = []) => {
+  console.log('on prem', tableList[0]);
   let coreTables = tableList
-    .filter((tableName) => datasetList
-      .some(({ Table_Name }) => Table_Name === tableName));
+    .filter(({ table_name }) => datasetList
+      .some(({ Table_Name }) => Table_Name.toLowerCase() === table_name.toLowerCase()));
 
   let datasetTables = datasetList.map(({ Table_Name }) => Table_Name);
 
@@ -181,6 +186,7 @@ const queryToAST = (query = "") => {
 // given lists of core and dataset tables, return matching table names
 // (also return a list of omitted table names);
 const filterRealTables = (names = [], coreTables = [], datasetTables = []) => {
+  console.log('comparing table names', names, coreTables.length, datasetTables.length);
   let matchingCoreTables = coreTables
     .filter((coreTbl) => names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()));
   let matchingDatasetTables = datasetTables
@@ -189,12 +195,14 @@ const filterRealTables = (names = [], coreTables = [], datasetTables = []) => {
     !matchingCoreTables.includes(name) && !matchingDatasetTables.includes(name);
   });
   let noTablesWarning = matchingCoreTables.length === 0 && matchingDatasetTables.length === 0;
+  let noTablesNamed = names.length === 0;
 
   return {
     matchingCoreTables,
     matchingDatasetTables,
     omittedTables,
-    noTablesWarning
+    noTablesWarning,
+    noTablesNamed,
   };
 };
 
@@ -288,15 +296,24 @@ const calculateCandidateTargets = (
 
   let errorMessages = [];
 
-  // 0. check args
-  if (matchingTables.noTablesWarning) {
-    log.debug("no table names provided", {
-      matchingTables
-    });
-    errorMessages.push('no target tables');
-    return [errorMessages, []];
+  let joinErrorsOrNull = () => {
+    if (errorMessages.length) {
+      return errorMessages.join('; ');
+    }
+    return null;
   }
 
+  // 0. check args
+  if (matchingTables.noTablesNamed) {
+    log.debug("no tables were referenced in the query", { matchingTables });
+    errorMessages.push('no tables were referenced in the query');
+    return [joinErrorsOrNull(), []];
+  } else if (matchingTables.omittedTables) {
+    log.debug("tables named in the query do not exist", { omittedTables: matchingTables.omittedTables });
+    // returning an error here would prevent join statements that use aliases
+    // errorMessages.push('some tables named in the query do not exist');
+    // return [joinErrorsOrNull(), []];
+  }
 
   // 1. get ids of dataset tables named in query
   let { matchingCoreTables, matchingDatasetTables } = matchingTables;
@@ -312,6 +329,8 @@ const calculateCandidateTargets = (
     log.warn('could not match all ids', targetDatasetIds);
   }
 
+  console.log(datasetIds.length, matchingDatasetTables, targetDatasetIds);
+
   // 2. derrive common targets
 
   // for each dataset table's id, look up the array of compatible locations
@@ -325,6 +344,16 @@ const calculateCandidateTargets = (
       return loc;
     })
     .filter((location) => location);
+
+
+  // 3. factor in core tables
+  /* if there is a core table named in the query,
+   * it won't be represented in the list of dataset table locations;
+   * push a compatibility list with only rainier to coerce rainer as the target
+   */
+  if (matchingCoreTables.length) {
+    locationCandidatesPerTable.push([SERVER_NAMES.rainier]);
+  }
 
 
   // 3. make compatibility calculation
@@ -357,46 +386,24 @@ const calculateCandidateTargets = (
 
   let result = Array.from(candidates);
 
-  // 4. factor in core tables
-
-  // if there are no candidate server after comparing dataset tables,
-  // and there are core tables named in the query,
-  // offer rainier as a candidate,
-  if (matchingCoreTables.length && !result.length) {
-    result.push(SERVER_NAMES.rainier);
-  }
-
   // return a distribution error if there were dataset tables but no candidate server
-  if (matchingDatasetTables.length && result.length === 0) {
-    let message = "unable to perform query because datasets named in the query are distributed; " +
-                  "you man need to perform your join locally after dowloading the datasets individually";
-    errorMessages.push(message);
+  if (!matchingTables.noTablesWarning && result.length === 0) {
+        errorMessages.push(locationIncompatibilityMessage);
     log.warn("no candidate servers identified", {
       matchingTables,
       targetDatasetIds,
       locationCandidatesPerTable,
     });
 
-    return [errorMessages, result];
-  }
-
-  // if there are core tables named in query,
-  // and if there are candidates for dataset tables,
-  // but the candidates do not include rainier,
-  // return a detailed error message
-  // and an empty result array
-  if (matchingCoreTables.length && result.length && !result.includes(SERVER_NAMES.rainier)) {
-    errorMessages.push(
-      'query references core table(s), but also datasets which are not accessible on the same server'
-    );
-    result = [errorMessages, []];
+    return [joinErrorsOrNull(), result];
   }
 
   // default
-  return [errorMessages, result];
+  return [joinErrorsOrNull(), result];
 };
 
 module.exports = {
+  locationIncompatibilityMessage,
   removeBrackets,
   transformDatasetServersListToMap,
   compareTableAndDatasetLists,
