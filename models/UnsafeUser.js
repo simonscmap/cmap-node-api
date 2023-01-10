@@ -182,7 +182,6 @@ module.exports = class UnsafeUser {
 
   // Update method for less-sensitive information shown on the front end user profile
   async updateUserProfile() {
-    console.log(this);
     let pool = await pools.userReadAndWritePool;
     let request = await new sql.Request(pool);
 
