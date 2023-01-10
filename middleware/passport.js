@@ -15,6 +15,9 @@ const GuestUser = require("../models/GuestUser");
 const pools = require("../dbHandlers/dbPools");
 const guestTokenHashFromRequest = require("../utility/guestTokenHashFromRequest");
 
+const initializeLogger = require("../log-service");
+const log = initializeLogger("middleware/passport");
+
 const headerApiKeyOpts = {
   // Configure how passport identifies the API Key
   header: "Authorization",
@@ -89,10 +92,17 @@ passport.use(
   new LocalStrategy(
     localStrategyOptions,
     async function (req, username, password, done) {
+      let unsafeUser = null;
       try {
-        let unsafeUser = new UnsafeUser(
+        unsafeUser = new UnsafeUser(
           await UnsafeUser.getUserByUsername(username)
         );
+      } catch (e) {
+        log.error("error looking up user", { error: e, username });
+        return done(null, false);
+      }
+
+      try {
         bcrypt.compare(password, unsafeUser.password, function (err, isMatch) {
           if (isMatch) {
             req.cmapApiCallDetails.authMethod = authMethodMapping.local;
@@ -102,7 +112,7 @@ passport.use(
           return done(null, false);
         });
       } catch (e) {
-        console.error(e);
+        log.error("error while comparing passwords", { error: e, userId: unsafeUser.id });
         return done(null, false);
       }
     }

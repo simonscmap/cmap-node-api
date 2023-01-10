@@ -6,7 +6,13 @@ const log = initializeLogger("controllers/user/changePassword");
 module.exports = async (req, res) => {
   let user = new UnsafeUser({ ...req.user, password: req.body.newPassword });
   // TODO unhandled failure case
-  let result = await user.updatePassword();
+  let result = null;
+  try {
+    result = await user.updatePassword();
+  } catch (e) {
+    log.error("error updating password", { error: e, userId: user.id });
+    return res.status(400).send("error");
+  }
 
   if (!result.rowsAffected || !result.rowsAffected[0]) {
     // TODO does this check really signal a bad request?
