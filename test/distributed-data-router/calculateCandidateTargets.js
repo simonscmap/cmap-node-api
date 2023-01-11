@@ -91,7 +91,6 @@ test("correctly errors when core table and dataset locations diverge", (t) => {
 
   let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
-  console.log(errors);
   // expect error message
   t.is(errors, locationIncompatibilityMessage);
 

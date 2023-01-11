@@ -110,7 +110,7 @@ const fetchAllOnPremTables = async () => {
   }
   let request = await new sql.Request(pool);
 
-  let query = `SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME <> 'sysdiagrams'`;
+  let query = `SELECT Table_Name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME <> 'sysdiagrams'`;
 
   let result;
   try {

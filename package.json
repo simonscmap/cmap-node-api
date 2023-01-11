@@ -4,7 +4,7 @@
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
-    "test": "ava -- -- logLevel=2",
+    "test": "ava -- -- logLevel=1",
     "start": "./node_modules/pm2/bin/pm2-runtime app.js -i 2"
   },
   "engines": {

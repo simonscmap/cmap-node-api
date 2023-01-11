@@ -22,7 +22,7 @@ const log = initializeLogger("queryToDatabaseTarget");
 
 const run = async (query) => {
   // 1. parse query and get table names
-  let { extractedTableNames, commandType } = extractTableNamesFromQuery(query);
+  let queryAnalysis = extractTableNamesFromQuery(query);
 
   // 2. get list of all tables
   let onPremTableList = await fetchAllOnPremTablesWithCache();
@@ -30,10 +30,11 @@ const run = async (query) => {
   // 3. get dataset ids from table names
   let datasetIds = await fetchDatasetIdsWithCache();
 
+  // TODO: extract all fetches and this comparison function to a cached result
   let { coreTables, datasetTables } = compareTableAndDatasetLists(onPremTableList, datasetIds);
 
   // 4. match table names in query to core & data tables
-  let matchingTables = filterRealTables(extractedTableNames, coreTables, datasetTables);
+  let matchingTables = filterRealTables(queryAnalysis, coreTables, datasetTables);
 
   // 5. look up locations for dataset ids
   let datasetLocations = await fetchDatasetLocationsWithCache();
@@ -52,8 +53,8 @@ const run = async (query) => {
 
   log.info("router result", {
     query,
-    commandType,
-    namedTables: extractedTableNames,
+    commandType: queryAnalysis.commandType,
+    namedTables: queryAnalysis.extractedTableNames,
     coreTablesIdentified: matchingTables.matchingCoreTables,
     datasetTablesIdentified: matchingTables.matchingDatasetTables,
     omittedTables: matchingTables.omittedTables,
@@ -63,7 +64,7 @@ const run = async (query) => {
 
   // 8. return candidate query targets
   return {
-    commandType,
+    commandType: queryAnalysis.commandType,
     priorityTargetType,
     candidateLocations: prioritizedLocations,
     errorMessage: errors,
