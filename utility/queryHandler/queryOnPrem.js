@@ -109,6 +109,8 @@ const executeQueryOnPrem = async (
 
   let count = 0;
 
+  let retry = false;
+
   request.on("row", () => count++);
 
   request.on("error", (err) => {
@@ -125,10 +127,15 @@ const executeQueryOnPrem = async (
 
       if (res.headersSent) {
         res.end();
+        log.trace("end response; headers already set");
       } else if (req.query.servername || poolName === SERVER_NAMES.rainier) {
         res.status(500).end(generateError(err));
+      } else if (candidateList.includes(SERVER_NAMES.rainier)) {
+        log.trace("on error; flagging retry");
+        retry = true;
       } else {
-        log.error("unknown error case", { error: err, rowCount: count });
+        log.trace("on error catchall; no retry");
+        res.status(500).end(generateError(err));
       }
     }
   });
@@ -138,8 +145,8 @@ const executeQueryOnPrem = async (
   try {
     await request.query(query);
   } catch (e) {
-    res.status(500).send(`query execution error`);
-    log.error("error executing query", { error: e });
+    // this block shouldn't run because request.on("error") is defined
+    log.error("unexpected error executing query", { error: e });
     return;
   }
 
@@ -150,6 +157,7 @@ const executeQueryOnPrem = async (
   // AND (4) rainier is in the candidate locations list,
   // THEN rerun on rainier
   // ELSE return next()
+  log.trace("determining retry option", { retryFlag: retry });
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&
@@ -158,10 +166,10 @@ const executeQueryOnPrem = async (
   ) {
     // Rerun query with forceRainier flag
     log.warn("retrying query on rainier", { query });
-
     accumulator.unpipe(res);
     await executeQueryOnPrem(req, res, next, query, [], true);
   } else {
+    log.trace("defer to next()");
     return next();
   }
 };

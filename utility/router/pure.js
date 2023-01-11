@@ -342,7 +342,7 @@ const calculateCandidateTargets = (
     return [joinErrorsOrNull(), []];
   }
 
-  if (omittedTables) {
+  if (omittedTables && omittedTables.length) {
     // NOTE that omitted tables is the result of comparing the list of primary tables (that is,
     // the list of table names identified in the query excluding aliases) to the lists
     // of core and dataset tables
@@ -353,13 +353,16 @@ const calculateCandidateTargets = (
   }
 
   // 1. get ids of dataset tables named in query
-  let targetDatasetIds = datasetIds
+  let targetDatasets = datasetIds
     .filter(({ Table_Name }) =>
       matchingDatasetTables
         .map(toLowerCase)
         .includes(Table_Name.toLowerCase())
-    )
+    );
+
+  let targetDatasetIds = targetDatasets
     .map(({ Dataset_ID }) => Dataset_ID);
+
 
   if (targetDatasetIds.length !== matchingDatasetTables.length - matchingCoreTables.length) {
     log.warn('could not match all ids', targetDatasetIds);
@@ -378,6 +381,12 @@ const calculateCandidateTargets = (
       return loc;
     })
     .filter((location) => location);
+
+
+  log.trace("target datasets with locations", targetDatasets.map((dataset) => ({
+    ...dataset,
+    locations: [].concat(datasetLocations.get(dataset.Dataset_ID)).join(' '),
+  })));
 
 
   // 3. factor in core tables
