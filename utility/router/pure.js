@@ -53,10 +53,13 @@ const transformDatasetServersListToMap = (recordset) => {
  * - datasetList is a list of all datasets (and their ids)
  */
 const compareTableAndDatasetLists = (tableList = [], datasetList = []) => {
-  console.log('on prem', tableList[0]);
+  // core tables are tables that exist on prem, but are not in the dataset list
   let coreTables = tableList
-    .filter(({ table_name }) => datasetList
-      .some(({ Table_Name }) => Table_Name.toLowerCase() === table_name.toLowerCase()));
+    .filter(({ Table_Name: onPremTbl }) => !datasetList
+      .some(({ Table_Name: dataTbl }) => onPremTbl.toLowerCase() === dataTbl.toLowerCase())
+    )
+    .map(({ Table_Name }) => Table_Name);
+
 
   let datasetTables = datasetList.map(({ Table_Name }) => Table_Name);
 
@@ -102,7 +105,7 @@ const extractTableNamesFromEXEC = (query = "") => {
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
-/* string parsing table names from query
+/* String parsing table names from query
  * NOTE with this string parsing, we are relying on the convention
  * that table names begin with "tbl"; this differs from the function
  * above "extractTableNamesFromAST"
@@ -116,7 +119,7 @@ const extractTableNamesFromGrammaticalQueryString = (query = "") => {
     .map((word) => word.replace(/\)/gi, "")) // replace parens
 };
 
-// remove sql -- comments, which operate on the rest of the line
+// Remove SQL "--" comments, which operate on the rest of the line
 const removeSQLDashComments = (query = "") => {
   let stripDashComment = (line) => {
     let indexOfDash = line.indexOf("--");
@@ -184,18 +187,31 @@ const queryToAST = (query = "") => {
 };
 
 // given lists of core and dataset tables, return matching table names
-// (also return a list of omitted table names);
-const filterRealTables = (names = [], coreTables = [], datasetTables = []) => {
-  console.log('comparing table names', names, coreTables.length, datasetTables.length);
+// as well as data on omitted tables, and flags for no table references
+const filterRealTables = (queryAnalysis, coreTables = [], datasetTables = []) => {
+  let { extractedPrimaryTableNames: names, extractedTableNames = [] } = queryAnalysis;
+
+  // core tables that are referenced by the query
   let matchingCoreTables = coreTables
-    .filter((coreTbl) => names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()));
+    .filter((coreTbl) =>
+      names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()));
+
+  // dataset tables that are referenced by the query
   let matchingDatasetTables = datasetTables
-    .filter((dataTbl) => names.some((name) => name.toLowerCase() === dataTbl.toLowerCase()));
-  let omittedTables = names.filter((name) => {
-    !matchingCoreTables.includes(name) && !matchingDatasetTables.includes(name);
-  });
+    .filter((dataTbl) =>
+      names.some((name) => name.toLowerCase() === dataTbl.toLowerCase()));
+
+  // tables that are named but do not match any core or dataset table
+  let omittedTables = names
+    .filter((name) =>
+      !matchingCoreTables.includes(name) && !matchingDatasetTables.includes(name));
+
+  // no REAL tables are referenced by the query
   let noTablesWarning = matchingCoreTables.length === 0 && matchingDatasetTables.length === 0;
-  let noTablesNamed = names.length === 0;
+
+  // the query contains no table references at all
+  // NOTE this flag relies on the result of the query's parsed AST
+  let noTablesNamed = extractedTableNames.length === 0;
 
   return {
     matchingCoreTables,
@@ -227,10 +243,15 @@ const { COMMAND_TYPES } = require("../constants");
 // ANALYZE QUERY
 
 /* Analyze query and extract names of tables visited by query
- * :: Query -> [TableName]
+ * :: Query -> {
+ *      commandType: sproc | custom,
+ *      extractedTableNames: [TableName],
+ *      extractedPrimaryTableNames: [TableName],
+ *    }
  * Handle "exec" separately
  * NOTE: parser can handle CTEs, joins, comments
  * see: https://github.com/taozhi8833998/node-sql-parser
+ * NOTE: this uses both the parser library, and custom string parsing
  */
 const extractTableNamesFromQuery = (query = "") => {
   let commandType = isSproc(query) ? COMMAND_TYPES.sproc : COMMAND_TYPES.custom;
@@ -282,6 +303,7 @@ const extractTableNamesFromQuery = (query = "") => {
   return {
     commandType,
     extractedTableNames: Array.from(terms),
+    extractedPrimaryTableNames: termsFromStringParse,
   };
 };
 
@@ -294,6 +316,14 @@ const calculateCandidateTargets = (
   datasetLocations
 ) => {
 
+  let {
+    matchingCoreTables,
+    matchingDatasetTables,
+    omittedTables,
+    noTablesWarning,
+    noTablesNamed,
+  } = matchingTables;
+
   let errorMessages = [];
 
   let joinErrorsOrNull = () => {
@@ -304,19 +334,25 @@ const calculateCandidateTargets = (
   }
 
   // 0. check args
-  if (matchingTables.noTablesNamed) {
+  if (noTablesNamed) {
+    // this check prevents some valid queries, like "SELECT 1 + 1"
+    // but also keeps nonsense queries from reaching the database layer
     log.debug("no tables were referenced in the query", { matchingTables });
     errorMessages.push('no tables were referenced in the query');
     return [joinErrorsOrNull(), []];
-  } else if (matchingTables.omittedTables) {
-    log.debug("tables named in the query do not exist", { omittedTables: matchingTables.omittedTables });
-    // returning an error here would prevent join statements that use aliases
-    // errorMessages.push('some tables named in the query do not exist');
-    // return [joinErrorsOrNull(), []];
+  }
+
+  if (omittedTables) {
+    // NOTE that omitted tables is the result of comparing the list of primary tables (that is,
+    // the list of table names identified in the query excluding aliases) to the lists
+    // of core and dataset tables
+    // NOTE that we do NOT want to return an error in this case
+    // because we want it would provide a user with a litmus test for the existence of a table
+    // including core tables
+    log.warn("tables named in the query do not exist", { omittedTables });
   }
 
   // 1. get ids of dataset tables named in query
-  let { matchingCoreTables, matchingDatasetTables } = matchingTables;
   let targetDatasetIds = datasetIds
     .filter(({ Table_Name }) =>
       matchingDatasetTables
@@ -328,8 +364,6 @@ const calculateCandidateTargets = (
   if (targetDatasetIds.length !== matchingDatasetTables.length - matchingCoreTables.length) {
     log.warn('could not match all ids', targetDatasetIds);
   }
-
-  console.log(datasetIds.length, matchingDatasetTables, targetDatasetIds);
 
   // 2. derrive common targets
 
@@ -355,8 +389,7 @@ const calculateCandidateTargets = (
     locationCandidatesPerTable.push([SERVER_NAMES.rainier]);
   }
 
-
-  // 3. make compatibility calculation
+  // 4. make compatibility calculation
   /*
    Working from the first table's array, for each compatible server
    check to see if that server is also compatible for all remaining
@@ -387,8 +420,8 @@ const calculateCandidateTargets = (
   let result = Array.from(candidates);
 
   // return a distribution error if there were dataset tables but no candidate server
-  if (!matchingTables.noTablesWarning && result.length === 0) {
-        errorMessages.push(locationIncompatibilityMessage);
+  if (!noTablesWarning && result.length === 0) {
+    errorMessages.push(locationIncompatibilityMessage);
     log.warn("no candidate servers identified", {
       matchingTables,
       targetDatasetIds,
