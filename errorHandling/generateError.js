@@ -25,7 +25,9 @@ module.exports = (errorObject) => {
       break;
   }
 
-  if (!err) err = "An unknown error occured";
+  if (!err) {
+    err = "An unknown error occured";
+  }
 
   return err;
 };
