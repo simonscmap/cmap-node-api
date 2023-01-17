@@ -71,7 +71,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   csvStream.on("error", async (e) => {
     hasError = true;
     log.error("streaming error", { error: e });
-    endRespWithError();
+    // TODO use generateError to mask permissions errors
+    endRespWithError(e);
   });
 
   const hasMoreRows = async () => {
@@ -93,7 +94,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     } catch (e) {
       hasError = true;
       log.error("error fetching chunk", { error: e });
-      endRespWithError();
+      // TODO use generateError
+      endRespWithError(e);
     }
 
     if (result) {
