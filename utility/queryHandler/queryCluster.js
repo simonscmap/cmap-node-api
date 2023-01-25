@@ -2,7 +2,7 @@ const { DBSQLClient } = require("@databricks/sql");
 const initializeLogger = require("../../log-service");
 const stringify = require("csv-stringify");
 const AccumulatorStream = require("./AccumulatorStream");
-const { CLUSTER_CHUNK_MAX_ROWS } = require("../constants");
+const { CLUSTER_CHUNK_MAX_ROWS, COMMAND_TYPES } = require("../constants");
 const formatDate = require("./formatDate");
 const { Readable } = require("stream");
 const { removeBrackets } = require('../router/pure');
@@ -23,7 +23,7 @@ const headers = {
   "Cache-Control": "max-age=86400",
 };
 
-const executeQueryOnCluster = async (req, res, next, query) => {
+const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
 
@@ -49,7 +49,9 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   const session = await client.openSession();
 
   log.trace("executing statement");
-  const clusterQuery = removeBrackets(query);
+  let clusterQuery = query;
+
+  clusterQuery = removeBrackets(clusterQuery);
   const queryOperation = await session.executeStatement(clusterQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,

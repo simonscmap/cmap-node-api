@@ -41,7 +41,7 @@ const routeQuery = async (req, res, next, query) => {
   const targetIsCluster = priorityTargetType === "cluster";
 
   if (targetIsCluster) {
-    executeQueryOnCluster(req, res, next, query);
+    executeQueryOnCluster(req, res, next, query, commandType);
   } else {
     executeQueryOnPrem(req, res, next, query, candidateLocations);
   }
