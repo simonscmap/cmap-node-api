@@ -22,7 +22,7 @@ const locationIncompatibilityMessage =
 
 // strip brackets from query
 const removeBrackets = (query) =>
-  query.replace(/'|,|\[|\]/gi, "");
+  query.replace(/\[|\]/gi, "");
 
 
 /* Transform Dasaset_Servers recordset to Map
