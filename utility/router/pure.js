@@ -267,6 +267,7 @@ const extractTableNamesFromQuery = (query = "") => {
     return {
       commandType,
       extractedTableNames: tableNames,
+      extractedPrimaryTableNames: tableNames,
     };
   }
 
