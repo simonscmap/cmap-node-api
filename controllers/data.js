@@ -1,7 +1,9 @@
 const queryHandler = require("../utility/queryHandler");
-
+const initializeLogger = require("../log-service");
 var pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
+
+const log = initializeLogger("controllers/data");
 
 // Custom query endpoint
 const customQuery = async (req, res, next) => {
@@ -15,12 +17,34 @@ const customQuery = async (req, res, next) => {
 const storedProcedure = async (req, res, next) => {
   let argSet = req.query;
 
+  log.trace("stored procedure call", { name: argSet.spName })
+
   let fields = argSet.fields.replace(/[\[\]']/g, "");
   let tableName = argSet.tableName.replace(/[\[\]']/g, "");
 
-  let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}'`;
-  req.cmapApiCallDetails.query = spExecutionQuery;
-  queryHandler(req, res, next, spExecutionQuery);
+  // NOTE the `1` as the last argument, which optionally sets the return value to be the SELECT statement
+  // to be run
+  let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}', 1`;
+
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
+  let result;
+  try {
+    result = await request.query(spExecutionQuery);
+  } catch (e) {
+    log.error ('error fetching sproc statement', { error: e, query: spExecutionQuery });
+    return next('error fetching sproc statement');
+  }
+
+  if (result && result.recordset && result.recordset.length && result.recordset[0] && result.recordset[0].query) {
+    spExecutionQuery = result.recordset[0].query;
+    req.cmapApiCallDetails.query = spExecutionQuery;
+    queryHandler(req, res, next, spExecutionQuery);
+  } else {
+    console.log(result);
+    log.error ('error fetching sproc statement: no result', { query: spExecutionQuery });
+    return next('error feching sproc statement');
+  }
 };
 
 // Retrieves a single cruise trajectory
