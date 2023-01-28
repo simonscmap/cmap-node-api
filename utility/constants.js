@@ -4,7 +4,7 @@ const SERVER_NAMES = Object.freeze({
   "rainier": "rainier",
 });
 
-const CLUSTER_CHUNK_MAX_ROWS = 1000;
+const CLUSTER_CHUNK_MAX_ROWS = 100000;
 
 const COMMAND_TYPES = {
   sproc: 'sproc',
