@@ -23,6 +23,12 @@ const headers = {
   "Cache-Control": "max-age=86400",
 };
 
+/*
+   contour section map failed @ fetching sproc
+
+   time series failed on cluster with "STDEV" in sql statement
+*/
+
 const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
@@ -69,6 +75,8 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   csvStream.pipe(accumulator).pipe(res);
 
   let hasError = false;
+  let pages = 0;
+  let rowCount = 0;
 
   csvStream.on("error", async (e) => {
     hasError = true;
@@ -79,15 +87,13 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
 
   const hasMoreRows = async () => {
     let result = await queryOperation.hasMoreRows();
-    log.trace(`has more rows: ${result}`);
+    log.trace(`has more rows: ${result}; pages: +${pages}`);
     return result;
   };
 
   // 3. execute
-  let count = 0;
-  let rowCount = 0;
   do {
-    log.trace("start query");
+    log.trace(`start query; page ${pages + 1}`);
     let result;
     try {
       result = await queryOperation.fetchChunk({
@@ -95,38 +101,45 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
       });
     } catch (e) {
       hasError = true;
-      log.error("error fetching chunk", { error: e });
+      log.error("error fetching chunk", { error: e.message });
+      console.log(e);
       // TODO use generateError
       endRespWithError(e);
+      break;
     }
 
     if (result) {
-      count++;
+      pages++;
       rowCount += result.length;
 
       if (!res.headersSent) {
+        log.info ("writing headers");
         res.writeHead(200, headers);
       }
+
+      log.trace (`creating new readable from result of length ${result.length}`);
 
       let readable = Readable.from(result);
 
       // await readable stream finishing
       await new Promise((resolve) => {
-        readable.on("pause", () => log.trace("pause"));
-        readable.on("resume", () => log.trace("resume"));
-        readable.on("end", () => resolve());
-        readable.on("close", () => resolve());
+        readable.on("end", () => {
+          log.trace(`end [readable page ${pages}`);
+          resolve();
+        });
 
-        readable.pipe(csvStream);
+        // don't close the csvStream when the readable stream has ended
+        readable.pipe(csvStream, { end: false });
       });
 
     }
     // NOTE: ether an error fetching or an error emitted by the stream
     // will cause this loop to terminate
+    log.trace (`asking for more rows; error? ${hasError}`);
   } while ((await hasMoreRows()) && !hasError);
 
   // 4. end
-  log.info("finished fetch", { chunks: count, rowCount });
+  log.info("finished fetch", { chunks: pages, rowCount, hasError });
 
   csvStream.end();
 
