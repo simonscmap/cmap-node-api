@@ -23,6 +23,12 @@ const headers = {
   "Cache-Control": "max-age=86400",
 };
 
+/*
+   contour section map failed @ fetching sproc
+
+   time series failed on cluster with "STDEV" in sql statement
+*/
+
 const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
@@ -95,7 +101,8 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
       });
     } catch (e) {
       hasError = true;
-      log.error("error fetching chunk", { error: e });
+      log.error("error fetching chunk", { error: e.message });
+      console.log(e);
       // TODO use generateError
       endRespWithError(e);
       break;
@@ -114,25 +121,15 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
 
       let readable = Readable.from(result);
 
-      readable.on("pause", () => log.trace(`pause [readable page ${pages}]`));
-      readable.on("resume", () => log.trace(`resume [readable page ${pages}`));
-      readable.on("data", (d) => {
-        log.trace(`data [readable page ${pages}`);
-        csvStream.write(d);
-      });
-
-
       // await readable stream finishing
       await new Promise((resolve) => {
         readable.on("end", () => {
           log.trace(`end [readable page ${pages}`);
           resolve();
         });
-        readable.on("close", () => {
-          log.trace(`close [readable page ${pages}`);
-          resolve();
-        });
-        // readable.pipe(csvStream);
+
+        // don't close the csvStream when the readable stream has ended
+        readable.pipe(csvStream, { end: false });
       });
 
     }
