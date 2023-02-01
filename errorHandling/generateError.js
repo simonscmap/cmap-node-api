@@ -11,9 +11,12 @@ const errorCodeMap = {
 const processRequestError = (error) => {
   let { number, originalError } = error;
   // capture the error message
-  let msg = originalError &&
-            originalError.info &&
-            originalError.info.message;
+  let msg = (originalError &&
+             originalError.info &&
+             originalError.info.message) ||
+            (originalError &&
+             originalError.message) ||
+            '';
 
   if (number === 229) {
     // isolate the first quoted term

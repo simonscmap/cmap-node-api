@@ -2,10 +2,11 @@ const { DBSQLClient } = require("@databricks/sql");
 const initializeLogger = require("../../log-service");
 const stringify = require("csv-stringify");
 const AccumulatorStream = require("./AccumulatorStream");
-const { CLUSTER_CHUNK_MAX_ROWS, COMMAND_TYPES } = require("../constants");
+const { CLUSTER_CHUNK_MAX_ROWS } = require("../constants");
 const formatDate = require("./formatDate");
 const { Readable } = require("stream");
-const { removeBrackets } = require('../router/pure');
+const { tsqlToHiveTransforms } = require('../router/pure');
+const generateError = require('../../errorHandling/generateError');
 
 const log = initializeLogger("utility/queryHandler/queryCluster");
 
@@ -23,19 +24,13 @@ const headers = {
   "Cache-Control": "max-age=86400",
 };
 
-/*
-   contour section map failed @ fetching sproc
-
-   time series failed on cluster with "STDEV" in sql statement
-*/
-
-const executeQueryOnCluster = async (req, res, next, query, commandType) => {
+const executeQueryOnCluster = async (req, res, next, query) => {
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
 
-  const endRespWithError = () => {
+  const endRespWithError = (e) => {
     if (!res.headersSent) {
-      res.status(500).send("error");
+      res.status(500).send(generateError (e));
     } else {
       res.end();
     }
@@ -57,7 +52,7 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   log.trace("executing statement");
   let clusterQuery = query;
 
-  clusterQuery = removeBrackets(clusterQuery);
+  clusterQuery = tsqlToHiveTransforms(clusterQuery);
   const queryOperation = await session.executeStatement(clusterQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,
@@ -81,7 +76,6 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   csvStream.on("error", async (e) => {
     hasError = true;
     log.error("streaming error", { error: e });
-    // TODO use generateError to mask permissions errors
     endRespWithError(e);
   });
 
@@ -103,7 +97,6 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
       hasError = true;
       log.error("error fetching chunk", { error: e.message });
       console.log(e);
-      // TODO use generateError
       endRespWithError(e);
       break;
     }
@@ -113,7 +106,7 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
       rowCount += result.length;
 
       if (!res.headersSent) {
-        log.info ("writing headers");
+        log.trace ("writing headers");
         res.writeHead(200, headers);
       }
 
@@ -139,7 +132,7 @@ const executeQueryOnCluster = async (req, res, next, query, commandType) => {
   } while ((await hasMoreRows()) && !hasError);
 
   // 4. end
-  log.info("finished fetch", { chunks: pages, rowCount, hasError });
+  log.info("finished streaming chunks from cluster", { chunks: pages, rowCount, hasError });
 
   csvStream.end();
 
