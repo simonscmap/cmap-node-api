@@ -24,6 +24,13 @@ const locationIncompatibilityMessage =
 const removeBrackets = (query) =>
   query.replace(/\[|\]/gi, "");
 
+const replaceSTDEV = (query) =>
+  query.replace(/STDEV/gi, "STDDEV");
+
+const tsqlToHiveTransforms = (query) =>
+  [query].map (removeBrackets)
+         .map (replaceSTDEV)
+         .shift ()
 
 /* Transform Dasaset_Servers recordset to Map
  * :: [{Dataset_ID, ServerName}] => Map ID [ServerName]
@@ -448,6 +455,8 @@ const calculateCandidateTargets = (
 module.exports = {
   locationIncompatibilityMessage,
   removeBrackets,
+  replaceSTDEV,
+  tsqlToHiveTransforms,
   transformDatasetServersListToMap,
   compareTableAndDatasetLists,
   extractTableNamesFromAST,

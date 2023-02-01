@@ -41,7 +41,6 @@ const storedProcedure = async (req, res, next) => {
     req.cmapApiCallDetails.query = spExecutionQuery;
     queryHandler(req, res, next, spExecutionQuery);
   } else {
-    console.log(result);
     log.error ('error fetching sproc statement: no result', { query: spExecutionQuery });
     return next('error feching sproc statement');
   }
