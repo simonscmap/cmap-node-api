@@ -11,7 +11,6 @@ const log = createNewLogger().setModule('ApiCallDetail');
 // Model for tblApi_Calls
 module.exports = class ApiCallDetail {
   constructor(req) {
-    log.trace('api call detail constructor');
     this.ip = req.headers["x-forwarded-for"]
       ? req.headers["x-forwarded-for"].split(",")[0]
       : req.ip || "None";
@@ -23,6 +22,7 @@ module.exports = class ApiCallDetail {
     this.ignore = false;
     // baseUrl is the origin; path are the joined url segments after the origin
     this.requestPath = `${req.baseUrl || ""}${req.path}`;
+    log.debug('api call detail constructor', this);
   }
 
   checkIp() {
