@@ -19,12 +19,19 @@ const storedProcedure = async (req, res, next) => {
 
   log.trace("stored procedure call", { name: argSet.spName })
 
-  let fields = argSet.fields.replace(/[\[\]']/g, "");
-  let tableName = argSet.tableName.replace(/[\[\]']/g, "");
+  let spExecutionQuery;
 
-  // NOTE the `1` as the last argument, which optionally sets the return value to be the SELECT statement
-  // to be run
-  let spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}', 1`;
+  if (argSet.spName === 'uspVariableMetadata') {
+    spExecutionQuery = `EXEC ${argSet.spName} '[${argSet.tableName}]', '${argSet.shortName}', 1`;
+  } else {
+
+    let fields = argSet.fields.replace(/[\[\]']/g, "");
+    let tableName = argSet.tableName.replace(/[\[\]']/g, "");
+
+    // NOTE the `1` as the last argument, which optionally sets the return value to be the SELECT statement
+    // to be run
+    spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}', 1`;
+  }
 
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -37,6 +44,7 @@ const storedProcedure = async (req, res, next) => {
   }
 
   if (result && result.recordset && result.recordset.length && result.recordset[0] && result.recordset[0].query) {
+    log.info ('sproc call returned query', { argSet, result: result.recordset[0].query });
     spExecutionQuery = result.recordset[0].query;
     req.cmapApiCallDetails.query = spExecutionQuery;
     queryHandler(req, res, next, spExecutionQuery);
