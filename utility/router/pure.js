@@ -20,6 +20,14 @@ const locationIncompatibilityMessage =
 
 // HELPERS
 
+const normalizeQueryString = (query = "") =>
+  [query].map(removeSQLDashComments)
+    .map(removeSQLBlockComments)
+    .map(s => s.toLowerCase())
+    .map(s => s.trim())
+    .shift()
+
+
 // strip brackets from query
 const removeBrackets = (query) =>
   query.replace(/\[|\]/gi, "");
@@ -27,9 +35,29 @@ const removeBrackets = (query) =>
 const replaceSTDEV = (query) =>
   query.replace(/STDEV/gi, "STDDEV");
 
+const removeDbo = (query) => {
+  let normalizedQuery = normalizeQueryString (query);
+
+  let queryWords = normalizedQuery
+    .split(' ')
+    .filter(word => word.length > 0);
+
+  // assume that remove dbo runs AFTER removing brackets
+  // otherwise this check for index will not work
+  let stripDbo = (word) => {
+    if (word.indexOf('dbo.') === 0) {
+      return query.replace(/dbo\./gi, "");
+    }
+    return word;
+  }
+
+  return queryWords.map (stripDbo).join (' ');
+};
+
 const tsqlToHiveTransforms = (query) =>
   [query].map (removeBrackets)
          .map (replaceSTDEV)
+         .map (removeDbo)
          .shift ()
 
 /* Transform Dasaset_Servers recordset to Map
@@ -191,6 +219,25 @@ const isSproc = (query = "") => {
   return true;
 };
 
+const extractSprocName = (query = "") => {
+  let normalizedQuery = [query].map(removeSQLDashComments)
+    .map(removeSQLBlockComments)
+    .map(s => s.toLowerCase())
+    .map(s => s.trim())
+    .shift()
+
+  if (normalizedQuery.length < 2) {
+    log.warn ('expected sproc to have name', { query });
+    return '';
+  }
+
+  let [, spName] = normalizedQuery
+    .split(' ')
+    .filter(word => word.length > 0);
+
+  return spName;
+};
+
 /* parse a sql query into an AST
    :: Query -> AST | null
  */
@@ -202,7 +249,7 @@ const queryToAST = (query = "") => {
     result.flavor = tsqlParserOptions.database;
   } catch (e) {
     // if parsing as tsql fails, try as hive
-    log.warn("attempt to parse query as tsql failed", { error: e });
+    log.warn("attempt to parse query as tsql failed", { error: e, query });
     try {
       result.parserResult = parser.parse(removeBrackets(query), hiveParserOptions);
       result.flavor = hiveParserOptions.database;
@@ -367,7 +414,7 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations)
     // NOTE that we do NOT want to return an error in this case
     // because we want it would provide a user with a litmus test for the existence of a table
     // including core tables
-    warnings.push (['tables named in the query do not exist', { omittedTables }]);
+    warnings.push (['tables named in the query do not exist', { matchingTables }]);
   }
 
   // 1. get ids of dataset tables named in query
@@ -492,6 +539,7 @@ module.exports = {
   removeSQLDashComments,
   removeSQLBlockComments,
   isSproc,
+  extractSprocName,
   filterRealTables,
   assertPriority,
   extractTableNamesFromQuery,

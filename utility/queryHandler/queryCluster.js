@@ -55,6 +55,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   let clusterQuery = query;
 
   clusterQuery = tsqlToHiveTransforms(clusterQuery);
+  log.info ('sending query to cluster', { hiveSql: clusterQuery });
   const queryOperation = await session.executeStatement(clusterQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,
