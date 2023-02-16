@@ -96,7 +96,7 @@ const executeQueryOnPrem = async (
   request.on("done", () => {
     // TODO Question: why is mariana singled out here?
     if (poolName === SERVER_NAMES.mariana && requestError === true) {
-      log.trace("mariana or requestError");
+      log.trace("mariana and requestError");
       accumulator.unpipe(res);
     }
     csvStream.end();
@@ -131,7 +131,7 @@ const executeQueryOnPrem = async (
       } else if (req.query.servername || poolName === SERVER_NAMES.rainier) {
         res.status(500).end(generateError(err));
       } else if (candidateList.includes(SERVER_NAMES.rainier)) {
-        log.trace("on error; flagging retry");
+        log.warn ("on error; flagging retry");
         retry = true;
       } else {
         log.trace("on error catchall; no retry");
@@ -150,6 +150,10 @@ const executeQueryOnPrem = async (
     return;
   }
 
+  if (!requestError) {
+    return next();
+  }
+
   // 4. handle result, either retry or next()
   // IF  (1) there is an error,
   // AND (2) query was not already run on rainier,
@@ -161,7 +165,6 @@ const executeQueryOnPrem = async (
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&
-    requestError === true &&
     candidateList.includes(SERVER_NAMES.rainier)
   ) {
     // Rerun query with forceRainier flag

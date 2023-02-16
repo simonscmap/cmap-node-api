@@ -163,10 +163,32 @@ const removeSQLBlockComments = (query = "") => {
 
 // isSproc -- determine if a query is executing a sproc
 const isSproc = (query = "") => {
-  let queryWithoutDashedComments = removeSQLDashComments(query);
-  let queryWithoutComments = removeSQLBlockComments(queryWithoutDashedComments);
-  let containsEXEC = queryWithoutComments.toLowerCase().includes("exec");
-  return containsEXEC;
+  let normalizedQuery = [query].map (removeSQLDashComments)
+                               .map (removeSQLBlockComments)
+                               .map (s => s.toLowerCase())
+                               .map (s => s.trim())
+                               .shift()
+
+  let [commandTerm, spName] = normalizedQuery
+    .split (' ')
+    .filter(word => word.length > 0);
+
+  let beginsWith = (str) => (qString) => qString.indexOf (str) === 0;
+  let beginsWithExec = beginsWith ('exec');
+  let beginsWithExecute = beginsWith ('execute');
+  let startsWithExecKeyword = (word) => beginsWithExec (word) || beginsWithExecute (word);
+
+  if (!commandTerm || !startsWithExecKeyword (commandTerm)) {
+    return false;
+  }
+
+  // at this point we know it starts with exec or execute
+  let beginsWithUsp = beginsWith ('usp');
+  if (!spName || !beginsWithUsp (spName)) {
+    return false;
+  }
+
+  return true;
 };
 
 /* parse a sql query into an AST

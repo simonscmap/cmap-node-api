@@ -1,4 +1,4 @@
-const uuidv1 = require("uuid/v1");
+const { v4: uuidv4 } = require('uuid');
 const sql = require("mssql");
 
 const userDBConfig = require("../../config/dbConfig").userTableConfig;
@@ -9,7 +9,7 @@ const apiKeyTable = "tblApi_Keys";
 
 // Create an API key
 module.exports = async (req, res) => {
-  let apiKey = uuidv1();
+  let apiKey = uuidv4();
 
   let pool = await new sql.ConnectionPool(userDBConfig).connect();
   let request = new sql.Request(pool);

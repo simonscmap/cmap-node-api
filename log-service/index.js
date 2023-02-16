@@ -135,22 +135,45 @@ function log(level, tags, context, message, isError, data) {
   }
 }
 
-function createNewLogger(moduleName) {
-  let logger = Object.assign(
-    {},
-    { tags: tagInfo, context: { module: moduleName } }
-  );
+function createNewLogger(moduleName, extraContext = {}) {
+    let { session, extra, requestId } = extraContext;
+
+  let props = {
+    tags: tagInfo,
+      context: {
+        module: moduleName
+      }
+  };
+
+  if (session) {
+    props.session = session;
+  }
+
+  if (requestId) {
+    props.requestId = requestId;
+  }
+
+  if (extra && Array.isArray(extra) && extra.length === 2) {
+    let [k, v] = extra;
+    props[k] = v;
+  }
+
+  let logger = Object.assign({}, props);
+
+  // methods to set context info
   logger.setModule = (x) => {
-    logger.context.module = x;
-    return logger;
+    return createNewLogger (x);
   };
   logger.setSession = (x) => {
-    logger.context.session = x;
-    return logger;
+    return createNewLogger (moduleName, { session: x, extra });
   };
-  logger.addContext = function (ctx) {
-    Object.assign(this.context, ctx);
-    return logger;
+
+  logger.setReqId = (rid) => {
+    return createNewLogger (moduleName, { ...extraContext, requestId: rid });
+  };
+
+  logger.addContext = (ctx) => {
+    return createNewLogger (moduleName, { session, extra: ctx });
   };
 
   Object.keys(logLevel).forEach((level) => {

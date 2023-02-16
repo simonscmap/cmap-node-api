@@ -2,19 +2,52 @@ const queryHandler = require("../utility/queryHandler");
 const initializeLogger = require("../log-service");
 var pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
+const { isSproc } = require("../utility/router/pure");
 
-const log = initializeLogger("controllers/data");
+const moduleLogger = initializeLogger("controllers/data");
+
+// fetch sproc query: helper that calls a sproc endpoint
+// with a flag that will cause the sql server to respond with
+// an ansi compliant query that can be run on prem or on cluster
+// :: [error?, queryString, message?];
+const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
+  let log = moduleLogger.setReqId ();
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
+  let result;
+
+  try {
+    result = await request.query(spExecutionQuery);
+  } catch (e) {
+    log.error('error fetching sproc statement', { error: e, query: spExecutionQuery });
+    return [true, null, 'error fetching sproc statement']
+  }
+
+  if (result && result.recordset && result.recordset.length && result.recordset[0] && result.recordset[0].query) {
+    log.info('sproc call returned query', { argSet, result: result.recordset[0].query });
+    spExecutionQuery = result.recordset[0].query;
+    return [false, spExecutionQuery];
+    // req.cmapApiCallDetails.query = spExecutionQuery;
+    /// queryHandler(req, res, next, spExecutionQuery);
+  } else {
+    log.error('error fetching sproc statement: no result', { query: spExecutionQuery });
+    return [true, null, 'error fetching sproc statement'];
+  }
+};
 
 // Custom query endpoint
 const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
-  console.log("custom query", typeof req.query.query, req.query.query);
+  moduleLogger.setReqId(req.requestId)
+              .info ("custom query", { argType: (typeof req.query.query), query: req.query.query });
+
   queryHandler(req, res, next, req.query.query);
 };
 
 // Stored procedure call endpoint
 // NOTE: this only serves the subset of stored procedures that power the chart visualizations
 const storedProcedure = async (req, res, next) => {
+  let log = moduleLogger.setReqId(req.requestId);
   let argSet = req.query;
 
   log.trace("stored procedure call", { name: argSet.spName })
@@ -25,32 +58,19 @@ const storedProcedure = async (req, res, next) => {
     spExecutionQuery = `EXEC ${argSet.spName} '[${argSet.tableName}]', '${argSet.shortName}', 1`;
   } else {
 
-    let fields = argSet.fields.replace(/[\[\]']/g, "");
-    let tableName = argSet.tableName.replace(/[\[\]']/g, "");
+    let fields = argSet.fields.replace(/[[\]']/g, "");
+    let tableName = argSet.tableName.replace(/[[\]']/g, "");
 
     // NOTE the `1` as the last argument, which optionally sets the return value to be the SELECT statement
     // to be run
     spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}', 1`;
-  }
 
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
-  let result;
-  try {
-    result = await request.query(spExecutionQuery);
-  } catch (e) {
-    log.error ('error fetching sproc statement', { error: e, query: spExecutionQuery });
-    return next('error fetching sproc statement');
-  }
-
-  if (result && result.recordset && result.recordset.length && result.recordset[0] && result.recordset[0].query) {
-    log.info ('sproc call returned query', { argSet, result: result.recordset[0].query });
-    spExecutionQuery = result.recordset[0].query;
-    req.cmapApiCallDetails.query = spExecutionQuery;
-    queryHandler(req, res, next, spExecutionQuery);
-  } else {
-    log.error ('error fetching sproc statement: no result', { query: spExecutionQuery });
-    return next('error feching sproc statement');
+    let [error, q, message] = await fetchSprocQuery(req.requestId, spExecutionQuery, req.query);
+    if (error) {
+      return next(message);
+    } else {
+      return queryHandler(req, res, next, q);
+    }
   }
 };
 
