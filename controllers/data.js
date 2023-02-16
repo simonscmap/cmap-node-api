@@ -1,8 +1,9 @@
 const queryHandler = require("../utility/queryHandler");
 const initializeLogger = require("../log-service");
-var pools = require("../dbHandlers/dbPools");
+const pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
-const { isSproc } = require("../utility/router/pure");
+const { fetchDataRetrievalProcedureNamesWithCache } = require('../utility/router/queries');
+const { isSproc, extractSprocName } = require('../utility/router/pure');
 
 const moduleLogger = initializeLogger("controllers/data");
 
@@ -11,7 +12,7 @@ const moduleLogger = initializeLogger("controllers/data");
 // an ansi compliant query that can be run on prem or on cluster
 // :: [error?, queryString, message?];
 const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
-  let log = moduleLogger.setReqId ();
+  let log = moduleLogger.setReqId (reqId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   let result;
@@ -30,16 +31,50 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
     // req.cmapApiCallDetails.query = spExecutionQuery;
     /// queryHandler(req, res, next, spExecutionQuery);
   } else {
+    console.log(result);
     log.error('error fetching sproc statement: no result', { query: spExecutionQuery });
     return [true, null, 'error fetching sproc statement'];
   }
 };
 
+// ~~~~ CONTROLLERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 // Custom query endpoint
 const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
-  moduleLogger.setReqId(req.requestId)
-              .info ("custom query", { argType: (typeof req.query.query), query: req.query.query });
+  let log = moduleLogger.setReqId(req.requestId);
+
+  log.info ("custom query", { argType: (typeof req.query.query), query: req.query.query });
+
+  if (isSproc (req.query.query)) {
+    let uspDataRetrievingNames = await fetchDataRetrievalProcedureNamesWithCache();
+
+
+    if (uspDataRetrievingNames === null) {
+      res.status (500).send ('error analyzing query');
+      return;
+    }
+    let sprocName = extractSprocName (req.query.query).toLocaleLowerCase();
+
+    console.log (uspDataRetrievingNames, sprocName);
+
+    if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
+      let spExecutionQuery = `${req.query.query}, 1`;
+      log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
+
+
+      let [error, queryToRun] = await fetchSprocQuery (req.requestId, spExecutionQuery, req.query);
+      if (error) {
+        return res.status (500).send ('error preparing query');
+      } else {
+        log.trace ('passing query to queryHandler', { queryToRun });
+        return queryHandler(req, res, next, queryToRun);
+      }
+    } else {
+      // if sproc is not a data-retrieving sproc, let it run as is
+      log.trace ('sproc is not a data-retrieving sproc');
+    }
+  }
 
   queryHandler(req, res, next, req.query.query);
 };
@@ -64,6 +99,8 @@ const storedProcedure = async (req, res, next) => {
     // NOTE the `1` as the last argument, which optionally sets the return value to be the SELECT statement
     // to be run
     spExecutionQuery = `EXEC ${argSet.spName} '[${tableName}]', '[${fields}]', '${argSet.dt1}', '${argSet.dt2}', '${argSet.lat1}', '${argSet.lat2}', '${argSet.lon1}', '${argSet.lon2}', '${argSet.depth1}', '${argSet.depth2}', 1`;
+
+    log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
 
     let [error, q, message] = await fetchSprocQuery(req.requestId, spExecutionQuery, req.query);
     if (error) {

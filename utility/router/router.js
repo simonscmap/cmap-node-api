@@ -49,13 +49,14 @@ const routeQuery = async (req, res, next, query) => {
     return;
   }
 
-  if (candidateLocations.length === 0 && queryIsExecutingSproc) {
-    log.trace("continuing with sproc execution without any table specified");
-  }
+  /* if (candidateLocations.length === 0 && queryIsExecutingSproc) {
+     log.trace("continuing with sproc execution without any table specified");
+     }
+   */
 
   const targetIsCluster = priorityTargetType === "cluster";
 
-  if (targetIsCluster) {
+  if (targetIsCluster && !queryIsExecutingSproc) {
     executeQueryOnCluster(req, res, next, query, commandType);
   } else {
     executeQueryOnPrem(req, res, next, query, candidateLocations);

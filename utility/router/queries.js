@@ -7,6 +7,7 @@ const cacheAsync = require("../cacheAsync");
 const CACHE_KEY_DATASET_SERVERS = "datasetServers";
 const CACHE_KEY_DATASET_IDS = "datasetIds";
 const CACHE_KEY_DB_TABLES = "dbTables";
+const CACHE_KEY_USP_DATA = "uspData";
 
 const log = initializeLogger("router queries");
 
@@ -136,8 +137,61 @@ const fetchAllOnPremTablesWithCache = async () =>
   await cacheAsync(CACHE_KEY_DB_TABLES, fetchAllOnPremTables);
 
 
+/*
+   fetch list of data-retrieving stored procedure names
+   to assist in distinguishing betweeen sprocs we should let
+   run on-prem versus ones that we should get a select statment
+   version no run through the request router
+   :: () => [error?, data]
+*/
+const fetchDataRetrievalProcedureNames = async () => {
+  let pool;
+  try {
+    pool = await pools.userReadAndWritePool;
+  } catch (e) {
+    log.error("attempt to connect to pool failed",
+              { error: e, in: 'fetchDataRetrievalProcedureNames' });
+    return [true, null]; // indicate error in return tuple
+  }
+
+  let request = await new sql.Request(pool);
+
+  let query = `SELECT * FROM tblApi_USP_Data`;
+
+  let result;
+  try {
+    result = await request.query(query);
+    log.debug("success fetching usp list", { result: result.recordset });
+  } catch (e) {
+    log.error("error fetching usp list", { error: e });
+    return [true, null];
+  }
+
+  if (result && result.recordset && result.recordset.length) {
+    log.trace ('success fetchisg usp data', { result: result.recordset });
+    let nameList = result.recordset.map (({ USP_Name }) => USP_Name.trim() );
+    return [false, nameList];
+  } else {
+    log.error("error fetching usp list: no recordset returned", {
+      result,
+    });
+    return [true, null];
+  }
+};
+
+const fetchDataRetrievalProcedureNamesWithCache = async () =>
+  await cacheAsync(
+    CACHE_KEY_USP_DATA,
+    fetchDataRetrievalProcedureNames,
+    { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
+  );
+
+
+
 module.exports = {
   fetchDatasetIdsWithCache,
   fetchDatasetLocationsWithCache,
   fetchAllOnPremTablesWithCache,
+  // for use in controllers/data customQuery:
+  fetchDataRetrievalProcedureNamesWithCache,
 };

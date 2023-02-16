@@ -10,8 +10,8 @@ const log = initializeLogger("cacheAsync");
 // NOTE the job should not throw; in the event of an error
 // it should return an error value
 
-const cacheAsync = async (cacheKey, job) => {
-  log.trace(`cacheAsync for ${cacheKey}`);
+const cacheAsync = async (cacheKey, job, options = {}) => {
+  log.trace(`running cacheAsync for ${cacheKey}`);
   let cacheResult = nodeCache.get(cacheKey);
 
   if (cacheResult) {
@@ -25,12 +25,19 @@ const cacheAsync = async (cacheKey, job) => {
   let [error, data] = await job();
 
   if (error) {
-    log.trace(`error in cacheAsync while running job`, { error });
+    log.warn (`error in cacheAsync while running job`, { error });
     return data; // let job determine what to return, even when there is an error
   }
 
   log.trace(`success running job in cacheAsync for ${cacheKey}`);
-  nodeCache.set(cacheKey, data);
+
+  if (options.ttl && Number.isInteger (options.ttl)) {
+    // ttl in seconds
+    nodeCache.set(cacheKey, data, options.ttl);
+  } else {
+    nodeCache.set(cacheKey, data);
+  }
+
   return data;
 };
 
