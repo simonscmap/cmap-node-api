@@ -3,10 +3,11 @@ const stringify = require("csv-stringify");
 const Accumulator = require("./AccumulatorStream");
 const generateError = require("../../errorHandling/generateError");
 const initializeLogger = require("../../log-service");
+const { logErrors, logMessages } = require('../../log-service/log-helpers');
 const { SERVER_NAMES } = require("../constants");
 const { getPool } = require("./getPool");
 const formatDate = require("./formatDate");
-const log = initializeLogger("utility/queryHandler/queryOnPrem");
+const moduleLogger = initializeLogger("router queryOnPrem");
 
 // headers for streamed response
 const headers = {
@@ -25,20 +26,24 @@ const executeQueryOnPrem = async (
   candidateList = [],
   forceRainier
 ) => {
+  const log = moduleLogger.setReqId(req.requestId);
   // 1. determine pool
 
   let serverNameOverride = forceRainier ? "rainier" : req.query.servername;
   let onPremCandidates = candidateList.filter((c) => c !== "cluster");
-  let { pool, poolName, error } = await getPool(
+  let { pool, poolName, error, errors, messages} = await getPool(
     onPremCandidates,
     serverNameOverride
   );
 
   if (error) {
+    logErrors (log) (errors);
     res.status(400).send(`specified server "${req.query.servername}" is not valid for the given query, consider specifying a different server`);
     next();
     return;
   }
+
+  logMessages (log) (messages);
 
   res.set("X-Data-Source-Targeted", poolName || "default");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
@@ -96,7 +101,7 @@ const executeQueryOnPrem = async (
   request.on("done", () => {
     // TODO Question: why is mariana singled out here?
     if (poolName === SERVER_NAMES.mariana && requestError === true) {
-      log.trace("mariana or requestError");
+      log.trace("mariana and requestError");
       accumulator.unpipe(res);
     }
     csvStream.end();
@@ -131,7 +136,7 @@ const executeQueryOnPrem = async (
       } else if (req.query.servername || poolName === SERVER_NAMES.rainier) {
         res.status(500).end(generateError(err));
       } else if (candidateList.includes(SERVER_NAMES.rainier)) {
-        log.trace("on error; flagging retry");
+        log.warn ("on error; flagging retry");
         retry = true;
       } else {
         log.trace("on error catchall; no retry");
@@ -150,6 +155,10 @@ const executeQueryOnPrem = async (
     return;
   }
 
+  if (!requestError) {
+    return next();
+  }
+
   // 4. handle result, either retry or next()
   // IF  (1) there is an error,
   // AND (2) query was not already run on rainier,
@@ -158,10 +167,10 @@ const executeQueryOnPrem = async (
   // THEN rerun on rainier
   // ELSE return next()
   log.trace("determining retry option", { retryFlag: retry });
+
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&
-    requestError === true &&
     candidateList.includes(SERVER_NAMES.rainier)
   ) {
     // Rerun query with forceRainier flag

@@ -1,6 +1,7 @@
 const pools = require("../../dbHandlers/dbPools");
 const { SERVER_NAMES } = require("../constants");
-
+const initLogger = require("../../log-service");
+const log = initLogger('roundRobin');
 // :: [ServerCandidate] -> ServerCandidate
 // NOTE if an empty array is passed, the function will return undefined
 const roundRobin = (candidates = []) => {
@@ -20,6 +21,7 @@ const mapServerNameToPoolConnection = async (name) => {
     case SERVER_NAMES.mariana:
       return await pools.mariana;
     default:
+      log.warn ('defaulting to dataReadOnlyPool', { name });
       return await pools.dataReadOnlyPool;
   }
 };

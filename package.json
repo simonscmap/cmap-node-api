@@ -25,6 +25,7 @@
   "license": "ISC",
   "devDependencies": {
     "ava": "^4.2.0",
+    "chalk": "^4.1.2",
     "eslint": "^8.22.0",
     "jest": "^25.5.4",
     "nodemon": "^1.19.4"
@@ -61,6 +62,6 @@
     "pm2": "^4.5.6",
     "sanctuary": "^3.1.0",
     "sanctuary-def": "^0.22.0",
-    "uuid": "^3.4.0"
+    "uuid": "^9.0.0"
   }
 }

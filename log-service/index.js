@@ -15,6 +15,13 @@ const {
 const isProduction =
   process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+let chalk;
+if (isDevelopment) {
+  chalk = require('chalk');
+}
+
 let includesLogLevel = (term) => term.includes("logLevel");
 let includesLogFormat = (term) => term.includes("logFormat");
 let split = (term) => term.split("=");
@@ -121,36 +128,93 @@ function log(level, tags, context, message, isError, data) {
   // 4. write log to stdout
   if (isProduction || logFormat === "json") {
     console.log(JSON.stringify(payload));
-  } else {
-    let header = `${level} - ${Object.entries(logLevel).filter(([, val]) => val === level).flat()[0].toUpperCase()}`
-    let module = payload.context.module;
+    return;
+  }
+
+  if (isDevelopment) {
+    let levelHeader = Object.entries(logLevel)
+                            .filter(([, val]) => val === level)
+                            .flat()
+                            .shift()
+                            .toUpperCase()
+
+    let { module, ...ctx } = payload.context;
+    let header;
+    switch (levelHeader) {
+      case 'ERROR':
+        header = chalk`\n{red ${level}} - {red.bold ${levelHeader}} in {blueBright ${module}}`;
+        break;
+      case 'WARN':
+        header = chalk`\n{magenta ${level}} - {magenta ${levelHeader}} in {blueBright ${module}}`;
+        break;
+      case 'INFO':
+        header = chalk`\n{green ${level}} - {green ${levelHeader}} in {blueBright ${module}}`;
+        break;
+      case 'DEBUG':
+        header = chalk`\n{yellow ${level}} - {yellow ${levelHeader}} in {blueBright ${module}}`;
+        break;
+      default:
+       // trace
+       header = chalk`\n{blackBright ${level} - ${levelHeader} in} {blueBright ${module}}`;
+    }
+
     let abbreviatedPayload = {
-      i: `${header} in ${module}`,
       message: payload.message,
+    }
+    if (Object.keys(ctx).length) {
+      abbreviatedPayload.context = ctx;
     }
     if (payload.data) {
       abbreviatedPayload.data = payload.data;
     }
+    console.log(header);
     console.log(abbreviatedPayload);
   }
 }
 
-function createNewLogger(moduleName) {
-  let logger = Object.assign(
-    {},
-    { tags: tagInfo, context: { module: moduleName } }
-  );
+function createNewLogger(moduleName, extraContext = {}) {
+  let { session, extra = [], requestId } = extraContext;
+
+  let props = {
+    tags: tagInfo,
+    context: {
+      module: moduleName
+    }
+  };
+
+  if (session) {
+    props.context.session = session;
+  }
+
+  if (requestId) {
+    props.context.requestId = requestId;
+  }
+
+  extra.forEach ((ctxItem) => {
+    if (Array.isArray(ctxItem) && ctxItem.length === 2) {
+      let [k, v] = ctxItem;
+      props.context[k] = v;
+    }
+  });
+
+
+  let logger = Object.assign({}, props);
+
+  // methods to set context info
   logger.setModule = (x) => {
-    logger.context.module = x;
-    return logger;
+    return createNewLogger (x, {...extraContext});
   };
+
   logger.setSession = (x) => {
-    logger.context.session = x;
-    return logger;
+    return createNewLogger (moduleName, { ...extraContext, session: x });
   };
-  logger.addContext = function (ctx) {
-    Object.assign(this.context, ctx);
-    return logger;
+
+  logger.setReqId = (rid) => {
+    return createNewLogger (moduleName, { ...extraContext, requestId: rid });
+  };
+
+  logger.addContext = (ctx) => {
+    return createNewLogger (moduleName, { ...extraContext, extra: extra.concat([ctx])});
   };
 
   Object.keys(logLevel).forEach((level) => {

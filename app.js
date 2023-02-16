@@ -10,6 +10,7 @@ const webApp = require("./routes/webApp");
 const apiRouter = require("./routes/api");
 const dataRetrievalRoutes = require("./routes/dataRetrieval");
 const ApiCallDetails = require("./models/ApiCallDetail");
+const { v4: uuidv4 } = require('uuid');
 
 const log = createNewLogger().setModule("app.js");
 
@@ -28,6 +29,14 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.use(passport.initialize());
 app.use(useragent.express());
+
+// Create a request id
+app.use((req, res, next) => {
+  let reqId = uuidv4();
+  req.requestId = reqId;
+  res.set('X-CMAP-Request-Id', reqId);
+  next();
+});
 
 // Attaching call details to request object for usage tracking
 app.use((req, res, next) => {

@@ -1,11 +1,17 @@
 const initializeLogger = require("../../log-service");
+const { logMessages, logErrors, logWarnings } = require('../../log-service/log-helpers');
 const { getCandidateList } = require("./queryToDatabaseTarget");
 const { executeQueryOnCluster } = require("../queryHandler/queryCluster");
 const { executeQueryOnPrem } = require("../queryHandler/queryOnPrem");
 const { COMMAND_TYPES } = require("../constants");
-const log = initializeLogger("utility/router/router");
+const moduleLogger = initializeLogger("router/router");
 
 const routeQuery = async (req, res, next, query) => {
+  // each logged message will inclued the request id and query in its context
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', query ]);
+
   if (typeof query !== "string") {
     log.warn("no query", {
       typeOfQueryArg: typeof query,
@@ -20,8 +26,17 @@ const routeQuery = async (req, res, next, query) => {
     commandType,
     priorityTargetType,
     candidateLocations,
-    errorMessage,
+    respondWithErrorMessage,
+    errors,
+    warnings,
+    messages,
   } = await getCandidateList(query);
+
+  // log information from getCandidateList
+  // (and especially messages bubbled up from calculateCandidateTargets)
+  logErrors (log) (errors);
+  logMessages (log) (messages);
+  logWarnings (log) (warnings);
 
   const queryIsExecutingSproc = commandType === COMMAND_TYPES.sproc;
 
@@ -29,13 +44,13 @@ const routeQuery = async (req, res, next, query) => {
     !Array.isArray(candidateLocations) ||
     (candidateLocations.length === 0 && !queryIsExecutingSproc)
   ) {
-    log.error((errorMessage || "no candidate servers identified"), { candidateLocations, query });
-    res.status(400).send(errorMessage || `no candidate servers available for the given query`);
+    log.error((respondWithErrorMessage || "no candidate servers identified"), { candidateLocations, query });
+    res.status(400).send(respondWithErrorMessage || `no candidate servers available for the given query`);
     return;
   }
 
   if (candidateLocations.length === 0 && queryIsExecutingSproc) {
-    log.trace("contituing with sproc execution without any table specified");
+    log.trace("continuing with sproc execution without any table specified");
   }
 
   const targetIsCluster = priorityTargetType === "cluster";

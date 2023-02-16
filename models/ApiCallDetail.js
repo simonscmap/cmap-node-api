@@ -14,6 +14,7 @@ module.exports = class ApiCallDetail {
     this.ip = req.headers["x-forwarded-for"]
       ? req.headers["x-forwarded-for"].split(",")[0]
       : req.ip || "None";
+    this.requestId = req.requestId;
     this.clientHostName = req.headers.host;
     this.routeID = mapPathToRouteId(req.path);
     this.startTime = new Date();
@@ -22,6 +23,8 @@ module.exports = class ApiCallDetail {
     this.ignore = false;
     // baseUrl is the origin; path are the joined url segments after the origin
     this.requestPath = `${req.baseUrl || ""}${req.path}`;
+    // for reasons I don't understand, this.requestPath does not
+    // get recorded properly unless this next log.debug line is present
     log.debug('api call detail constructor', this);
   }
 
@@ -46,6 +49,7 @@ module.exports = class ApiCallDetail {
       apiKeyId: this.apiKeyID || null,
       requestDuration,
       urlPath: this.requestPath,
+      requestId: this.requestId,
     });
 
     if (this.ignore) return;

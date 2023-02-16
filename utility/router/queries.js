@@ -29,7 +29,7 @@ const fetchDatasetLocations = async () => {
   try {
     pool = await pools.userReadAndWritePool;
   } catch (e) {
-    log.error("attempt to conncet to pool failed", { error: e });
+    log.error("attempt to connect to pool failed", { error: e });
     return [true, []];
   }
   let request = await new sql.Request(pool);
