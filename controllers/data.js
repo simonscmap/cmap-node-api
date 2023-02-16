@@ -31,6 +31,7 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
     // req.cmapApiCallDetails.query = spExecutionQuery;
     /// queryHandler(req, res, next, spExecutionQuery);
   } else {
+    console.log(result);
     log.error('error fetching sproc statement: no result', { query: spExecutionQuery });
     return [true, null, 'error fetching sproc statement'];
   }
@@ -58,7 +59,11 @@ const customQuery = async (req, res, next) => {
     console.log (uspDataRetrievingNames, sprocName);
 
     if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
-      let [error, queryToRun] = await fetchSprocQuery (req.requestId, req.query.query, req.query);
+      let spExecutionQuery = `${req.query.query}, 1`;
+      log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
+
+
+      let [error, queryToRun] = await fetchSprocQuery (req.requestId, spExecutionQuery, req.query);
       if (error) {
         return res.status (500).send ('error preparing query');
       } else {
