@@ -23,7 +23,7 @@ const locationIncompatibilityMessage =
 const normalizeQueryString = (query = "") =>
   [query].map(removeSQLDashComments)
     .map(removeSQLBlockComments)
-    .map(s => s.toLowerCase())
+    //.map(s => s.toLowerCase())
     .map(s => s.trim())
     .shift()
 
@@ -45,7 +45,7 @@ const removeDbo = (query) => {
   // assume that remove dbo runs AFTER removing brackets
   // otherwise this check for index will not work
   let stripDbo = (word) => {
-    if (word.indexOf('dbo.') === 0) {
+    if (word.toLowerCase().indexOf('dbo.') === 0) {
       return query.replace(/dbo\./gi, "");
     }
     return word;
