@@ -1,7 +1,4 @@
 const { SERVER_NAMES } = require("../constants");
-const initLogger = require("../../log-service");
-
-const log = initLogger ('getPool');
 
 const {
   roundRobin,
@@ -11,15 +8,21 @@ const {
 const getPool = async (candidateList = [], serverNameOverride) => {
   let pool;
   let poolName;
+  let error = false;
+  // defer logging to the caller, which has requestId context
+  // by returning log info as 'errors' and 'messages'
+  let errors = [];
+  let messages = [];
 
   if (serverNameOverride) {
-    log.info ('server name override', { serverNameOverride, candidateList });
+        messages.push(['server name override', { serverNameOverride, candidateList }])
     if (SERVER_NAMES[serverNameOverride]) {
       pool = await mapServerNameToPoolConnection(serverNameOverride);
       poolName = SERVER_NAMES[serverNameOverride];
     } else {
-      log.error ('failed to look up servername', { serverNameOverride });
-      return { error: true };
+      // log.error ('failed to look up servername', { serverNameOverride });
+      errors.push(['failed to look up servername', { serverNameOverride }]);
+      error = true;
     }
   } else {
     // NOTE if roundRobin is passed an empty list, it will return `undefined`
@@ -30,12 +33,17 @@ const getPool = async (candidateList = [], serverNameOverride) => {
     pool = await mapServerNameToPoolConnection(
       poolName || SERVER_NAMES.rainier
     );
-    log.info ('get pool result', { candidateList, poolName });
+
+    // log.info ('get pool result', { candidateList, poolName });
+    messages.push(['get pool result', { candidateList, poolName }]);
 
   }
   return {
     pool,
     poolName,
+    error,
+    errors,
+    messages,
   };
 };
 

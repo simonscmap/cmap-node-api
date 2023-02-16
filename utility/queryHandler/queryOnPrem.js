@@ -3,10 +3,11 @@ const stringify = require("csv-stringify");
 const Accumulator = require("./AccumulatorStream");
 const generateError = require("../../errorHandling/generateError");
 const initializeLogger = require("../../log-service");
+const { logErrors, logMessages } = require('../../log-service/log-helpers');
 const { SERVER_NAMES } = require("../constants");
 const { getPool } = require("./getPool");
 const formatDate = require("./formatDate");
-const log = initializeLogger("utility/queryHandler/queryOnPrem");
+const moduleLogger = initializeLogger("router queryOnPrem");
 
 // headers for streamed response
 const headers = {
@@ -25,20 +26,24 @@ const executeQueryOnPrem = async (
   candidateList = [],
   forceRainier
 ) => {
+  const log = moduleLogger.setReqId(req.requestId);
   // 1. determine pool
 
   let serverNameOverride = forceRainier ? "rainier" : req.query.servername;
   let onPremCandidates = candidateList.filter((c) => c !== "cluster");
-  let { pool, poolName, error } = await getPool(
+  let { pool, poolName, error, errors, messages} = await getPool(
     onPremCandidates,
     serverNameOverride
   );
 
   if (error) {
+    logErrors (log) (errors);
     res.status(400).send(`specified server "${req.query.servername}" is not valid for the given query, consider specifying a different server`);
     next();
     return;
   }
+
+  logMessages (log) (messages);
 
   res.set("X-Data-Source-Targeted", poolName || "default");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
@@ -162,6 +167,7 @@ const executeQueryOnPrem = async (
   // THEN rerun on rainier
   // ELSE return next()
   log.trace("determining retry option", { retryFlag: retry });
+
   if (
     !req.query.servername &&
     (poolName === SERVER_NAMES.mariana || poolName === SERVER_NAMES.rossby) &&

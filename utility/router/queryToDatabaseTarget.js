@@ -1,5 +1,4 @@
-const initializeLogger = require("../../log-service");
-// queries used are stored in ./queries.js
+// queries used are defined in ./queries.js
 // each is cached without expiration
 const {
   fetchAllOnPremTablesWithCache,
@@ -15,8 +14,6 @@ const {
   extractTableNamesFromQuery,
   calculateCandidateTargets,
 } = require("./pure");
-
-const log = initializeLogger("queryToDatabaseTarget");
 
 // Execute
 
@@ -40,18 +37,23 @@ const run = async (query) => {
   let datasetLocations = await fetchDatasetLocationsWithCache();
 
   // 6. calculate candidate locations
-  let [errors, candidateLocations] = calculateCandidateTargets(
-    matchingTables,
-    datasetIds,
-    datasetLocations
-  );
+  let {
+    errors,
+    warnings,
+    respondWithErrorMessage,
+    candidateLocations,
+    } = calculateCandidateTargets(
+      matchingTables,
+      datasetIds,
+      datasetLocations
+    );
 
   // 7. assert priority
   let { prioritizedLocations, priorityTargetType } = assertPriority(
     candidateLocations
   );
 
-  log.info("router result", {
+  let messages = [["router result", {
     query,
     commandType: queryAnalysis.commandType,
     namedTables: queryAnalysis.extractedTableNames,
@@ -60,7 +62,7 @@ const run = async (query) => {
     omittedTables: matchingTables.omittedTables,
     candidates: candidateLocations.join(" "),
     errorMessages: errors,
-  });
+  }]];
 
   // 8. return candidate query targets
   return {
@@ -68,9 +70,14 @@ const run = async (query) => {
     priorityTargetType,
     candidateLocations: prioritizedLocations,
     errorMessage: errors,
+    messages,
+    errors,
+    respondWithErrorMessage,
+    warnings,
   };
 };
 
 module.exports = {
+  // called in ./router.js
   getCandidateList: run,
 };

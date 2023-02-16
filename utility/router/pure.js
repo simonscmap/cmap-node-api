@@ -340,12 +340,7 @@ const extractTableNamesFromQuery = (query = "") => {
 /*
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
  */
-const calculateCandidateTargets = (
-  matchingTables,
-  datasetIds,
-  datasetLocations
-) => {
-
+const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations) => {
   let {
     matchingCoreTables,
     matchingDatasetTables,
@@ -354,32 +349,25 @@ const calculateCandidateTargets = (
     noTablesNamed,
   } = matchingTables;
 
-  let errorMessages = [];
+  let errors = []; // these will cause a 400 response
+  let warnings = [];
+  let respondWithErrorMessage;
 
-  let joinErrorsOrNull = () => {
-    if (errorMessages.length) {
-      return errorMessages.join('; ');
-    }
-    return null;
-  }
 
   // 0. check args
   if (noTablesNamed) {
     // this check prevents some valid queries, like "SELECT 1 + 1"
     // but also keeps nonsense queries from reaching the database layer
-    log.debug("no tables were referenced in the query", { matchingTables });
-    errorMessages.push('no tables were referenced in the query');
-    return [joinErrorsOrNull(), []];
-  }
-
-  if (omittedTables && omittedTables.length) {
+    errors.push(['no tables were referenced in the query', { matchingTables }]);
+    return { errors, candidateLocations: []};
+  } else if (omittedTables && omittedTables.length) {
     // NOTE that omitted tables is the result of comparing the list of primary tables (that is,
     // the list of table names identified in the query excluding aliases) to the lists
     // of core and dataset tables
     // NOTE that we do NOT want to return an error in this case
     // because we want it would provide a user with a litmus test for the existence of a table
     // including core tables
-    log.warn("tables named in the query do not exist", { omittedTables });
+    warnings.push (['tables named in the query do not exist', { omittedTables }]);
   }
 
   // 1. get ids of dataset tables named in query
@@ -395,7 +383,10 @@ const calculateCandidateTargets = (
 
 
   if (targetDatasetIds.length !== matchingDatasetTables.length - matchingCoreTables.length) {
-    log.warn('could not match all ids', targetDatasetIds);
+    warnings.push([
+      'could not match all ids',
+      { targetDatasetIds, matchingDatasetTables, matchingCoreTables }
+    ]);
   }
 
   // 2. derrive common targets
@@ -406,7 +397,7 @@ const calculateCandidateTargets = (
     .map((id) => {
       let loc = datasetLocations.get(id);
       if (!loc) {
-        log.warn('no target found for dataset id', { id });
+        warnings.push (['no target found for dataset id', { id }]);
       }
       return loc;
     })
@@ -419,17 +410,18 @@ const calculateCandidateTargets = (
   })));
 
 
-  // 3. factor in core tables
-  /* if there is a core table named in the query,
-   * it won't be represented in the list of dataset table locations;
-   * push a compatibility list with only rainier to coerce rainer as the target
-   */
+  /* 3. factor in core tables
+
+     if there is a core table named in the query,
+     it won't be represented in the list of dataset table locations;
+     push a compatibility list with only rainier to coerce rainer as the target */
+
   if (matchingCoreTables.length) {
     locationCandidatesPerTable.push([SERVER_NAMES.rainier]);
   }
 
-  // 4. make compatibility calculation
-  /*
+  /* 4. make compatibility calculation
+
    Working from the first table's array, for each compatible server
    check to see if that server is also compatible for all remaining
    tables (i.e., is present in all compatability arrays).
@@ -438,8 +430,7 @@ const calculateCandidateTargets = (
    set of candidate server names, i.e., when only one table is visited
    by the query -- this is ensured by the `slice` returning an empty
    array if there are no more members of the `locationCandidatesPerTable`
-   array.
-   */
+   array.  */
 
   let candidates = new Set();
 
@@ -460,18 +451,31 @@ const calculateCandidateTargets = (
 
   // return a distribution error if there were dataset tables but no candidate server
   if (!noTablesWarning && result.length === 0) {
-    errorMessages.push(locationIncompatibilityMessage);
-    log.warn("no candidate servers identified", {
-      matchingTables,
-      targetDatasetIds,
-      locationCandidatesPerTable,
-    });
+    respondWithErrorMessage = locationIncompatibilityMessage;
+    warnings.push([
+      "no candidate servers identified",
+      {
+        matchingTables,
+        targetDatasetIds,
+        locationCandidatesPerTable,
+      }
+    ]);
 
-    return [joinErrorsOrNull(), result];
+    return {
+      errors,
+      warnings,
+      respondWithErrorMessage,
+      candidateLocations: result,
+    };
   }
 
   // default
-  return [joinErrorsOrNull(), result];
+  return {
+    errors,
+    warnings,
+    respondWithErrorMessage,
+    candidateLocations: result,
+  };
 };
 
 module.exports = {

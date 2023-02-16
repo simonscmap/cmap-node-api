@@ -8,7 +8,7 @@ const { Readable } = require("stream");
 const { tsqlToHiveTransforms } = require('../router/pure');
 const generateError = require('../../errorHandling/generateError');
 
-const log = initializeLogger("utility/queryHandler/queryCluster");
+const moduleLogger = initializeLogger("utility/queryHandler/queryCluster");
 
 const MAX_ROWS = process.env.CLUSTER_CHUNK_MAX_ROWS || CLUSTER_CHUNK_MAX_ROWS;
 
@@ -25,6 +25,8 @@ const headers = {
 };
 
 const executeQueryOnCluster = async (req, res, next, query) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
 
