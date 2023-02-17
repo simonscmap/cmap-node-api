@@ -44,11 +44,12 @@ const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
 
-  log.info ("custom query", { argType: (typeof req.query.query), query: req.query.query });
+  log.info ("custom query", { ...req.query });
 
   if (isSproc (req.query.query)) {
     let uspDataRetrievingNames = await fetchDataRetrievalProcedureNamesWithCache();
 
+    log.trace ('fetched usp data', uspDataRetrievingNames);
 
     if (uspDataRetrievingNames === null) {
       res.status (500).send ('error analyzing query');
@@ -56,12 +57,9 @@ const customQuery = async (req, res, next) => {
     }
     let sprocName = extractSprocName (req.query.query).toLocaleLowerCase();
 
-    console.log (uspDataRetrievingNames, sprocName);
-
     if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
       let spExecutionQuery = `${req.query.query}, 1`;
       log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
-
 
       let [error, queryToRun] = await fetchSprocQuery (req.requestId, spExecutionQuery, req.query);
       if (error) {
@@ -85,7 +83,7 @@ const storedProcedure = async (req, res, next) => {
   let log = moduleLogger.setReqId(req.requestId);
   let argSet = req.query;
 
-  log.trace("stored procedure call", { name: argSet.spName })
+  log.info("stored procedure call", { ...argSet })
 
   let spExecutionQuery;
 
@@ -103,6 +101,7 @@ const storedProcedure = async (req, res, next) => {
     log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
 
     let [error, q, message] = await fetchSprocQuery(req.requestId, spExecutionQuery, req.query);
+    // NOTE: if there has been an error, it has been logged in fechSprocQuery
     if (error) {
       return next(message);
     } else {
