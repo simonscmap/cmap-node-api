@@ -147,6 +147,9 @@ const extractTableNamesFromEXEC = (query = "") => {
  */
 const extractTableNamesFromGrammaticalQueryString = (query = "") => {
   let q = removeSQLBlockComments(removeSQLDashComments(query));
+  // Note that replacing single quotes with spaces and then splitting on spaces
+  // will incorrectly extract string literals (such as arguments to functions) as tables;
+  // we handle the behavior consequences of this elsewhere
   return q
     .replace(/'|,|\[|\]/gi, " ") // it is critical that these be replaced by spaces
     .split(" ") //
@@ -387,7 +390,7 @@ const extractTableNamesFromQuery = (query = "") => {
 /*
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
  */
-const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations) => {
+const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations, coreTables) => {
   let {
     matchingCoreTables,
     matchingDatasetTables,
@@ -399,7 +402,6 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations)
   let errors = []; // these will cause a 400 response
   let warnings = [];
   let respondWithErrorMessage;
-
 
   // 0. check args
   if (noTablesNamed) {
@@ -461,10 +463,13 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations)
 
      if there is a core table named in the query,
      it won't be represented in the list of dataset table locations;
-     push a compatibility list with only rainier to coerce rainer as the target */
+     force the execution to be run on rainier, on the assumption that
+     core tables are only needed for fetching metadata, which is on rainier,
+     and never on a cluster */
 
   if (matchingCoreTables.length) {
-    locationCandidatesPerTable.push([SERVER_NAMES.rainier]);
+    warnings.push(['matched a core table, forcing rainier', { matchingCoreTables }])
+    locationCandidatesPerTable = [[SERVER_NAMES.rainier]]
   }
 
   /* 4. make compatibility calculation

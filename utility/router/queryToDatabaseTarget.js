@@ -45,7 +45,8 @@ const run = async (query) => {
     } = calculateCandidateTargets(
       matchingTables,
       datasetIds,
-      datasetLocations
+      datasetLocations,
+      coreTables,
     );
 
   // 7. assert priority
