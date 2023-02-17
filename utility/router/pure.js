@@ -5,13 +5,31 @@ const { SERVER_NAMES } = require("../constants");
 
 const toLowerCase = (str = "") => str.toLowerCase();
 
+// return a string name representing the data type
+// differentiate between arrays and objects and nulls
+const tagType = (arg) => {
+  let typeOfArg = typeof arg;
+
+  if (typeOfArg === 'object') {
+    if (Array.isArray (arg)) {
+      return 'array';
+    }
+
+    if (arg === null) {
+      return 'null';
+    }
+  }
+
+  return typeOfArg;
+}
+
 // parser options: https://github.com/taozhi8833998/node-sql-parser/blob/master/src/parser.all.js
 const tsqlParserOptions = {
   database: "transactsql", // a.k.a mssql
 };
 
 const hiveParserOptions = {
-  database: "hive", // a.k.a sparq
+  database: "hive", // a.k.a spark
 }
 
 const locationIncompatibilityMessage =
@@ -54,10 +72,227 @@ const removeDbo = (query) => {
   return queryWords.map (stripDbo).join (' ');
 };
 
+/*
+   An AST generated from a SQL query by the node-sql-parser package
+   will produce an object with keys 'top' and 'limit' (and the same
+   for nested 'expr' objects).
+
+   The 'top' property is an object with 'value' and 'percent' props.
+
+     "top": {
+       "value": 100,
+       "percent": null
+     }
+
+   The 'limit' property is an object with props 'separator' and 'value',
+   where 'value' is an object with props 'type' and 'value'.
+
+   Separator will be "offset" if offset is used, such as in:
+
+   -- SELECT * FROM MyTable LIMIT 1 OFFSET 4
+
+   Or "," if two limits are set, such as
+
+   -- SELECT * FROM MyTable LIMIT 1, 2
+
+    "limit": {
+      "seperator": "",
+      "value": [
+        {
+          "type": "number",
+          "value": 100000
+        }
+      ]
+    }
+
+ */
+
+// :: -> [Error, Limit, Message?]
+const topToLimit = (top) => {
+  if (top.percent !== null) {
+    return [true, 'top uses percent'];
+  } else {
+    return [false, {
+      separator: "",
+      value: [
+        {
+          type: "number",
+          value: top.value,
+        }
+      ],
+    }];
+  }
+};
+
+// :: -> [Error, Obj]
+const traverseAST = (obj) => {
+  let argType = tagType (obj);
+  let error = false;
+  let msg = '';
+  let result = obj;
+
+  // console.log (argType);
+
+  if (argType === 'object') {
+
+    let entries = Object.entries(obj).reduce((acc, entry) => {
+      // don't continue with reduce if there has been an error
+      // while trying to convert TOP to LIMIT
+      if (error) {
+        return acc;
+      }
+
+      let [key, value] = entry;
+      let t = tagType(value);
+      let replacements = [];
+
+      if (key === 'top' && value !== null) {
+        let [e, result] = topToLimit(value);
+        if (e) {
+          error = true;
+          msg += 'error while attempting to convert a TOP to a LIMIT' + result;
+          return acc; // break out of any further recursion
+        }
+        replacements.push(['top', null]);
+        replacements.push(['limit', result]);
+      } else if (key === 'limit') {
+        // do nothing so that replacements will be an empty list
+        // which prevents and previously injectet 'limit' entry
+        // from being overwritten by a null
+      } else if (t === 'object' || t === 'array') {
+        let [e, traversedValue, m] = traverseAST (value);
+        if (e) {
+          error = true;
+          msg += m;
+          return acc;
+        }
+        replacements.push([key, traversedValue]);
+      } else {
+        replacements.push(entry);
+      }
+
+      return [...acc, ...replacements];
+    }, []);
+
+    result = Object.fromEntries (entries);
+  } else if (argType === 'array') {
+    result = obj.map ((value) => {
+      let entryType = tagType (value);
+      if (entryType === 'object' || entryType === 'array') {
+        let [e, traversedValue, m] = traverseAST (value);
+        if (e) {
+          error = true;
+          msg += m;
+          return value;
+        }
+        return traversedValue;
+      } else {
+        return value;
+      }
+    })
+  }
+
+  if (error) {
+    return [true, null, msg];
+  } else {
+    return [false, result];
+  }
+};
+
+let removeBackticks = (s) => s.replace(/`/gi, "");
+let removeParensFromTop = (s) => s.replace(/TOP\s*\(?\s*(\d+)\s*\)?/gi, "TOP $1");
+
+// :: QueryString -> [Error, AST, Message?]
+let parse = (s) => {
+  let parser = new Parser ();
+  let result;
+  try {
+    result = parser.astify (s, { database: 'transactsql' });
+  } catch (e) {
+    return [true, null, e.message];
+  }
+
+  return [false, result];
+}
+
+// :: AST -> [Error, QueryString, Message?]
+let sqlify = (ast) => {
+  let opt = {
+    database: 'hive'
+  }
+  let parser = new Parser()
+  let sql;
+  let error = false;
+  let msg;
+  try {
+    sql = parser.sqlify(ast, opt);
+  } catch (e) {
+    error = true;
+    msg = e.message
+  }
+  return [error, sql, msg];
+}
+
+// :: QueryString -> [Error, QueryString, Message?]
+let transformTopQueryToLimit = (q) => {
+  let [e, ast] = [q]
+    .map (removeBackticks)
+    .map (removeParensFromTop)
+    .map (parse)
+    .shift();
+
+  if (e) {
+    return [true, null, 'AST Parse Error: ' + e];
+  }
+
+  let [e2, newAst] = traverseAST (ast);
+
+  if (e2) {
+    return [true, null, 'Traverse Error: ' + e2];
+  }
+
+  let [e3, newSql] = sqlify (newAst);
+
+  if (e3) {
+    return [true, null, 'Sqlify Error: ' + newSql];
+  }
+
+  let result = [newSql]
+    .map (removeBackticks)
+    .shift();
+
+  return [false, result];
+};
+
+// NOTE: unfortunately this uses a logger without requestId context
+// NOTE: the tsqlToHiveTransfroms in a straight pipeline without an
+// error path, thus we just log; it would be a good candidate for
+// using a Either with Map
+const applyTopTransform = (q) => {
+  const re = new RegExp(/TOP\s*\(?\s*\d+\s*\)?/, "gi");
+  let match = re.exec (q);
+  // apply the transform if there is a TOP expression
+  if (match) {
+    let [e, result, eMsg] = transformTopQueryToLimit (q);
+    if (e) {
+      // if there is an error, just return the original query
+      log.warn ('error while attempting to replace TOP with LIMIT',
+                { query: q, erorr: eMsg});
+      return q;
+    } else {
+      log.info ('replaced TOP with LIMIT', { originalQuery: q, result});
+      return result;
+    }
+  }
+  log.debug ('no match for TOP expression', { query: q });
+  return q;
+}
+
 const tsqlToHiveTransforms = (query) =>
   [query].map (removeBrackets)
          .map (replaceSTDEV)
          .map (removeDbo)
+         .map (applyTopTransform)
          .shift ()
 
 /* Transform Dasaset_Servers recordset to Map
@@ -534,6 +769,8 @@ module.exports = {
   locationIncompatibilityMessage,
   removeBrackets,
   replaceSTDEV,
+  traverseAST,
+  transformTopQueryToLimit,
   tsqlToHiveTransforms,
   transformDatasetServersListToMap,
   compareTableAndDatasetLists,
