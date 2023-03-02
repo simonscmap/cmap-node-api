@@ -29,11 +29,14 @@ const executeQueryOnPrem = async (
   const log = moduleLogger.setReqId(req.requestId);
   // 1. determine pool
 
-  let serverNameOverride = forceRainier ? "rainier" : req.query.servername;
+  let serverNameOverride = req.query.servername;
+
   let onPremCandidates = candidateList.filter((c) => c !== "cluster");
+
   let { pool, poolName, error, errors, messages} = await getPool(
     onPremCandidates,
-    serverNameOverride
+    serverNameOverride,
+    forceRainier
   );
 
   if (error) {
