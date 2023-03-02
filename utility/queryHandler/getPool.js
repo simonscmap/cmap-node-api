@@ -5,7 +5,7 @@ const {
   mapServerNameToPoolConnection,
 } = require("../router/roundRobin");
 
-const getPool = async (candidateList = [], serverNameOverride) => {
+const getPool = async (candidateList = [], serverNameOverride = '', forceRainier) => {
   let pool;
   let poolName;
   let error = false;
@@ -14,30 +14,42 @@ const getPool = async (candidateList = [], serverNameOverride) => {
   let errors = [];
   let messages = [];
 
-  if (serverNameOverride) {
-        messages.push(['server name override', { serverNameOverride, candidateList }])
-    if (SERVER_NAMES[serverNameOverride]) {
-      pool = await mapServerNameToPoolConnection(serverNameOverride);
-      poolName = SERVER_NAMES[serverNameOverride];
+  // adjust the candidates based on override and forceRainier
+  let overrideName = serverNameOverride.toLowerCase();
+  let candidates = candidateList.slice(0);
+
+  if (forceRainier) {
+    messages.push(['get pool forcing rainier', { serverNameOverride, candidateList }])
+    candidates = [SERVER_NAMES.rainier];
+  } else if (serverNameOverride) {
+    if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
+      messages.push(['server name override in use', { serverNameOverride, candidateList }])
+      candidates = [overrideName];
     } else {
-      // log.error ('failed to look up servername', { serverNameOverride });
-      errors.push(['failed to look up servername', { serverNameOverride }]);
-      error = true;
+      messages.push(['requested server not among candidate servers', { serverNameOverride, candidateList }])
     }
-  } else {
-    // NOTE if roundRobin is passed an empty list, it will return `undefined`
-    // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-
-    poolName = roundRobin(candidateList);
-    // this mapping will default to rainier
-    pool = await mapServerNameToPoolConnection(
-      poolName || SERVER_NAMES.rainier
-    );
-
-    // log.info ('get pool result', { candidateList, poolName });
-    messages.push(['get pool result', { candidateList, poolName }]);
-
   }
+
+  // NOTE if roundRobin is passed an empty list, it will return `undefined`
+  // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
+  poolName = roundRobin(candidates);
+
+  if (poolName === undefined) {
+    messages.push(['could not settle pool name, defaulting to rainier', { candidateList }])
+  }
+
+  // this mapping will default to rainier
+  pool = await mapServerNameToPoolConnection(
+    poolName || SERVER_NAMES.rainier
+  );
+
+  if (!pool) {
+    error = true;
+    errors.push (['failed to get pool', { candidateList, serverNameOverride, forceRainier }]);
+  } else {
+    messages.push(['get pool result', { candidateList, poolName }]);
+  }
+
   return {
     pool,
     poolName,
