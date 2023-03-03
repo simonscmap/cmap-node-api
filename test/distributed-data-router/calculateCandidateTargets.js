@@ -19,11 +19,11 @@ test("correctly identifies common target when only a single candidate", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2", "server1"]);
 
-  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
+  let {errors, candidateLocations} = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   let expected = ["server1"];
-  t.is(errors, null);
-  t.truthy(expected.every((t) => result.includes(t)));
+  t.is(errors.length, 0);
+  t.truthy(expected.every((t) => candidateLocations.includes(t)));
 });
 
 test("correctly identifies a common target among many candidates", (t) => {
@@ -41,13 +41,13 @@ test("correctly identifies a common target among many candidates", (t) => {
   dl.set(8, ["server1", "server2", "server3"]);
   dl.set(9, ["server2", "server1", "server3"]);
 
-  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
+  let {errors, candidateLocations} = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   let expected = ["server1", "server2", "server3"];
-  t.is(errors, null);
+  t.is(errors.length, 0);
 
   // expect all 3 servers are candidates
-  t.truthy(expected.every((t) => result.includes(t)));
+  t.truthy(expected.every((t) => candidateLocations.includes(t)));
 });
 
 test("correctly errors when no common servers exist", (t) => {
@@ -65,16 +65,18 @@ test("correctly errors when no common servers exist", (t) => {
   dl.set(8, ["server1"]);
   dl.set(9, ["server2"]);
 
-  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
+  let {errors, warnings, candidateLocations} = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
-  // expect error message to be the location-incompatibility message
-  t.is(errors, locationIncompatibilityMessage);
+  // expect warning
+  t.is(errors.length, 0);
+  t.is(warnings.length, 1);
+  t.is(warnings[0][0], "no candidate servers identified");
 
   // expect an empty result set
-  t.deepEqual(result, []);
+  t.deepEqual(candidateLocations, []);
 });
 
-test("correctly errors when core table and dataset locations diverge", (t) => {
+test("correctly handles when core table and dataset locations diverge", (t) => {
   let matchingTables = {
     matchingCoreTables: ["coreTable"],
     matchingDatasetTables: ["table1", "table2"],
@@ -89,13 +91,17 @@ test("correctly errors when core table and dataset locations diverge", (t) => {
   dl.set(8, ["server2"]);
   dl.set(9, ["server2"]);
 
-  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
+  let {errors, warnings, candidateLocations} = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
-  // expect error message
-  t.is(errors, locationIncompatibilityMessage);
+  // expect warning
+  t.is(errors.length, 0);
+  t.is(warnings.length > 0, true);
+  t.is(warnings[0][0], "could not match all ids");
+  t.is(warnings[1][0], "matched a core table, forcing rainier");
 
   // expect an empty result set
-  t.deepEqual(result, []);
+
+  t.deepEqual(candidateLocations, ["rainier"]);
 });
 
 test("correctly coerces Rainier when core table is referenced", (t) => {
@@ -113,11 +119,11 @@ test("correctly coerces Rainier when core table is referenced", (t) => {
   dl.set(8, ["server2", "rainier", "server3"]);
   dl.set(9, ["server2", "rainier", "server3"]);
 
-  let [errors, result] = calculateCandidateTargets(matchingTables, datasetIds, dl);
+  let {errors, candidateLocations} = calculateCandidateTargets(matchingTables, datasetIds, dl);
 
   // expect error message
-  t.is(errors, null);
+  t.is(errors.length, 0);
 
   // expect an empty result set
-  t.deepEqual(result, ["rainier"]);
+  t.deepEqual(candidateLocations, ["rainier"]);
 });
