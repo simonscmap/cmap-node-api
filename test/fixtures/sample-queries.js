@@ -40,6 +40,15 @@ const q11 = `SELECT COLUMN_NAME [Columns] FROM INFORMATION_SCHEMA.COLUMNS WHERE 
 
 const q12 = `EXEC uspSpaceTime '[tblDarwin_Nutrient]', '[*]', '1994-01-03', '1994-02-03', '-90', '90', '-180', '180', '0', '10'`;
 
+// q13 tests that we correctly handle a newline adjacent to a table name
+const q13 = `SELECT [time], AVG(lat) AS lat, AVG(lon) AS lon, AVG(sst) AS sst, STDEV(sst) AS sst_std FROM tblsst_AVHRR_OI_NRT
+         WHERE
+         [time] BETWEEN '2016-06-01' AND '2016-10-01' AND
+         lat BETWEEN 23 AND 24 AND
+         lon BETWEEN -160 AND -158
+         GROUP BY [time]
+         ORDER BY [time]`;
+
 const records = [
   [q1, custom, ["tblOrgSubTrophics"]], // test simple query
   [q2, custom, ["tblHOT_PP", "tblAncillary"]], // test join of two tables
@@ -54,6 +63,7 @@ const records = [
   [q11, custom, ["COLUMNS", "tblESV"]], // note that even though "COLUMNS" is not a real table, it will be removed
   // when checked against the list of table names
   [q12, sproc, ["tblDarwin_Nutrient"]],
+  [q13, custom, ["tblsst_AVHRR_OI_NRT"]]
 ];
 
 module.exports = {

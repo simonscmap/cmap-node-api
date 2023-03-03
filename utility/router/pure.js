@@ -369,9 +369,13 @@ const extractTableNamesFromAST = (ast) => {
  * provided, in which case it will return an empty array
  */
 const extractTableNamesFromEXEC = (query = "") => {
+  let allSingleQuotesCommasBrackets = new RegExp(/'|,|\[|\]/gi);
+  let replaceAllSingleQuotesCommasBrackets = (replacementString) => (target) =>
+  target.replace(allSingleQuotesCommasBrackets, replacementString);
+
   return query
     .split(" ")
-    .map((w) => w.replace(/'|,|\[|\]/gi, "")) // remove all: ' , [ ]
+    .map(replaceAllSingleQuotesCommasBrackets ("")) // remove all: ' , [ ]
     .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
 };
 
@@ -381,15 +385,33 @@ const extractTableNamesFromEXEC = (query = "") => {
  * above "extractTableNamesFromAST"
  */
 const extractTableNamesFromGrammaticalQueryString = (query = "") => {
-  let q = removeSQLBlockComments(removeSQLDashComments(query));
   // Note that replacing single quotes with spaces and then splitting on spaces
   // will incorrectly extract string literals (such as arguments to functions) as tables;
   // we handle the behavior consequences of this elsewhere
-  return q
-    .replace(/'|,|\[|\]/gi, " ") // it is critical that these be replaced by spaces
-    .split(" ") //
-    .filter((word) => word.slice(0, 3) === "tbl")
-    .map((word) => word.replace(/\)/gi, "")) // replace parens
+
+  let allSingleQuotesCommasBracketsNewlinesReturnsTabs = new RegExp(/'|,|\[|\]|\n|\r|\t/gi);
+  let replaceBothersomePunctuation = (replacementString) => (target) =>
+    target.replace(allSingleQuotesCommasBracketsNewlinesReturnsTabs, replacementString);
+
+  // this IS case sensitive, and depends on the convention that table names
+  // start with "tbl"
+  let isTableName = (word) => word.slice(0, 3) === "tbl";
+
+  let terminatingParen = new RegExp(/\)\B/);
+  let removeTerminatingParen = (word) => word.replace(terminatingParen, "");
+
+  let splitOnSpaces = (s) => s.split(" ");
+
+  // '|,|\[|\]|\n|\r|\t
+
+  return [query]
+    .map (removeSQLDashComments)
+    .map (removeSQLBlockComments)
+    .map (replaceBothersomePunctuation (" "))
+    .map (splitOnSpaces)
+    .flat () // here we end up with an array within the containing array, so flatten them
+    .filter (isTableName)
+    .map (removeTerminatingParen) // a tableName could come at the end of a subquey or parenthesized expression
 };
 
 // Remove SQL "--" comments, which operate on the rest of the line
@@ -625,7 +647,7 @@ const extractTableNamesFromQuery = (query = "") => {
 /*
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
  */
-const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations, coreTables) => {
+const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations) => {
   let {
     matchingCoreTables,
     matchingDatasetTables,
@@ -702,7 +724,7 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
      core tables are only needed for fetching metadata, which is on rainier,
      and never on a cluster */
 
-  if (matchingCoreTables.length) {
+  if (matchingCoreTables.length > 0) {
     warnings.push(['matched a core table, forcing rainier', { matchingCoreTables }])
     locationCandidatesPerTable = [[SERVER_NAMES.rainier]]
   }
