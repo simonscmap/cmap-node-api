@@ -88,24 +88,35 @@ const executeQueryOnPrem = async (
 
   csvStream.pipe(accumulator).pipe(res);
 
-  request.on("recordset", (/*recordset*/) => {
+  let count = 0;
+
+  request.on("row", (row) => {
     if (!res.headersSent) {
+      log.info ("beginning response stream", {});
       res.writeHead(200, headers);
-      request.on("row", (row) => {
-        if (csvStream.write(row) === false) {
-          request.pause();
-        }
-      });
+    }
+
+    count++;
+
+    if (csvStream.write(row) === false) {
+      request.pause();
     }
   });
 
+  request.on("recordset", () => {
+    log.trace ('recordset received', {});
+  });
+
+
   csvStream.on("drain", () => request.resume());
 
-  request.on("done", () => {
+  request.on("done", (data) => {
     // TODO Question: why is mariana singled out here?
     if (poolName === SERVER_NAMES.mariana && requestError === true) {
       log.trace("mariana and requestError");
       accumulator.unpipe(res);
+    } else {
+      log.info ("request stream done", { ...data });
     }
     csvStream.end();
   });
@@ -115,11 +126,9 @@ const executeQueryOnPrem = async (
     request.cancel();
   });
 
-  let count = 0;
 
   let retry = false;
 
-  request.on("row", () => count++);
 
   request.on("error", (err) => {
     requestError = true;
