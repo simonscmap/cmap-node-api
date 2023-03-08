@@ -36,7 +36,8 @@ const catalogPlusLatCountQuery = `
     [tblVariables].Dataset_ID AS [Dataset_ID],
     [tblVariables].ID AS [ID],
     [tblVariables].Visualize AS [Visualize],
-    [keywords_agg].Keywords AS [Keywords]
+    [keywords_agg].Keywords AS [Keywords],
+    [tblVariables].Has_Depth AS [Has_Depth]
     FROM tblVariables
     JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
     JOIN tblDatasets ON [tblVariables].Dataset_ID=[tblDatasets].ID

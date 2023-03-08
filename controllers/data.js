@@ -31,8 +31,7 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
     // req.cmapApiCallDetails.query = spExecutionQuery;
     /// queryHandler(req, res, next, spExecutionQuery);
   } else {
-    console.log(result);
-    log.error('error fetching sproc statement: no result', { query: spExecutionQuery });
+    log.error('error fetching sproc statement: no result', { query: spExecutionQuery, result });
     return [true, null, 'error fetching sproc statement'];
   }
 };
