@@ -60,7 +60,11 @@ const fetchDatasetLocations = async () => {
 
 // :: () -> Map ID [serverName]
 const fetchDatasetLocationsWithCache = async () =>
-  await cacheAsync(CACHE_KEY_DATASET_SERVERS, fetchDatasetLocations);
+  await cacheAsync(
+    CACHE_KEY_DATASET_SERVERS,
+    fetchDatasetLocations,
+    { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
+  );
 
 // :: () -> [Error?, [{ Dataset_ID, Table_Name }]]
 const fetchDatasetIds = async () => {
@@ -96,7 +100,11 @@ const fetchDatasetIds = async () => {
 
 // :: () => [{ Dataset_ID, Table_Name }]
 const fetchDatasetIdsWithCache = async () =>
-  await cacheAsync(CACHE_KEY_DATASET_IDS, fetchDatasetIds);
+  await cacheAsync(
+    CACHE_KEY_DATASET_IDS,
+    fetchDatasetIds,
+    { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
+);
 
 // Fetch a list of all tables
 // Used to check if non-dataset table names extracted from a query are real
@@ -134,8 +142,11 @@ const fetchAllOnPremTables = async () => {
 };
 
 const fetchAllOnPremTablesWithCache = async () =>
-  await cacheAsync(CACHE_KEY_DB_TABLES, fetchAllOnPremTables);
-
+  await cacheAsync(
+    CACHE_KEY_DB_TABLES,
+    fetchAllOnPremTables,
+    { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
+  );
 
 /*
    fetch list of data-retrieving stored procedure names
