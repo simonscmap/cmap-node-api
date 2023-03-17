@@ -318,6 +318,7 @@ module.exports.searchCatalog = async (req, res, next) => {
 
 // Retrieves dataset and variable information for catalog pages
 module.exports.datasetFullPage = async (req, res, next) => {
+  log.setReqId(req.requestId);
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -371,7 +372,17 @@ module.exports.datasetFullPage = async (req, res, next) => {
         )
     `;
 
-  let result = await request.query(query);
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    log.error("error fetching dataset fullpage", {
+      error: e,
+      shortName: shortname
+    });
+    next(e);
+    return;
+  }
 
   res.writeHead(200, {
     "Cache-Control": "max-age=7200",
@@ -379,6 +390,12 @@ module.exports.datasetFullPage = async (req, res, next) => {
   });
 
   let datasetData = result.recordsets[0][0];
+
+  if (!datasetData) {
+    log.error("no result for dataset fullpage", { result });
+    next("no result");
+    return;
+  }
   datasetData.Sensors = [...new Set(datasetData.Sensors.split(","))];
   datasetData.Variables = result.recordsets[1];
   datasetData.Cruises = result.recordsets[2];

@@ -44,7 +44,12 @@ router.use((req, res, next) => {
 // NOTE this must take 4 arguments
 // see: http://expressjs.com/en/guide/using-middleware.html#middleware.error-handling
 router.use((err, req, res, next) => {
-  log.error("an error occurred in the web app catch-all", { error: err, requestPath: `${req.baseUrl || ""}${req.path}` });
+  log.setReqId(req.requestId);
+  log.error("an error occurred in the web app catch-all", {
+    error: err,
+    errorMessage: err.message,
+    requestPath: `${req.baseUrl || ""}${req.path}`
+  });
   res.sendStatus(500);
 });
 

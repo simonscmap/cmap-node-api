@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 // Attaching call details to request object for usage tracking
 app.use((req, res, next) => {
   log.trace('attach ApiCallDetails to req');
+  log.debug ('api call detail middleware: req id', req.requestId);
   req.cmapApiCallDetails = new ApiCallDetails(req);
   req.cmapApiCallDetails.checkIp();
   next();

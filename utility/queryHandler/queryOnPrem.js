@@ -48,8 +48,11 @@ const executeQueryOnPrem = async (
 
   logMessages (log) (messages);
 
-  res.set("X-Data-Source-Targeted", poolName || "default");
-  res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
+  if (!res.headersSent) {
+    // this could be a retry, if so, don't set headers
+    res.set("X-Data-Source-Targeted", poolName || "default");
+    res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
+  }
 
   // 2. create request object
 
@@ -94,6 +97,10 @@ const executeQueryOnPrem = async (
     if (!res.headersSent) {
       log.info ("beginning response stream", {});
       res.writeHead(200, headers);
+    } else {
+      if (count % 10000 === 0) {
+        log.trace ('row count', { count });
+      }
     }
 
     count++;
@@ -103,20 +110,19 @@ const executeQueryOnPrem = async (
     }
   });
 
-  request.on("recordset", () => {
-    log.trace ('recordset received', {});
+  request.on("recordset", (recordset) => {
+    log.trace ('recordset received', { recordsetKeys: Object.keys(recordset)});
   });
 
 
   csvStream.on("drain", () => request.resume());
 
   request.on("done", (data) => {
-    // TODO Question: why is mariana singled out here?
-    if (poolName === SERVER_NAMES.mariana && requestError === true) {
-      log.trace("mariana and requestError");
+    if (requestError === true) {
+      log.info("request stream done with error", { data });
       accumulator.unpipe(res);
     } else {
-      log.info ("request stream done", { ...data });
+      log.info ("request stream done", { data });
     }
     csvStream.end();
   });
@@ -126,9 +132,7 @@ const executeQueryOnPrem = async (
     request.cancel();
   });
 
-
   let retry = false;
-
 
   request.on("error", (err) => {
     requestError = true;
@@ -154,6 +158,9 @@ const executeQueryOnPrem = async (
         log.trace("on error catchall; no retry");
         res.status(500).end(generateError(err));
       }
+    } else {
+      res.end();
+      log.warn ("skipped logging set with error code; ending response", { code: err.code });
     }
   });
 
