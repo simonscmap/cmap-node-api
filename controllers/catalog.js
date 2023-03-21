@@ -12,7 +12,7 @@ const logInit = require("../log-service");
 const log = logInit("controllers/catalog");
 
 const variableCatalog = `
-    SELECT
+SELECT
     RTRIM(LTRIM(Short_Name)) AS Variable,
     [tblVariables].Table_Name AS [Table_Name],
     RTRIM(LTRIM(Long_Name)) AS [Long_Name],
@@ -50,9 +50,10 @@ const variableCatalog = `
     [tblVariables].Dataset_ID AS [Dataset_ID],
     [tblVariables].ID AS [ID],
     [tblVariables].Visualize AS [Visualize],
-    [keywords_agg].Keywords AS [Keywords]
+    [keywords_agg].Keywords AS [Keywords],
+    [Variable_Metadata].Unstructured_Variable_Metadata as [Unstructured_Variable_Metadata]
     FROM tblVariables
-    JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
+
     JOIN tblDatasets ON [tblVariables].Dataset_ID=[tblDatasets].ID
     JOIN tblTemporal_Resolutions ON [tblVariables].Temporal_Res_ID=[tblTemporal_Resolutions].ID
     JOIN tblSpatial_Resolutions ON [tblVariables].Spatial_Res_ID=[tblSpatial_Resolutions].ID
@@ -63,7 +64,10 @@ const variableCatalog = `
     JOIN (SELECT var_ID, STRING_AGG ( CAST(keywords as NVARCHAR(MAX)), ', ') AS Keywords FROM tblVariables var_table
     JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
     AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
-`;
+        LEFT JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
+   LEFT JOIN (SELECT Var_ID, STRING_AGG (CAST(JSON_Metadata as NVARCHAR(MAX)), ', ') AS Unstructured_Variable_Metadata FROM tblVariables var_meta_table
+   JOIN tblVariables_JSON_Metadata meta_table ON [var_meta_table].ID = [meta_table].Var_ID GROUP BY Var_ID)
+   AS Variable_Metadata ON [Variable_Metadata].Var_ID = [tblVariables].ID`;
 
 // No longer used by web app
 module.exports.retrieve = async (req, res, next) => {
@@ -325,8 +329,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
   let query =
     datasetFullPageQuery +
     `AND ds.Dataset_Name='${shortname}'
-
-        SELECT
+      SELECT
         Variable,
         Long_Name,
         Unit,
@@ -353,11 +356,11 @@ module.exports.datasetFullPage = async (req, res, next) => {
         Visualize,
         Comment,
         Sensor,
-        Keywords
+        Keywords,
+        Unstructured_Variable_Metadata
         FROM (${variableCatalog}) cat
         WHERE Dataset_Short_Name='${shortname}'
         ORDER BY Long_Name
-
         SELECT * FROM tblCruise
         WHERE ID IN
         (
@@ -368,8 +371,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
                 FROM tblDatasets
                 WHERE Dataset_Name = '${shortname}'
             )
-        )
-    `;
+        )`;
 
   let result = await request.query(query);
 

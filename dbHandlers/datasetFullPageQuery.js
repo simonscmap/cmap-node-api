@@ -1,5 +1,5 @@
-module.exports = `
-    SELECT
+module.exports =
+`SELECT
     'Dataset' as Product_Type,
     ds.Dataset_Name as Short_Name,
     RTRIM(LTRIM(ds.Dataset_Long_Name)) AS [Long_Name],
@@ -26,13 +26,13 @@ module.exports = `
     aggs.Depth_Max,
     aggs.Time_Min,
     aggs.Time_Max,
-    aggs.Sensors,    
+    aggs.Sensors,
     aggs.Visualize,
     aggs.Row_Count,
     aggs.Keywords,
     regs.Regions,
-    refs.[References]
-
+    refs.[References],
+        Dataset_Metadata.Unstructured_Dataset_Metadata as Unstructured_Dataset_Metadata
     FROM (
         SELECT
             [tblVariables].ID,
@@ -56,10 +56,8 @@ module.exports = `
             JOIN [dbo].[tblProcess_Stages] ON [tblVariables].Process_ID=[tblProcess_Stages].ID
             JOIN [dbo].[tblStudy_Domains] ON [tblVariables].Study_Domain_ID=[tblStudy_Domains].ID
     ) cat
-
     JOIN tblDatasets as ds
     on ds.ID = cat.Dataset_ID
-
     JOIN (
         SELECT
         MIN(Lat_Min) as Lat_Min,
@@ -93,17 +91,18 @@ module.exports = `
             [tblVariables].Dataset_ID,
             [keywords_agg].Keywords AS [Keywords]
             FROM tblVariables
-            JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
             JOIN tblSensors ON [tblVariables].Sensor_ID=[tblSensors].ID
             JOIN (SELECT var_ID, STRING_AGG (CAST(keywords AS NVARCHAR(MAX)), ', ') AS Keywords FROM tblVariables var_table
-            
             JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
             AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
+                        LEFT JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
         ) addit
         GROUP BY Dataset_ID
     ) as aggs
     ON aggs.Dataset_ID = cat.Dataset_ID
-
+  LEFT JOIN (SELECT Dataset_ID, STRING_AGG (CAST(JSON_Metadata as NVARCHAR(MAX)), ', ') AS Unstructured_Dataset_Metadata FROM tblDatasets dataset_table
+    JOIN tblDatasets_JSON_Metadata meta_table ON [dataset_table].ID = [meta_table].Dataset_ID GROUP BY Dataset_ID)
+    AS Dataset_Metadata ON [Dataset_Metadata].Dataset_ID = ds.ID
     LEFT OUTER JOIN (
         SELECT
         Dataset_ID,
@@ -112,7 +111,6 @@ module.exports = `
         GROUP BY Dataset_ID
     ) as refs
     on ds.ID = refs.Dataset_ID
-
     LEFT OUTER JOIN (
         SELECT
         ds_reg.Dataset_ID,
@@ -123,10 +121,8 @@ module.exports = `
         GROUP BY ds_reg.Dataset_ID
     ) as regs
     on ds.ID = regs.Dataset_ID
-
     WHERE cat.ID in (
         SELECT
         MAX(ID) from [dbo].[tblVariables]
         GROUP BY Dataset_ID
-    )
-`;
+    )`;
