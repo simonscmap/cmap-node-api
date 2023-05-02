@@ -32,7 +32,9 @@ module.exports =
     aggs.Keywords,
     regs.Regions,
     refs.[References],
-        Dataset_Metadata.Unstructured_Dataset_Metadata as Unstructured_Dataset_Metadata
+    CASE WHEN Dataset_Metadata.Unstructured_Dataset_Metadata IS NULL
+        THEN NULL
+        ELSE '['+Dataset_Metadata.Unstructured_Dataset_Metadata+']' END as Unstructured_Dataset_Metadata
     FROM (
         SELECT
             [tblVariables].ID,

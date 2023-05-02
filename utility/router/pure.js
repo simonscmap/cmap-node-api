@@ -34,7 +34,7 @@ const hiveParserOptions = {
 
 const locationIncompatibilityMessage =
   "unable to perform query because datasets named in the query are distributed; " +
-  "you man need to perform your join locally after dowloading the datasets individually";
+  "you may need to perform your join locally after dowloading the datasets individually";
 
 // HELPERS
 
@@ -514,7 +514,7 @@ const queryToAST = (query = "") => {
       result.parserResult = parser.parse(removeBrackets(query), hiveParserOptions);
       result.flavor = hiveParserOptions.database;
     } catch (e2) {
-      log.warn("attempt to parse query an ansi sql failed", { error: e2, query });
+      log.warn("attempt to parse query as ansi sql failed", { error: e2, query });
       return;
     }
   }
