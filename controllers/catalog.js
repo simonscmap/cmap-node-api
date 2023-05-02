@@ -51,7 +51,9 @@ SELECT
     [tblVariables].ID AS [ID],
     [tblVariables].Visualize AS [Visualize],
     [keywords_agg].Keywords AS [Keywords],
-    [Variable_Metadata].Unstructured_Variable_Metadata as [Unstructured_Variable_Metadata]
+    CASE WHEN [Variable_Metadata].Unstructured_Variable_Metadata IS NULL
+        THEN NULL
+        ELSE '['+[Variable_Metadata].Unstructured_Variable_Metadata+']' END as [Unstructured_Variable_Metadata]
     FROM tblVariables
 
     JOIN tblDatasets ON [tblVariables].Dataset_ID=[tblDatasets].ID
