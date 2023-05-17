@@ -21,4 +21,10 @@ cache.on("flush", () => {
   log.info("node cache: flush")
 });
 
+// NOTE other methods:
+// cache.del('key')
+// cache.del(['key1','key2'])
+// cache.flushAll();
+// cache.getStats();
+
 module.exports = cache;
