@@ -116,7 +116,7 @@ const executeQueryOnPrem = async (
       log.trace("mariana and requestError");
       accumulator.unpipe(res);
     } else {
-      log.info ("request stream done", { ...data });
+      log.info ("request stream done", { ...data, rowCount: count });
     }
     csvStream.end();
   });
@@ -168,6 +168,7 @@ const executeQueryOnPrem = async (
   }
 
   if (!requestError) {
+    log.trace ('no request error; returning next()');
     return next();
   }
 
