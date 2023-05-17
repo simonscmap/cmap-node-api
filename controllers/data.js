@@ -4,6 +4,7 @@ const pools = require("../dbHandlers/dbPools");
 const sql = require("mssql");
 const { fetchDataRetrievalProcedureNamesWithCache } = require('../utility/router/queries');
 const { isSproc, extractSprocName } = require('../utility/router/pure');
+const { expandIfSelectStar } = require ('../utility/download/expandSelect');
 
 const moduleLogger = initializeLogger("controllers/data");
 
@@ -38,7 +39,8 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
 
 // ~~~~ CONTROLLERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Custom query endpoint
+/* Custom query endpoint
+*/
 const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
@@ -54,13 +56,16 @@ const customQuery = async (req, res, next) => {
       res.status (500).send ('error analyzing query');
       return;
     }
+
     let sprocName = extractSprocName (req.query.query).toLocaleLowerCase();
 
     if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
       let spExecutionQuery = `${req.query.query}, 1`;
+
       log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
 
       let [error, queryToRun] = await fetchSprocQuery (req.requestId, spExecutionQuery, req.query);
+
       if (error) {
         return res.status (500).send ('error preparing query');
       } else {
@@ -73,7 +78,18 @@ const customQuery = async (req, res, next) => {
     }
   }
 
-  queryHandler(req, res, next, req.query.query);
+  // if 'select * ...', replace '*' with columns
+
+  let [errorMsg, updatedQuery] = await expandIfSelectStar (req.query.query);
+
+  let query = req.query.query;
+  if (errorMsg) {
+    log.warn (errorMsg, { query })
+  } else {
+    query = updatedQuery;
+  }
+
+  queryHandler (req, res, next, query);
 };
 
 // Stored procedure call endpoint
