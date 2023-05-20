@@ -5,7 +5,7 @@ const {
   mapServerNameToPoolConnection,
 } = require("../router/roundRobin");
 
-const getPool = async (candidateList = [], serverNameOverride = '', forceRainier) => {
+const getPool = async (candidateList = [], serverNameOverride = '') => {
   let pool;
   let poolName;
   let error = false;
@@ -16,12 +16,12 @@ const getPool = async (candidateList = [], serverNameOverride = '', forceRainier
 
   // adjust the candidates based on override and forceRainier
   let overrideName = serverNameOverride.toLowerCase();
-  let candidates = candidateList.slice(0);
 
-  if (forceRainier) {
-    messages.push(['get pool forcing rainier', { serverNameOverride, candidateList }])
-    candidates = [SERVER_NAMES.rainier];
-  } else if (serverNameOverride) {
+  // remove cluster from candidates
+  // however, cluster will be included in remaining candidates list
+  let candidates = candidateList.slice(0).filter ((c) => c !== 'cluster');
+
+  if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
       messages.push(['server name override in use', { serverNameOverride, candidateList }])
       candidates = [overrideName];
@@ -34,18 +34,20 @@ const getPool = async (candidateList = [], serverNameOverride = '', forceRainier
   // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
   poolName = roundRobin(candidates);
 
+  let remainingCandidates = candidateList.filter ((c) => c !== poolName);
+
   if (poolName === undefined) {
     messages.push(['could not settle pool name, defaulting to rainier', { candidateList }])
+    pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
+  } else {
+    pool = await mapServerNameToPoolConnection(poolName);
   }
 
   // this mapping will default to rainier
-  pool = await mapServerNameToPoolConnection(
-    poolName || SERVER_NAMES.rainier
-  );
 
   if (!pool) {
     error = true;
-    errors.push (['failed to get pool', { candidateList, serverNameOverride, forceRainier }]);
+    errors.push (['failed to get pool', { candidateList, serverNameOverride }]);
   } else {
     messages.push(['get pool result', { candidateList, poolName }]);
   }
@@ -56,6 +58,7 @@ const getPool = async (candidateList = [], serverNameOverride = '', forceRainier
     error,
     errors,
     messages,
+    remainingCandidates,
   };
 };
 

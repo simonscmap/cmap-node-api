@@ -3,28 +3,73 @@ const { logMessages, logErrors, logWarnings } = require('../../log-service/log-h
 const { getCandidateList } = require("./queryToDatabaseTarget");
 const { executeQueryOnCluster } = require("../queryHandler/queryCluster");
 const { executeQueryOnPrem } = require("../queryHandler/queryOnPrem");
-const { COMMAND_TYPES } = require("../constants");
+const { assertPriority, isSproc } = require ("./pure");
+
 const moduleLogger = initializeLogger("router/router");
 
-const routeQuery = async (req, res, next, query) => {
+
+async function delegateExecution (req, res, next, query, candidates, attempts = 0) {
+  let currentAttempt = attempts += 1;
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', query ])
+    .addContext(['candidates', candidates])
+    .addContext(['attempt', currentAttempt]);
+
+  log.debug ("delegate execution called", null);
+
+  let { priorityTargetType } = assertPriority (candidates);
+
+  let targetIsCluster = priorityTargetType === "cluster";
+  let queryIsExecutingSproc = isSproc (query);
+  let locationListIsNotAnArray = !Array.isArray (candidates);
+  let thereIsNoValidTarget = candidates.length === 0 && !queryIsExecutingSproc;
+
+  if (locationListIsNotAnArray || thereIsNoValidTarget) {
+    log.error("no candidate servers identified", { candidates, query, attempts });
+    res.status(400).send("no candidate servers available for the given query");
+    return null;
+  }
+
+  // delegate execution and capture result, in the the case of failure, for retry
+
+  // execution functions will return a list of remaining targets if they fail
+  let remainingCandidatesAfterFailure;
+
+  // don't allow sprocs to execute on cluster
+  if (targetIsCluster && !queryIsExecutingSproc) {
+    remainingCandidatesAfterFailure = await executeQueryOnCluster(req, res, next, query);
+  } else {
+    // if the query is a sproc with no candidates, we will still hit this execute on prem,
+    // and without a candidate, it will default to rainier (but if it fails on rainier, it will not run again)
+    remainingCandidatesAfterFailure = await executeQueryOnPrem(req, res, next, query, candidates);
+  }
+
+  if (Array.isArray(remainingCandidatesAfterFailure) && remainingCandidatesAfterFailure.length > 0) {
+    log.info ("allowing retry after failure", { remainingCandidatesAfterFailure });
+    return await delegateExecution (req, res, next, query, remainingCandidatesAfterFailure, currentAttempt);
+  }
+
+  // no more retries
+  log.trace (`execution returned null on attempt #${currentAttempt}, but no error nor retry; calling next`);
+  next ();
+}
+
+async function routeQuery (req, res, next, query) {
   // each logged message will inclued the request id and query in its context
   const log = moduleLogger
     .setReqId(req.requestId)
     .addContext(['query', query ]);
 
   if (typeof query !== "string") {
-    log.warn("no query", {
-      typeOfQueryArg: typeof query,
-      query,
-      originalUrl: req.originalUrl,
-    });
+    log.warn("no query", { typeOfQueryArg: typeof query, originalUrl: req.originalUrl });
     res.status(400).send("missing query");
-    return next();
+    next();
+    return null;
   }
 
+  // 1. preform query analysis; generate list of candidate servers
   let {
-    commandType,
-    priorityTargetType,
     candidateLocations,
     respondWithErrorMessage,
     errors,
@@ -32,35 +77,19 @@ const routeQuery = async (req, res, next, query) => {
     messages,
   } = await getCandidateList(query);
 
-  // log information from getCandidateList
-  // (and especially messages bubbled up from calculateCandidateTargets)
+  // 2. log information from getCandidateList (esp. messages bubbled up from calculateCandidateTargets)
   logErrors (log) (errors);
   logMessages (log) (messages);
   logWarnings (log) (warnings);
 
-  const queryIsExecutingSproc = commandType === COMMAND_TYPES.sproc;
-
-  if (
-    !Array.isArray(candidateLocations) ||
-    (candidateLocations.length === 0 && !queryIsExecutingSproc)
-  ) {
-    log.error((respondWithErrorMessage || "no candidate servers identified"), { candidateLocations, query });
-    res.status(400).send(respondWithErrorMessage || `no candidate servers available for the given query`);
-    return;
+  if (respondWithErrorMessage) {
+    log.error (respondWithErrorMessage, { candidates: candidateLocations });
+    res.status (400).send (respondWithErrorMessage);
+    return null;
   }
 
-  /* if (candidateLocations.length === 0 && queryIsExecutingSproc) {
-     log.trace("continuing with sproc execution without any table specified");
-     }
-   */
-
-  const targetIsCluster = priorityTargetType === "cluster";
-
-  if (targetIsCluster && !queryIsExecutingSproc) {
-    executeQueryOnCluster(req, res, next, query, commandType);
-  } else {
-    executeQueryOnPrem(req, res, next, query, candidateLocations);
-  }
-};
+  // 3. delegate execution of the query
+  await delegateExecution (req, res, next, query, candidateLocations);
+}
 
 module.exports = { routeQuery };
