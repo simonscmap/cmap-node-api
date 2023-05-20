@@ -4,9 +4,10 @@ const { getCandidateList } = require("./queryToDatabaseTarget");
 const { executeQueryOnCluster } = require("../queryHandler/queryCluster");
 const { executeQueryOnPrem } = require("../queryHandler/queryOnPrem");
 const { COMMAND_TYPES } = require("../constants");
+const { assertPriority } = require ("./pure");
 const moduleLogger = initializeLogger("router/router");
 
-const routeQuery = async (req, res, next, query) => {
+async function routeQuery (req, res, next, query, retryCandidates) {
   // each logged message will inclued the request id and query in its context
   const log = moduleLogger
     .setReqId(req.requestId)
@@ -19,8 +20,40 @@ const routeQuery = async (req, res, next, query) => {
       originalUrl: req.originalUrl,
     });
     res.status(400).send("missing query");
-    return next();
+    next();
+    return null;
   }
+
+
+  // This is a retry
+  if (retryCandidates && retryCandidates.length > 0) {
+    let { priorityTargetType } = assertPriority (retryCandidates);
+
+    log.info ('executing retry', { targetType: priorityTargetType });
+
+    // delegate execution and capture result, in the the case of failure, for retry
+    let remainingCandidatesAfterFailure;
+
+    if (priorityTargetType === 'cluster') {
+      remainingCandidatesAfterFailure = await executeQueryOnCluster(req, res, next, query);
+    } else {
+      remainingCandidatesAfterFailure = await executeQueryOnPrem(req, res, next, query, retryCandidates);
+    }
+
+    if (Array.isArray(remainingCandidatesAfterFailure) && remainingCandidatesAfterFailure.length > 0) {
+      // retry again
+      log.info ('initiating another retry', { remainingCandidatesAfterFailure });
+      return await routeQuery (req, res, next, query, remainingCandidatesAfterFailure);
+    } else {
+      log.debug ('finished retry, no more candidates', { remainingCandidatesAfterFailure });
+      next ();
+      return null;
+    }
+  }
+
+  log.trace ('no retry; proceeding with query analysis and initial execution');
+
+  // This is the first execution attempt, calculate candidates
 
   let {
     commandType,
@@ -46,21 +79,28 @@ const routeQuery = async (req, res, next, query) => {
   ) {
     log.error((respondWithErrorMessage || "no candidate servers identified"), { candidateLocations, query });
     res.status(400).send(respondWithErrorMessage || `no candidate servers available for the given query`);
-    return;
+    return null;
   }
-
-  /* if (candidateLocations.length === 0 && queryIsExecutingSproc) {
-     log.trace("continuing with sproc execution without any table specified");
-     }
-   */
 
   const targetIsCluster = priorityTargetType === "cluster";
 
+  // delegate execution and capture result, in the the case of failure, for retry
+  let remainingCandidatesAfterFailure;
   if (targetIsCluster && !queryIsExecutingSproc) {
-    executeQueryOnCluster(req, res, next, query, commandType);
+    remainingCandidatesAfterFailure = await executeQueryOnCluster(req, res, next, query);
   } else {
-    executeQueryOnPrem(req, res, next, query, candidateLocations);
+    remainingCandidatesAfterFailure = await executeQueryOnPrem(req, res, next, query, candidateLocations);
   }
-};
+
+  log.debug ("checking if there are remainingCandidatesAfterFailure", { remainingCandidatesAfterFailure });
+
+  if (Array.isArray(remainingCandidatesAfterFailure) && remainingCandidatesAfterFailure.length > 0) {
+    log.info ("initiating first retry", { remainingCandidatesAfterFailure });
+    return await routeQuery (req, res, next, query, remainingCandidatesAfterFailure);
+  } else {
+    log.info ('execution returned null; no error or retry; calling next');
+    next ();
+  }
+}
 
 module.exports = { routeQuery };
