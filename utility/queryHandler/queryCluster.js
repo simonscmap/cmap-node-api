@@ -25,7 +25,9 @@ const headers = {
 };
 
 const executeQueryOnCluster = async (req, res, next, query) => {
-  const log = moduleLogger.setReqId(req.requestId);
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', query]);
 
   res.set("X-Data-Source-Targeted", "cluster");
   res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");

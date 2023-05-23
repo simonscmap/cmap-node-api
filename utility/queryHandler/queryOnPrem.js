@@ -18,7 +18,10 @@ const headers = {
 
 
 const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => {
-  const log = moduleLogger.setReqId(req.requestId);
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['candidates', candidateList])
+    .addContext(['query', query ]);
 
   // 1. determine pool
 
@@ -95,6 +98,7 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
       }
     } else {
       // fake error
+      log.trace ('fake error');
       requestError = true;
       request.emit('error', new Error('oops'));
       request.cancel();
@@ -118,7 +122,7 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
   // cancel sql request if client closes connection
   req.on("close", () => {
-    log.trace ("client closed request; cancelling sql request");
+    log.trace ("client closed request");
     request.cancel ();
   });
 
@@ -166,15 +170,11 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
     return null;
   }
 
-  // 5. Retry
+  // 5. SQL Request is now finished; Retry or send error
   if (remainingCandidates.length > 0 && retry === true) {
     log.warn("retrying query with remaining candidates", { query, remainingCandidates });
     res.flushHeaders();
-
     accumulator.unpipe(res);
-
-    // try returning the remaining candidates
-    // await routeQuery (req, res, next, query, remainingCandidates);
     return remainingCandidates;
   } else {
     log.error ('no request error, but no response sent; no remaining candidates servers to try', { remainingCandidates });
