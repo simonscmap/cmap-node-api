@@ -1,0 +1,266 @@
+const makeDatasetFullPageQuery = (datasetId) => {
+  return `
+    -- RECORDSET #0 "Dataset"
+    SELECT
+        'Dataset' as Product_Type,
+        ds.Dataset_Name as Short_Name,
+        RTRIM(LTRIM(ds.Dataset_Long_Name)) AS [Long_Name],
+        ds.Description,
+        ds.Icon_URL,
+        ds.Dataset_Release_Date,
+        ds.Dataset_History,
+        ds.Dataset_Version,
+        cat.Table_Name,
+        cat.Process_Level,
+        cat.Make,
+        cat.Data_Source,
+        cat.Distributor,
+        cat.Acknowledgement,
+        cat.Dataset_ID,
+        cat.Spatial_Resolution,
+        cat.Temporal_Resolution,
+        cat.Study_Domain,
+        aggs.Lat_Min,
+        aggs.Lat_Max,
+        aggs.Lon_Min,
+        aggs.Lon_Max,
+        aggs.Depth_Min,
+        aggs.Depth_Max,
+        aggs.Time_Min,
+        aggs.Time_Max,
+        aggs.Sensors,
+        aggs.Visualize,
+        aggs.Row_Count,
+        aggs.Keywords,
+        regs.Regions,
+        refs.[References],
+        CASE
+            WHEN Dataset_Metadata.Unstructured_Dataset_Metadata IS NULL THEN NULL
+            ELSE '['+Dataset_Metadata.Unstructured_Dataset_Metadata+']' END
+        AS Unstructured_Dataset_Metadata
+    FROM (
+        SELECT
+            [tblVariables].ID,
+            [tblVariables].Table_Name AS [Table_Name],
+            RTRIM(LTRIM(Long_Name)) AS [Long_Name],
+            RTRIM(LTRIM(Make)) AS [Make],
+            RTRIM(LTRIM(Process_Stage_Long)) AS [Process_Level],
+            RTRIM(LTRIM(Study_Domain)) AS [Study_Domain],
+            RTRIM(LTRIM(Temporal_Resolution)) AS [Temporal_Resolution],
+            RTRIM(LTRIM(Spatial_Resolution)) AS [Spatial_Resolution],
+            RTRIM(LTRIM([Data_Source])) AS [Data_Source],
+            RTRIM(LTRIM(Distributor)) AS [Distributor],
+            RTRIM(LTRIM([Description])) AS [Dataset_Description],
+            RTRIM(LTRIM([Acknowledgement])) AS [Acknowledgement],
+            [tblVariables].Dataset_ID AS [Dataset_ID]
+            FROM [dbo].[tblVariables]
+            JOIN [dbo].[tblDatasets] ON [tblVariables].Dataset_ID=[tblDatasets].ID
+            JOIN [dbo].[tblTemporal_Resolutions] ON [tblVariables].Temporal_Res_ID=[tblTemporal_Resolutions].ID
+            JOIN [dbo].[tblSpatial_Resolutions] ON [tblVariables].Spatial_Res_ID=[tblSpatial_Resolutions].ID
+            JOIN [dbo].[tblMakes] ON [tblVariables].Make_ID=[tblMakes].ID
+            JOIN [dbo].[tblProcess_Stages] ON [tblVariables].Process_ID=[tblProcess_Stages].ID
+            JOIN [dbo].[tblStudy_Domains] ON [tblVariables].Study_Domain_ID=[tblStudy_Domains].ID
+    ) cat
+    JOIN tblDatasets
+    AS ds
+    ON ds.ID = cat.Dataset_ID
+    JOIN (
+        SELECT
+            MIN(Lat_Min) as Lat_Min,
+            MAX(Lat_Max) as Lat_Max,
+            MIN(Lon_Min) as Lon_Min,
+            MAX(Lon_Max) as Lon_Max,
+            Min(Depth_Min) as Depth_Min,
+            MAX(Depth_Max) as Depth_Max,
+            MIN(Time_Min) as Time_Min,
+            MAX(Time_Max) as Time_Max,
+            MAX(Row_Count) as Row_Count,
+            STRING_AGG(CAST(Long_Name AS nvarchar(MAX)), ',') as Variable_Long_Names,
+            STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
+            STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
+            MAX(CAST(Visualize as [int])) as Visualize,
+            Dataset_ID
+        FROM (
+            SELECT
+                Long_Name,
+                JSON_VALUE(JSON_stats,'$.time.min') AS [Time_Min],
+                JSON_VALUE(JSON_stats,'$.time.max') AS [Time_Max],
+                CAST(JSON_VALUE(JSON_stats,'$.lat.count') AS float) AS [Row_Count],
+                CAST(JSON_VALUE(JSON_stats,'$.lat.min') AS float) AS [Lat_Min],
+                CAST(JSON_VALUE(JSON_stats,'$.lat.max') AS float) AS [Lat_Max],
+                CAST(JSON_VALUE(JSON_stats,'$.lon.min') AS float) AS [Lon_Min],
+                CAST(JSON_VALUE(JSON_stats,'$.lon.max') AS float) AS [Lon_Max],
+                CAST(JSON_VALUE(JSON_stats,'$.depth.min') AS float) AS [Depth_Min],
+                CAST(JSON_VALUE(JSON_stats,'$.depth.max') AS float) AS [Depth_Max],
+                RTRIM(LTRIM(Sensor)) AS [Sensor],
+                [tblVariables].Visualize,
+                [tblVariables].Dataset_ID,
+                [keywords_agg].Keywords AS [Keywords]
+            FROM tblVariables
+            JOIN tblSensors
+            ON [tblVariables].Sensor_ID=[tblSensors].ID
+            JOIN (
+                SELECT var_ID, STRING_AGG (CAST(keywords AS NVARCHAR(MAX)), ', ')
+                AS Keywords
+                FROM tblVariables var_table
+                JOIN tblKeywords key_table
+                ON [var_table].ID = [key_table].var_ID
+                GROUP BY var_ID
+            )
+            AS keywords_agg
+            ON [keywords_agg].var_ID = [tblVariables].ID
+            LEFT JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
+        ) addit
+        GROUP BY Dataset_ID
+    )
+    AS aggs
+    ON aggs.Dataset_ID = cat.Dataset_ID
+    LEFT JOIN (
+        SELECT Dataset_ID, STRING_AGG (CAST(JSON_Metadata as NVARCHAR(MAX)), ', ')
+        AS Unstructured_Dataset_Metadata
+        FROM tblDatasets dataset_table
+        JOIN tblDatasets_JSON_Metadata meta_table ON [dataset_table].ID = [meta_table].Dataset_ID
+        GROUP BY Dataset_ID
+    )
+    AS Dataset_Metadata
+    ON [Dataset_Metadata].Dataset_ID = ds.ID
+    LEFT OUTER JOIN (
+        SELECT
+            Dataset_ID,
+            STRING_AGG(CAST(Reference AS nvarchar(MAX)), '$$$') as [References]
+        FROM tblDataset_References
+        GROUP BY Dataset_ID
+    )
+    AS refs
+    ON  ds.ID = refs.Dataset_ID
+    LEFT OUTER JOIN (
+        SELECT
+            ds_reg.Dataset_ID,
+            STRING_AGG(CAST(reg.Region_Name AS nvarchar(MAX)), ',') as Regions
+        FROM tblDataset_Regions ds_reg
+        JOIN tblRegions reg
+        ON ds_reg.Region_ID = reg.Region_ID
+        GROUP BY ds_reg.Dataset_ID
+    )
+    AS regs
+    ON ds.ID = regs.Dataset_ID
+    WHERE cat.ID in (
+        SELECT MAX(ID)
+        FROM [dbo].[tblVariables]
+        GROUP BY Dataset_ID
+    )
+    AND ds.ID=${datasetId}
+
+-- RECORDSET #1 "Cruises"
+
+SELECT * FROM tblCruise
+    WHERE ID IN
+    (
+        SELECT Cruise_ID
+        FROM tblDataset_Cruises
+        WHERE Dataset_ID IN (
+            SELECT ID
+            FROM tblDatasets
+            WHERE Dataset_ID=${datasetId}
+        )
+    )
+  `;
+};
+
+// the following query is now in a sproc, and is not used
+// kept here for reference
+const makeDatasetVariablesQuery = (datasetId) => {
+  return `
+WITH ct1 AS(
+  SELECT st.Dataset_ID, ca.*
+  FROM tblDataset_Stats_geo st
+  CROSS APPLY OPENJSON(st.JSON_stats) ca
+)
+-- RECORDSET #0 "Variables"
+SELECT
+    Variable,
+    Long_Name,
+    Unit,
+    Spatial_Resolution,
+    Temporal_Resolution,
+    Study_Domain,
+    Variable_25th,
+    Variable_50th,
+    Variable_75th,
+    Variable_Count,
+    Variable_Mean,
+    Variable_STD,
+    Variable_Min,
+    Variable_Max,
+    Make,
+    Visualize,
+    Comment,
+    Sensor,
+    Keywords
+FROM (
+    SELECT
+    RTRIM(LTRIM(Short_Name)) AS Variable,
+    [tblVariables].Table_Name AS [Table_Name],
+    RTRIM(LTRIM(Long_Name)) AS [Long_Name],
+    RTRIM(LTRIM(Unit)) AS [Unit],
+    RTRIM(LTRIM(Make)) AS [Make],
+    RTRIM(LTRIM(Sensor)) AS [Sensor],
+    RTRIM(LTRIM(Process_Stage_Long)) AS [Process_Level],
+    RTRIM(LTRIM(Study_Domain)) AS [Study_Domain],
+    RTRIM(LTRIM(Temporal_Resolution)) AS [Temporal_Resolution],
+    RTRIM(LTRIM(Spatial_Resolution)) AS [Spatial_Resolution],
+
+    --- Variable stats from cross apply
+    [25%] as Variable_25th,
+    [50%] as Variable_50th,
+    [75%] as Variable_75th,
+    [count] as Variable_Count,
+    [mean] as  Variable_Mean,
+    [std] as  Variable_STD,
+    [min] as  Variable_Min,
+    [max] as  Variable_Max,
+
+    RTRIM(LTRIM(Comment)) AS [Comment],
+    [tblDatasets].ID as [Dataset_ID],
+    RTRIM(LTRIM([tblDatasets].Dataset_Name)) as [Dataset_Short_Name],
+    RTRIM(LTRIM(Dataset_Long_Name)) AS [Dataset_Name],
+    RTRIM(LTRIM([Data_Source])) AS [Data_Source],
+    RTRIM(LTRIM(Distributor)) AS [Distributor],
+    RTRIM(LTRIM([Description])) AS [Dataset_Description],
+    RTRIM(LTRIM([Acknowledgement])) AS [Acknowledgement],
+    --[tblVariables].Dataset_ID AS [Dataset_ID], -- conflicts with above declaration of Dataset_ID
+    [tblVariables].ID AS [ID],
+    [tblVariables].Visualize AS [Visualize],
+    [keywords_agg].Keywords AS [Keywords]
+
+    FROM ct1 CROSS APPLY OPENJSON(ct1.value)
+    WITH (
+        [25%] FLOAT,
+        [50%] FLOAT,
+        [75%] FLOAT,
+        [count] FLOAT,
+        [max] NVARCHAR(MAX),
+        [min] NVARCHAR(MAX),
+        [mean] FLOAT,
+        [std] FLOAT
+    )
+
+    JOIN tblDatasets ON ct1.Dataset_ID = tblDatasets.ID
+    JOIN tblVariables ON [tblVariables].Dataset_ID = ct1.Dataset_ID AND ct1.[key] COLLATE DATABASE_DEFAULT = [tblVariables].Short_Name COLLATE DATABASE_DEFAULT
+    JOIN tblTemporal_Resolutions ON [tblVariables].Temporal_Res_ID=[tblTemporal_Resolutions].ID
+    JOIN tblSpatial_Resolutions ON [tblVariables].Spatial_Res_ID=[tblSpatial_Resolutions].ID
+    JOIN tblMakes ON [tblVariables].Make_ID=[tblMakes].ID
+    JOIN tblSensors ON [tblVariables].Sensor_ID=[tblSensors].ID
+    JOIN tblProcess_Stages ON [tblVariables].Process_ID=[tblProcess_Stages].ID
+    JOIN tblStudy_Domains ON [tblVariables].Study_Domain_ID=[tblStudy_Domains].ID
+    JOIN (SELECT var_ID, STRING_AGG ( CAST(keywords as NVARCHAR(MAX)), ', ') AS Keywords FROM tblVariables var_table
+    JOIN tblKeywords key_table ON [var_table].ID = [key_table].var_ID GROUP BY var_ID)
+    AS keywords_agg ON [keywords_agg].var_ID = [tblVariables].ID
+    LEFT JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
+) cat
+WHERE Dataset_ID=${datasetId}
+  ORDER BY Long_Name`;
+};
+
+module.exports.makeDatasetFullPageQuery = makeDatasetFullPageQuery;
+module.exports.makeDatasetVariablesQuery = makeDatasetVariablesQuery;

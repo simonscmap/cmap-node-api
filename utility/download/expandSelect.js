@@ -188,7 +188,7 @@ let expandIfSelectStar = async (queryString) => {
   if (shouldExpandStar (queryString)) {
     return await expandStar (queryString);
   } else {
-    return queryString;
+    return [null, queryString];
   }
 };
 

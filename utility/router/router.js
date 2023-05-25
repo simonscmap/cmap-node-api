@@ -10,13 +10,14 @@ const moduleLogger = initializeLogger("router/router");
 
 async function delegateExecution (req, res, next, query, candidates, attempts = 0) {
   let currentAttempt = attempts += 1;
+
   const log = moduleLogger
     .setReqId(req.requestId)
     .addContext(['query', query ])
     .addContext(['candidates', candidates])
     .addContext(['attempt', currentAttempt]);
 
-  log.debug ("delegate execution called", null);
+  log.trace ("delegate execution called", null);
 
   let { priorityTargetType } = assertPriority (candidates);
 

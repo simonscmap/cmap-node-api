@@ -29,11 +29,10 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     .setReqId(req.requestId)
     .addContext(['query', query]);
 
-  res.set("X-Data-Source-Targeted", "cluster");
-  res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
-
   const endRespWithError = (e) => {
     if (!res.headersSent) {
+      res.set("X-Data-Source-Targeted", "cluster");
+      res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
       res.status(500).send(generateError (e));
     } else {
       res.end();
@@ -46,8 +45,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   try {
     await client.connect(connOptions);
   } catch (e) {
-    log.error("error connecting to cluster", {});
-    return;
+    log.error("error connecting to cluster", { error: e });
+    return null;
   }
 
   log.trace("opening session");
@@ -101,7 +100,6 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     } catch (e) {
       hasError = true;
       log.error("error fetching chunk", { error: e.message });
-      console.log(e);
       endRespWithError(e);
       break;
     }
@@ -112,6 +110,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
       if (!res.headersSent) {
         log.trace ("writing headers");
+        res.set("X-Data-Source-Targeted", "cluster");
+        res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
         res.writeHead(200, headers);
       }
 
@@ -146,6 +146,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   await queryOperation.close();
   await session.close();
   await client.close();
+
+  return null;
 };
 
 module.exports = {

@@ -33,8 +33,14 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
   if (error) {
     logErrors (log) (errors);
-    res.status (400).send (`specified server "${req.query.servername}" is not valid for the given query, consider specifying a different server`);
-    return null;
+    logMessages (log) (messages);
+
+    if (serverNameOverride) {
+      res.status (400).send (`specified server "${req.query.servername}" is not valid for the given query, consider specifying a different server`);
+      return null;
+    }
+
+    return remainingCandidates;
   }
 
   logMessages (log) (messages);
@@ -79,29 +85,30 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
   });
 
   request.on ("row", (row) => {
-    if (remainingCandidates.length === 0) { // TEMP
-      if (!res.headersSent) {
-        log.info("writing headers and beginning response stream", {});
-        res.set("X-Data-Source-Targeted", poolName || "default");
-        res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
-        res.writeHead(200, headers);
-      } else {
-        // log.debug ('writing row data; headers have been sent', { headers: res.getHeaders(), count, requestError })
-      }
+    // TEMP
+    if (remainingCandidates.length > 0 ) {
+      // requestError = true;
+      // request.emit('error', new Error('oops'));
+      // request.cancel();
+      // return;
+    }
+    // END TEMP
 
-      count++;
-
-      if (csvStream.write(row) === false) {
-        request.pause();
-      } else {
-        // console.log('continue')
-      }
+    if (!res.headersSent) {
+      log.info("writing headers and beginning response stream", {});
+      res.set("X-Data-Source-Targeted", poolName || "default");
+      res.set("Access-Control-Expose-Headers", "X-Data-Source-Targeted");
+      res.writeHead(200, headers);
     } else {
-      // fake error
-      log.trace ('fake error');
-      requestError = true;
-      request.emit('error', new Error('oops'));
-      request.cancel();
+      // log.debug ('writing row data; headers have been sent', { headers: res.getHeaders(), count, requestError })
+    }
+
+    count++;
+
+    if (csvStream.write(row) === false) {
+      request.pause();
+    } else {
+      // console.log('continue')
     }
   });
 

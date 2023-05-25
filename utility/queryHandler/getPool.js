@@ -38,6 +38,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   if (poolName === undefined) {
     messages.push(['could not settle pool name, defaulting to rainier', { candidateList }])
+    poolName = SERVER_NAMES.rainier;
     pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
   } else {
     pool = await mapServerNameToPoolConnection(poolName);
