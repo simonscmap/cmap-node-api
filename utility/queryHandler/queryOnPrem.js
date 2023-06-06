@@ -152,6 +152,8 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
     if (remainingCandidates.length === 0) {
       log.info ("end response; no more candidates to try after error", { remainingCandidates });
+      res.flushHeaders();
+      accumulator.unpipe(res);
       res.status(500).end(generateError(err));
     } else if (remainingCandidates.length > 0) {
       log.warn ("an error was emitted from the sql request; flagging for retry");

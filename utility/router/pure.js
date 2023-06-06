@@ -792,6 +792,7 @@ module.exports = {
   removeBrackets,
   replaceSTDEV,
   traverseAST,
+  removeParensFromTop,
   transformTopQueryToLimit,
   tsqlToHiveTransforms,
   transformDatasetServersListToMap,

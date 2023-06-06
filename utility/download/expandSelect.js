@@ -4,6 +4,7 @@ let S = require("../../utility/sanctuary");
 const {
   removeSQLDashComments,
   removeSQLBlockComments,
+  removeParensFromTop,
   extractTableNamesFromGrammaticalQueryString,
   compareTableAndDatasetLists,
 } = require ("../../utility/router/pure");
@@ -28,7 +29,15 @@ const isJoin =
 // is query a 'select *'
 // String -> Bool
 /* eslint-disable-next-line */
-let isSelectStar = S.test (S.regex('g') ('select\\s+\\*\\s+from'))
+let selectStarRegex = /select\s+(?<top>TOP\s+\d+\s+)?\*\s+from/gim;
+let isSelectStar = (str = '') => {
+  let result = str.match(selectStarRegex);
+  if (result) {
+    return true;
+  } else {
+    return false;
+  }
+};
 
 // remove comments from sql query string
 // String -> String
@@ -46,7 +55,16 @@ let replaceStarWithCols = (queryString, cols) => {
     .map (col => `[${col}]`) // some columns have '+' in them...
     .join(', ');
   let q = stripComments (queryString);
-  let newQ = q.replace (/select\s+\*\s+from/, `select ${columnsString} from`);
+
+  let replacer = (match, topExpr) => {
+    return `select ${topExpr || ''}${columnsString} from`;
+  }
+
+  let newQ = q.replace (
+    selectStarRegex,
+    replacer
+  );
+
   log.info ('replaced select star', { original: q, newQuery: newQ });
   return newQ;
 };
@@ -197,4 +215,5 @@ module.exports = {
   expandStar,
   expandIfSelectStar,
   shouldExpandStar,
+  replaceStarWithCols,
 }
