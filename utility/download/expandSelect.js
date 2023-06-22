@@ -172,17 +172,17 @@ let expandStar = async (queryString) => {
 
   // loc is an array
   let locs = datasetLocations.get (datasetId);
-  let onPremLocs = locs.filter ((loc) => loc !== 'cluster');
 
   log.debug ('locations for table', { tableName, datasetId, locs });
 
-  if (locs.length === 0) {
+  if (!locs || !Array.isArray(locs) || locs.length === 0) {
     return [`no locations for table ${tableName}`];
   } else if (datasetIsOnlyOnCluster (locs)) {
     return [`dataset is only available on cluster`];
   }
 
   // get column names from on prem dataset
+  let onPremLocs = locs.filter ((loc) => loc !== 'cluster');
   let columnNames = await fetchColumnNamesWithCache (tableName, onPremLocs);
 
   if (columnNames.length === 0) {
