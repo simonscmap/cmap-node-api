@@ -25,7 +25,8 @@ const transformDatasetListToMap = (recordset) => {
 const fetchDatasetList = async () => {
   let pool;
   try {
-    pool = await pools.userReadAndWritePool;
+    // pool = await pools.userReadAndWritePool;
+    pool = await pools.dataReadOnlyPool;
   } catch (e) {
     log.error("attempt to connect to pool failed", { error: e });
     return [true, []];
