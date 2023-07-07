@@ -271,7 +271,11 @@ module.exports.datasetFullPage = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
+  // getDatasetId depends on a cached list of dataset ids
+  // this cache can be temporarily stale if a dateset's id has been updated
+  // the ttl is 60minutes
   let datasetId = await getDatasetId (shortname);
+
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
     res.status(400).send('error finding dataset id');
@@ -292,6 +296,8 @@ module.exports.datasetFullPage = async (req, res, next) => {
 
   // the query contains 2 select statements,
   // each is returned in the order queried as a recordset
+
+  // dataset can be empty if the dataset id is incorrect (taken from stale cache)
   let dataset = result1.recordsets[0][0];
   let cruises = result1.recordsets[1];
   // let variables = result2.recordsets[0];

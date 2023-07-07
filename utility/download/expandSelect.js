@@ -176,6 +176,8 @@ let expandStar = async (queryString) => {
   log.debug ('locations for table', { tableName, datasetId, locs });
 
   if (!locs || !Array.isArray(locs) || locs.length === 0) {
+    // this could be an indication that the cache is stale, because there should be
+    // a location for a valid dataset ID
     return [`no locations for table ${tableName}`];
   } else if (datasetIsOnlyOnCluster (locs)) {
     return [`dataset is only available on cluster`];
