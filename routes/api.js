@@ -38,7 +38,10 @@ router.use((req, res, next) => {
 // NOTE this must take 4 arguments
 // see: http://expressjs.com/en/guide/using-middleware.html#middleware.error-handling
 router.use((err, req, res, next) => {
-  log.error("an error occurred in the api catch-all", err);
+  log.error("an error occurred in the api catch-all", {
+    error: err,
+    originalUrl: req.originalUrl
+  });
   // sometimes an error will occur AFTER a response has been sent,
   // in which case, we should not attempt to send another response
   if (res.headersSent) {

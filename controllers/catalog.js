@@ -279,7 +279,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
     res.status(400).send('error finding dataset id');
-    return;
+    return next();
   }
 
   // get dataset and cruise info
@@ -291,16 +291,22 @@ module.exports.datasetFullPage = async (req, res, next) => {
   } catch (e) {
     log.error('error making full page query', { err: e })
     res.status(500).send('error making query');
-    return;
+    return next();
   }
 
   // the query contains 2 select statements,
-  // each is returned in the order queried as a recordset
+  // each is returned in the order queried as a recodset
 
   // dataset can be empty if the dataset id is incorrect (taken from stale cache)
-  let dataset = result1.recordsets[0][0];
+  let dataset = result1.recordsets[0] && result1.recordsets[0][0];
   let cruises = result1.recordsets[1];
   // let variables = result2.recordsets[0];
+
+  if (!dataset) {
+    log.error('no matching dataset is dataset full page query', { datasetId, shortname });
+    res.status(400).send('no matching dataset');
+    return next();
+  }
 
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
 
@@ -317,7 +323,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
   };
 
   await res.json(payload);
-  next();
+  return next();
 };
 
 module.exports.datasetVariables = async (req, res, next) => {
@@ -570,8 +576,23 @@ module.exports.cruiseFullPage = async (req, res, next) => {
         )
     `;
 
-  let result = await request.query(query);
-  let cruiseData = result.recordsets[0][0];
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    log.error('error making cruise full page query', { err: e })
+    res.status(500).send('error making query');
+    return next();
+  }
+
+  let cruiseData = result.recordsets[0] && result.recordsets[0][0];
+
+  if (!cruiseData) {
+    log.error('no matching cruise', { name })
+    res.status(400).send('no matching cuise');
+    return next();
+  }
+
   cruiseData.datasets = result.recordsets[1];
   res.writeHead(200, {
     "Cache-Control": "max-age=7200",
