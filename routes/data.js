@@ -24,6 +24,11 @@ router.get(
   asyncControllerWrapper(dataController.ancillaryDatasets)
 );
 
+// Get list of tables that are continuously ingested
+router.get(
+  "/ci-datasets",
+  asyncControllerWrapper(dataController.ciDatasets)
+);
 // Get list of cruises
 router.get("/cruiselist", asyncControllerWrapper(dataController.cruiseList));
 

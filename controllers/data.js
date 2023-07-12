@@ -141,6 +141,13 @@ const ancillaryDatasets = async (req, res, next) => {
   queryHandler(req, res, next, query);
 };
 
+// provide a list of tables that are continuously ingested
+const ciDatasets = async (req, res, next) => {
+  let query = "EXEC uspDatasetBadges";
+  req.cmapApiCallDetails.query = query;
+  queryHandler(req, res, next, query);
+};
+
 // Retrieves all cruises
 const cruiseList = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
@@ -214,6 +221,7 @@ module.exports = {
   storedProcedure,
   cruiseTrajectory,
   ancillaryDatasets,
+  ciDatasets,
   cruiseList,
   tableStats,
 };
