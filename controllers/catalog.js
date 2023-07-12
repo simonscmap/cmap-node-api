@@ -12,10 +12,13 @@ const { getDatasetId } = require("../queries/datasetId");
 const catalogPlusLatCountQuery = require("../dbHandlers/catalogPlusLatCountQuery");
 const logInit = require("../log-service");
 
-const log = logInit("controllers/catalog");
+// const log = logInit("controllers/catalog");
+const moduleLogger = logInit("controllers/catalog");
 
 // No longer used by web app
 module.exports.retrieve = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId)
+
   log.error("deprecated", {
     route: req.originalUrl,
     controller: "catalog.retrieve",
@@ -25,6 +28,8 @@ module.exports.retrieve = async (req, res, next) => {
 
 // No longer used by web app
 module.exports.datasets = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId)
+
   log.error("deprecated", {
     route: req.originalUrl,
     controller: "catalog.retrieve",
@@ -33,6 +38,7 @@ module.exports.datasets = async (req, res, next) => {
 };
 
 module.exports.description = async (req, res) => {
+
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -80,6 +86,7 @@ module.exports.auditCatalogVariableNames = async (req, res) => {
 
 // Retrieves lists of available options for search and data submission components
 module.exports.submissionOptions = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId)
   let pool = await pools.dataReadOnlyPool;
 
   let request = await new sql.Request(pool);
@@ -114,6 +121,7 @@ module.exports.submissionOptions = async (req, res, next) => {
     res.json(response);
     next();
   } catch {
+    log.error('error retrieving submission options', { result });
     return res.sendStatus(500);
   }
 };
@@ -267,6 +275,7 @@ module.exports.searchCatalog = async (req, res, next) => {
 
 // Retrieves dataset and variable information for catalog pages
 module.exports.datasetFullPage = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -327,6 +336,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
 };
 
 module.exports.datasetVariables = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId)
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -353,6 +363,7 @@ module.exports.datasetVariables = async (req, res, next) => {
 }
 
 module.exports.datasetVariableUM = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
@@ -375,7 +386,10 @@ module.exports.datasetVariableUM = async (req, res, next) => {
         try {
           map[entry.Variable] = JSON.parse(entry.Unstructured_Variable_Metadata);
         } catch (e) {
-          //
+          log.warn ('error parsing metadata while marshalling response', {
+            variable: entry.Variable,
+            shortname,
+          });
         }
       }
     });
@@ -392,7 +406,8 @@ module.exports.datasetVariableUM = async (req, res, next) => {
 // merge "fullpage" "variables" and "variableum" into one response
 // to serve the data for creating a download
 module.exports.datasetMetadata = async (req, res, next) => {
-let { shortname } = req.query;
+  let log = moduleLogger.setReqId (req.requestId);
+  let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -494,6 +509,7 @@ let { shortname } = req.query;
 
 // Retrieves datasets associated with a cruise
 module.exports.datasetsFromCruise = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId)
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { cruiseID } = req.query;
@@ -508,7 +524,15 @@ module.exports.datasetsFromCruise = async (req, res, next) => {
     `;
 
   query += "\nORDER BY Long_Name";
-  let result = await request.query(query);
+
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    log.error ('error retrieving datasets from cruise', { error: e });
+    res.status(500).send('error retrieving datasets');
+    return next();
+  }
 
   let catalogResponse = result.recordset;
   catalogResponse.forEach((e) => {
@@ -525,6 +549,7 @@ module.exports.datasetsFromCruise = async (req, res, next) => {
 
 // Retrieves cruises associated with a dataset
 module.exports.cruisesFromDataset = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { datasetID } = req.query;
@@ -539,7 +564,14 @@ module.exports.cruisesFromDataset = async (req, res, next) => {
         )
     `;
 
-  let result = await request.query(query);
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    log.error ('error retrieving cruises from dataset', { error: e });
+    res.status(500).send('error retrieving cruises');
+    return next();
+  }
 
   let response = result.recordset;
   res.writeHead(200, {
@@ -552,6 +584,7 @@ module.exports.cruisesFromDataset = async (req, res, next) => {
 
 // Retrieves information for rendering a cruise page (as linked in cruise exploration component or from catalog dataset page)
 module.exports.cruiseFullPage = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -604,6 +637,7 @@ module.exports.cruiseFullPage = async (req, res, next) => {
 
 // Not currently in use. Cruise search is fully client-side
 module.exports.searchCruises = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -688,20 +722,28 @@ module.exports.searchCruises = async (req, res, next) => {
 
   query += "\nORDER BY Name";
 
-  let result = await request.query(query);
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    log.error ('error executing cruise search', { error: e });
+    res.status(500).send('error executing search');
+    return next();
+  }
 
   let catalogResponse = result.recordset;
-  console.log(catalogResponse);
   res.writeHead(200, {
     "Cache-Control": "max-age=7200",
     "Content-Type": "application/json",
   });
+
   await res.end(JSON.stringify(catalogResponse));
   next();
 };
 
 // Retrieves all member variables of a dataset
 module.exports.memberVariables = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
   const { datasetID } = req.query;
@@ -716,13 +758,15 @@ module.exports.memberVariables = async (req, res, next) => {
     await res.end(JSON.stringify(response.recordset));
     next();
   } catch (e) {
-    console.log(e);
+    log.error ('error retrieving member variables', { datasetID, error: e });
     res.sendStatus(500);
+    next ();
   }
 };
 
 // Variable search used by viz plots page
 module.exports.variableSearch = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -933,7 +977,7 @@ module.exports.variableSearch = async (req, res, next) => {
     );
     next();
   } catch (e) {
-    console.log(e);
+    log.error ('error executing variable search', { error: e, });
     res.sendStatus(500);
   }
 };
@@ -980,6 +1024,7 @@ module.exports.autocompleteVariableNames = async (req, res, next) => {
 
 // Retrieve a single variable
 module.exports.variable = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -996,13 +1041,14 @@ module.exports.variable = async (req, res, next) => {
     await res.end(JSON.stringify(response.recordset[0]));
     next();
   } catch (e) {
-    console.log(e);
+    log.error ('error retrieving variable', { error: e });
     res.sendStatus(500);
   }
 };
 
 // Retrieve partial information for a dataset
 module.exports.datasetSummary = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -1025,7 +1071,8 @@ module.exports.datasetSummary = async (req, res, next) => {
     await res.end(JSON.stringify(response.recordset[0]));
     next();
   } catch (e) {
-    console.log(e);
+    log.error ('error retrieving dataset summary', { error: e, datasetID: id });
     res.sendStatus(500);
+    next();
   }
 };
