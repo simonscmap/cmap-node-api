@@ -2,6 +2,7 @@ const sql = require("mssql");
 
 const nodeCache = require("../utility/nodeCache");
 const queryHandler = require("../utility/queryHandler");
+const { coerceToISO } = require("../utility/download/coerce-to-iso");
 const pools = require("../dbHandlers/dbPools");
 const datasetCatalogQuery = require("../dbHandlers/datasetCatalogQuery");
 const cruiseCatalogQuery = require("../dbHandlers/cruiseCatalogQuery");
@@ -437,6 +438,10 @@ module.exports.datasetMetadata = async (req, res, next) => {
 
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
 
+  // correct for sometimes incorrect date format
+  topLevelDatasetProps.Time_Min = coerceToISO(topLevelDatasetProps.Time_Min);
+  topLevelDatasetProps.Time_Max = coerceToISO(topLevelDatasetProps.Time_Max);
+
   let sensors = [...new Set(Sensors.split(","))];
   let references = References
                  ? References.split("$$$")
@@ -478,8 +483,8 @@ module.exports.datasetMetadata = async (req, res, next) => {
 
   // join dataset stats and unstructured metadata with variables
   let datasetStats = {
-    Time_Min: dataset.Time_Min,
-    Time_Max: dataset.Time_Max,
+    Time_Min: coerceToISO(dataset.Time_Min),
+    Time_Max: coerceToISO(dataset.Time_Max),
     Lat_Min: dataset.Lat_Min,
     Lat_Max: dataset.Lat_Max,
     Lon_Min: dataset.Lon_Min,
