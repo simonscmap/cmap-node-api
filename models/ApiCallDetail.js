@@ -25,7 +25,7 @@ module.exports = class ApiCallDetail {
     this.requestPath = `${req.baseUrl || ""}${req.path}`;
     // for reasons I don't understand, this.requestPath does not
     // get recorded properly unless this next log.debug line is present
-    log.debug('api call detail constructor', this);
+    // log.debug('api call detail constructor', this);
   }
 
   checkIp() {

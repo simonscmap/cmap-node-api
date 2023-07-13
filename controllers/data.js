@@ -120,7 +120,8 @@ const storedProcedure = async (req, res, next) => {
     if (error) {
       return next(message);
     } else {
-      return queryHandler(req, res, next, q);
+      await queryHandler(req, res, next, q);
+      return next();
     }
   }
 };

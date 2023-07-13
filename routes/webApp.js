@@ -35,7 +35,6 @@ router.get("/education", sendSPA);
 
 // Usage metrics logging
 router.use((req, res, next) => {
-  log.trace('save call details');
   req.cmapApiCallDetails.save();
   next();
 });
