@@ -60,7 +60,8 @@ app.use(webApp);
 
 // Usage metrics logging
 app.use((req, res, next) => {
-  req.cmapApiCallDetails.save();
+  // this will execute if neither the api nor webApp have already saved call details
+  req.cmapApiCallDetails.save(res, { caller: 'app'});
   next();
 });
 

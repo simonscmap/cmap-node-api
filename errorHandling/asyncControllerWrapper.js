@@ -4,6 +4,7 @@ const log = initializeLogger ("async controller wrapper");
 
 module.exports = controllerFunction => (req, res, next) => {
   log.setReqId(req.requestId);
+  log.addContext(['originalUrl', req.originalUrl]);
   if (req.query) {
     log.addContext(['query', req.query]);
   }

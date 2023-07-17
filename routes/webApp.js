@@ -7,12 +7,22 @@ const sendSPA = (req, res, next) => {
   log.trace('sending spa')
   res.sendFile("/public/app.html", { root: process.cwd() }, (err) => {
     if (err) {
-      next(err);
+      return next(err);
     } else {
-      next();
+      return next();
     }
   });
 };
+
+const saveCall = (req, res, next) => {
+  res.on('finish', () => {
+    req.cmapApiCallDetails.save(res, { caller: 'webApp' });
+  });
+  next();
+};
+
+// Usage metrics logging
+router.use(saveCall);
 
 router.get("/", sendSPA);
 router.get("/catalog", sendSPA);
@@ -23,6 +33,7 @@ router.get("/datasubmission/guide", sendSPA);
 router.get("/datasubmission/validationtool", sendSPA);
 router.get("/datasubmission/userdashboard", sendSPA);
 router.get("/datasubmission/admindashboard", sendSPA);
+router.get("/datasubmission/nominate-data", sendSPA);
 router.get("/documentation", sendSPA);
 router.get("/about", sendSPA);
 router.get("/contact", sendSPA);
@@ -32,12 +43,12 @@ router.get("/profile", sendSPA);
 router.get("/register", sendSPA);
 router.get("/forgotpass", sendSPA);
 router.get("/education", sendSPA);
-
-// Usage metrics logging
-router.use((req, res, next) => {
-  req.cmapApiCallDetails.save();
-  next();
-});
+router.get("/gallery", sendSPA);
+router.get("/gallery/getting-started-cruise-plan", sendSPA);
+router.get("/gallery/getting-started-cruise-map", sendSPA);
+router.get("/gallery/seaflow-time-series-decomposition", sendSPA);
+router.get("/gallery/compare-sst-data", sendSPA);
+router.get("/admin/news", sendSPA);
 
 // catch-all error logging
 // NOTE this must take 4 arguments
@@ -45,17 +56,22 @@ router.use((req, res, next) => {
 router.use((err, req, res, next) => {
   log.error("an error occurred in the web app catch-all", { error: err, requestPath: `${req.baseUrl || ""}${req.path}` });
   res.sendStatus(500);
+  return next();
 });
 
 router.use((req, res, next) => {
   if (res.headersSent) {
     return;
   }
+  if (req.originalUrl === '/favicon.ico') {
+    return;
+  }
   log.info("returning on unmatched route", { originalUrl: req.originalUrl });
-  res.sendFile("/public/app.html", { root: process.cwd() }, (err) => {
+  res.status(404).sendFile("/public/app.html", { root: process.cwd() }, (err) => {
     if (err) {
       next(err);
     }
+    next();
   });
 });
 

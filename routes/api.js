@@ -29,8 +29,7 @@ router.use(
 
 // Usage metrics logging
 router.use((req, res, next) => {
-  log.trace("save call details");
-  req.cmapApiCallDetails.save();
+  req.cmapApiCallDetails.save(res, { caller: 'api' });
   next();
 });
 
@@ -48,14 +47,16 @@ router.use((err, req, res, next) => {
     return;
   }
   res.sendStatus(500);
+  return next();
 });
 
-router.use((req, res) => {
+router.use((req, res, next) => {
   if (res.headersSent) {
     return;
   }
   log.info("returning 404 from api", { originalUrl: req.originalUrl });
   res.sendStatus(404);
+  return next();
 });
 
 module.exports = router;

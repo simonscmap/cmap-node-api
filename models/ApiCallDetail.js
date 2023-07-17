@@ -26,6 +26,7 @@ module.exports = class ApiCallDetail {
     // for reasons I don't understand, this.requestPath does not
     // get recorded properly unless this next log.debug line is present
     // log.debug('api call detail constructor', this);
+    this.saved = false;
   }
 
   checkIp() {
@@ -35,8 +36,18 @@ module.exports = class ApiCallDetail {
   }
 
   // Save the usage details to SQL
-  async save() {
+  async save(res, opt) {
+    if (this.saved) {
+      return;
+    }
+    this.saved = true; // prevent double logging
+
     let requestDuration = new Date() - this.startTime;
+
+    let statusCode;
+    if (res) {
+      statusCode = res.statusCode;
+    }
 
     log.info("api call detail", {
       ip: this.ip,
@@ -50,10 +61,17 @@ module.exports = class ApiCallDetail {
       requestDuration,
       urlPath: this.requestPath,
       requestId: this.requestId,
+      responseStatus: statusCode,
+      caller: opt && opt.caller || undefined
     });
 
-    if (this.ignore) return;
-    if (this.clientBrowser === "ELB-HealthChecker") return;
+    if (this.ignore) {
+      return;
+    }
+
+    if (this.clientBrowser === "ELB-HealthChecker") {
+      return;
+    }
 
     let pool = await pools.userReadAndWritePool;
     let request = await new sql.Request(pool);
