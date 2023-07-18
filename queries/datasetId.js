@@ -65,10 +65,13 @@ const fetchDatasetListWithCache = async () =>
     { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
   );
 
-const getDatasetId = async (shortname) => {
+const getDatasetId = async (shortname, log) => {
   let key = shortname.toLowerCase();
   // use a cached map
   let idMap = await fetchDatasetListWithCache();
+  if (log) {
+    log.info ('retrieving dataset id', { shortname, idMap: typeof idMap });
+  }
   return idMap.get(key);
 }
 

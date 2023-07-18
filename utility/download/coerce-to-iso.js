@@ -1,7 +1,5 @@
-const initLogger = require('../../log-service');
-const log = initLogger ('utility/coerce-to-iso');
-
-const coerceToISO = (dateString) => {
+// Correct for a certain non-ISO format that sometimes crops up on the server
+const coerceToISO = (dateString, log) => {
   if (typeof dateString !== 'string') {
     log.warn('incorrect type: expecting string representation of date', { dateString });
     return null;

@@ -407,16 +407,15 @@ module.exports.datasetVariableUM = async (req, res, next) => {
 // merge "fullpage" "variables" and "variableum" into one response
 // to serve the data for creating a download
 module.exports.datasetMetadata = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
 
-  let datasetId = await getDatasetId (shortname);
+  let datasetId = await getDatasetId (shortname, log);
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
     res.status(400).send('error finding dataset id');
-    return;
+    return next('error finding dataset id');
   }
 
   // get dataset and cruise info
@@ -424,11 +423,12 @@ module.exports.datasetMetadata = async (req, res, next) => {
 
   let datasetResult;
   try {
+    let request = await new sql.Request(pool);
     datasetResult = await request.query(datasetQuery);
   } catch (e) {
-    log.error('error making full page query', { err: e })
+    log.error('error making full page query', { error: e });
     res.status(500).send('error making query');
-    return;
+    return next('error querying dataset');
   }
 
   // the query contains 2 select statements,
@@ -436,35 +436,51 @@ module.exports.datasetMetadata = async (req, res, next) => {
   let dataset = datasetResult.recordsets[0][0];
   let cruises = datasetResult.recordsets[1];
 
+  if (!dataset) {
+    log.error('sql returned no dataset', { shortname, datasetId });
+    res.status(500).send('error retrieving dataset');
+    return next('error querying dataset');
+  }
+
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
 
-  // correct for sometimes incorrect date format
-  topLevelDatasetProps.Time_Min = coerceToISO(topLevelDatasetProps.Time_Min);
-  topLevelDatasetProps.Time_Max = coerceToISO(topLevelDatasetProps.Time_Max);
 
-  let sensors = [...new Set(Sensors.split(","))];
-  let references = References
+
+  // correct for sometimes incorrect date format
+  topLevelDatasetProps.Time_Min = coerceToISO(topLevelDatasetProps.Time_Min, log);
+  topLevelDatasetProps.Time_Max = coerceToISO(topLevelDatasetProps.Time_Max, log);
+
+  let sensors;
+  if (!Sensors || typeof Sensors !== 'string') {
+    sensors = [];
+  } else {
+    sensors = [...new Set(Sensors.split(","))];
+  }
+
+  let references = (References && typeof References === 'string')
                  ? References.split("$$$")
                  : [];
 
   let variablesQuery = `EXEC uspVariableCatalog ${datasetId}`;
   let variablesResult;
   try {
+    let request = await new sql.Request(pool);
     variablesResult = await request.query(variablesQuery);
   } catch (e) {
-    log.error('error making variable catalog query', { err: e })
+    log.error('error making variable catalog query', { error: e })
     res.status(500).send('error making query');
-    return;
+    return next('error querying variables');
   }
 
   let vumQuery = makeVariableUMQuery (shortname);
   let vumResult;
   try {
+    let request = await new sql.Request(pool);
     vumResult = await request.query(vumQuery);
   } catch (e) {
-    log.error('error making variable UM query', { err: e })
+    log.error('error making variable UM query', { error: e })
     res.status(500).send('error making query');
-    return;
+    return next('error querying variable metadata');
   }
 
   let vumMap = {}
@@ -478,13 +494,13 @@ module.exports.datasetMetadata = async (req, res, next) => {
   } else {
     log.error ('expected recordset to be an array', { recordsets: vumResult.recordsets });
     res.status(500).send('error marshaling query result');
-    return;
+    return next('error marshaling variable metadata');
   }
 
   // join dataset stats and unstructured metadata with variables
   let datasetStats = {
-    Time_Min: coerceToISO(dataset.Time_Min),
-    Time_Max: coerceToISO(dataset.Time_Max),
+    Time_Min: coerceToISO(dataset.Time_Min, log),
+    Time_Max: coerceToISO(dataset.Time_Max, log),
     Lat_Min: dataset.Lat_Min,
     Lat_Max: dataset.Lat_Max,
     Lon_Min: dataset.Lon_Min,
@@ -493,11 +509,14 @@ module.exports.datasetMetadata = async (req, res, next) => {
     Depth_Max: dataset.Depth_Max,
   };
 
-  let ammendedVariables = variablesResult.recordset.map((variable) => {
-    return Object.assign({}, variable, datasetStats, {
-      Unstructured_Variable_Metadata: vumMap[variable.Variable] || null
+  let ammendedVariables = {};
+  if (variablesResult && Array.isArray(variablesResult.recordset)) {
+    ammendedVariables = variablesResult.recordset.map((variable) => {
+      return Object.assign({}, variable, datasetStats, {
+        Unstructured_Variable_Metadata: vumMap[variable.Variable] || null
+      });
     });
-  })
+  }
 
   let payload = {
     dataset: topLevelDatasetProps,

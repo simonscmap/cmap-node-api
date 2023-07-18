@@ -12,7 +12,7 @@ const dataRetrievalRoutes = require("./routes/dataRetrieval");
 const ApiCallDetails = require("./models/ApiCallDetail");
 const { v4: uuidv4 } = require('uuid');
 
-const log = createNewLogger().setModule("app.js");
+const log = createNewLogger().setModule("app.js").addContext(['node_version', process.version ]);
 
 const app = express();
 const port = process.env.PORT || 8080;

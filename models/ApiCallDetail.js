@@ -27,6 +27,7 @@ module.exports = class ApiCallDetail {
     // get recorded properly unless this next log.debug line is present
     // log.debug('api call detail constructor', this);
     this.saved = false;
+    this.queryString = req.query;
   }
 
   checkIp() {
@@ -56,7 +57,7 @@ module.exports = class ApiCallDetail {
       userId: this.userID || 1,
       routeId: this.routeID,
       authMethod: this.authMethod || 0,
-      query: this.query,
+      queryString: this.queryString,
       apiKeyId: this.apiKeyID || null,
       requestDuration,
       urlPath: this.requestPath,
