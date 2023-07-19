@@ -1,13 +1,11 @@
 const sql = require("mssql");
-
 const nodeCache = require("../utility/nodeCache");
 const queryHandler = require("../utility/queryHandler");
 const { coerceToISO } = require("../utility/download/coerce-to-iso");
 const pools = require("../dbHandlers/dbPools");
 const datasetCatalogQuery = require("../dbHandlers/datasetCatalogQuery");
 const cruiseCatalogQuery = require("../dbHandlers/cruiseCatalogQuery");
-const { makeDatasetFullPageQuery, makeDatasetVariablesQuery } =
-  require("../queries/datasetFullPageQuery")
+const { makeDatasetFullPageQuery } = require("../queries/datasetFullPageQuery")
 const { makeVariableUMQuery } = require("../queries/variableUM");
 const { getDatasetId } = require("../queries/datasetId");
 const catalogPlusLatCountQuery = require("../dbHandlers/catalogPlusLatCountQuery");

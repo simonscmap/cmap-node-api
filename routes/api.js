@@ -15,6 +15,16 @@ const log = createNewLogger().setModule("routes/apiRouter.js");
 let passportMethods = ["headerapikey", "jwt"];
 let passportOptions = { session: false };
 
+const saveCall = (req, res, next) => {
+  res.on('finish', () => { // allows ApiCallDetails to record response status
+    req.cmapApiCallDetails.save(res, { caller: 'api' });
+  });
+  next();
+};
+
+// Usage metrics logging
+router.use(saveCall);
+
 router.use("/news", newsRoutes);
 router.use("/user", userRoutes);
 router.use("/data", dataRoutes);
@@ -27,11 +37,6 @@ router.use(
   dataSubmissionRoutes
 );
 
-// Usage metrics logging
-router.use((req, res, next) => {
-  req.cmapApiCallDetails.save(res, { caller: 'api' });
-  next();
-});
 
 // catch-all error logging
 // NOTE this must take 4 arguments

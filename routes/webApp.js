@@ -66,7 +66,12 @@ router.use((req, res, next) => {
   if (req.originalUrl === '/favicon.ico') {
     return;
   }
-  log.info("returning on unmatched route", { originalUrl: req.originalUrl });
+  log.info("returning on unmatched route", {
+    originalUrl: req.originalUrl,
+    ip: req.headers["x-forwarded-for"]
+      ? req.headers["x-forwarded-for"].split(",")[0]
+      : req.ip || "None"
+  });
   res.status(404).sendFile("/public/app.html", { root: process.cwd() }, (err) => {
     if (err) {
       next(err);
