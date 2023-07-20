@@ -1,7 +1,7 @@
 const sql = require("mssql");
 const nodeCache = require("../utility/nodeCache");
 const queryHandler = require("../utility/queryHandler");
-const { coerceToISO } = require("../utility/download/coerce-to-iso");
+const { coerceTimeMinAndMax } = require("../utility/download/coerce-to-iso");
 const pools = require("../dbHandlers/dbPools");
 const datasetCatalogQuery = require("../dbHandlers/datasetCatalogQuery");
 const cruiseCatalogQuery = require("../dbHandlers/cruiseCatalogQuery");
@@ -37,7 +37,6 @@ module.exports.datasets = async (req, res, next) => {
 };
 
 module.exports.description = async (req, res) => {
-
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -255,6 +254,11 @@ module.exports.searchCatalog = async (req, res, next) => {
     }
   }
 
+  // query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+
+  // select distinct Dataset_Name from dbo.udfCatalog() where Table_Name in (SELECT table_name FROM dbo.udfDatasetBadges())
+
+
   query += "\nORDER BY Dataset_Release_Date DESC";
 
   let result = await request.query(query);
@@ -277,12 +281,11 @@ module.exports.datasetFullPage = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let { shortname } = req.query;
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
 
   // getDatasetId depends on a cached list of dataset ids
   // this cache can be temporarily stale if a dateset's id has been updated
   // the ttl is 60minutes
-  let datasetId = await getDatasetId (shortname);
+  let datasetId = await getDatasetId (shortname, log);
 
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
@@ -295,6 +298,7 @@ module.exports.datasetFullPage = async (req, res, next) => {
 
   let result1;
   try {
+    let request = await new sql.Request(pool);
     result1 = await request.query(query1);
   } catch (e) {
     log.error('error making full page query', { err: e })
@@ -318,8 +322,17 @@ module.exports.datasetFullPage = async (req, res, next) => {
 
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
 
-  let sensors = [...new Set(Sensors.split(","))];
-  let references = References
+  // correct for sometimes incorrect date format
+  topLevelDatasetProps = coerceTimeMinAndMax (topLevelDatasetProps, log);
+
+  let sensors;
+  if (!Sensors || typeof Sensors !== 'string') {
+    sensors = [];
+  } else {
+    sensors = [...new Set(Sensors.split(","))];
+  }
+
+  let references = (References && typeof References === 'string')
                  ? References.split("$$$")
                  : [];
 
@@ -340,7 +353,7 @@ module.exports.datasetVariables = async (req, res, next) => {
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
-  let datasetId = await getDatasetId (shortname);
+  let datasetId = await getDatasetId (shortname, log);
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
     res.status(400).send('error finding dataset id');
@@ -442,11 +455,8 @@ module.exports.datasetMetadata = async (req, res, next) => {
 
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
 
-
-
   // correct for sometimes incorrect date format
-  topLevelDatasetProps.Time_Min = coerceToISO(topLevelDatasetProps.Time_Min, log);
-  topLevelDatasetProps.Time_Max = coerceToISO(topLevelDatasetProps.Time_Max, log);
+  topLevelDatasetProps = coerceTimeMinAndMax (topLevelDatasetProps, log);
 
   let sensors;
   if (!Sensors || typeof Sensors !== 'string') {
@@ -496,16 +506,16 @@ module.exports.datasetMetadata = async (req, res, next) => {
   }
 
   // join dataset stats and unstructured metadata with variables
-  let datasetStats = {
-    Time_Min: coerceToISO(dataset.Time_Min, log),
-    Time_Max: coerceToISO(dataset.Time_Max, log),
+  let datasetStats = coerceTimeMinAndMax({
+    Time_Min: dataset.Time_Min,
+    Time_Max: dataset.Time_Max,
     Lat_Min: dataset.Lat_Min,
     Lat_Max: dataset.Lat_Max,
     Lon_Min: dataset.Lon_Min,
     Lon_Max: dataset.Lon_Max,
     Depth_Min: dataset.Depth_Min,
     Depth_Max: dataset.Depth_Max,
-  };
+  }, log);
 
   let ammendedVariables = {};
   if (variablesResult && Array.isArray(variablesResult.recordset)) {
@@ -765,24 +775,35 @@ module.exports.searchCruises = async (req, res, next) => {
 
 // Retrieves all member variables of a dataset
 module.exports.memberVariables = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query ]);
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
-  const { datasetID } = req.query;
 
+  let { datasetID } = req.query;
+  let query = `SELECT * FROM udfCatalog() WHERE Dataset_ID = ${datasetID}`;
+
+  let response;
   try {
-    let query = `SELECT * FROM udfCatalog() WHERE Dataset_ID = ${datasetID}`;
-    let response = await request.query(query);
-    res.writeHead(200, {
-      "Cache-Control": "max-age=7200",
-      "Content-Type": "application/json",
-    });
-    await res.end(JSON.stringify(response.recordset));
-    next();
+    let request = await new sql.Request(pool);
+    response = await request.query(query);
   } catch (e) {
     log.error ('error retrieving member variables', { datasetID, error: e });
     res.sendStatus(500);
     next ();
+  }
+
+  let record = response
+            && Array.isArray(response.recordset)
+            && response.recordset.length
+            && response.recordset;
+
+  if (record) {
+    let data = record.map ((v) => coerceTimeMinAndMax (v, log));
+    res.json(data);
+    next();
+  } else {
+    log.error ('no record returned for member variables query', { record });
+    res.sendStatus(404);
+    next ('no record returned for member variables query');
   }
 };
 
@@ -1001,6 +1022,7 @@ module.exports.variableSearch = async (req, res, next) => {
   } catch (e) {
     log.error ('error executing variable search', { error: e, });
     res.sendStatus(500);
+    next();
   }
 };
 
@@ -1046,25 +1068,37 @@ module.exports.autocompleteVariableNames = async (req, res, next) => {
 
 // Retrieve a single variable
 module.exports.variable = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId).addContext (['query', req.query ]);
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
 
+  let { id } = req.query;
+  let query = `${catalogPlusLatCountQuery} WHERE tblVariables.ID = ${id}`;
+
+  let response;
   try {
-    let { id } = req.query;
-
-    let query = `${catalogPlusLatCountQuery} WHERE tblVariables.ID = ${id}`;
-    let response = await request.query(query);
-
-    res.writeHead(200, {
-      "Cache-Control": "max-age=7200",
-      "Content-Type": "application/json",
-    });
-    await res.end(JSON.stringify(response.recordset[0]));
-    next();
+    let request = await new sql.Request(pool);
+    response = await request.query(query);
   } catch (e) {
     log.error ('error retrieving variable', { error: e });
     res.sendStatus(500);
+  }
+
+  let variable = response
+              && Array.isArray(response.recordset)
+              && response.recordset.length > 0
+              && response.recordset[0];
+
+  if (variable) {
+    res.set({
+      "Cache-Control": "max-age=7200",
+      "Content-Type": "application/json",
+    });
+    let data = coerceTimeMinAndMax (variable, log);
+    res.json(data);
+    return next();
+  } else {
+   log.error ('no record returned for variable', { id });
+   return next ('no record returned from vairable query');
   }
 };
 

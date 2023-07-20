@@ -24,4 +24,15 @@ const coerceToISO = (dateString, log) => {
   return date + tail;
 };
 
-module.exports = { coerceToISO };
+const coerceTimeMinAndMax = (metadataObject, log) => {
+  let data = Object.assign({}, metadataObject);
+  if (data.Time_Max) {
+    data.Time_Max = coerceToISO (data.Time_Max, log);
+  }
+  if (data.Time_Min) {
+    data.Time_Min = coerceToISO (data.Time_Min, log);
+  }
+  return data;
+}
+
+module.exports = { coerceToISO, coerceTimeMinAndMax };

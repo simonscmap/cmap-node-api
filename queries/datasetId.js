@@ -66,6 +66,10 @@ const fetchDatasetListWithCache = async () =>
   );
 
 const getDatasetId = async (shortname, log) => {
+  if (typeof shortname !== 'string') {
+    log.error ('received wrong type argument for shortname', { shortname });
+    return null;
+  }
   let key = shortname.toLowerCase();
   // use a cached map
   let idMap = await fetchDatasetListWithCache();
