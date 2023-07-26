@@ -1,10 +1,12 @@
-const queryHandler = require("../utility/queryHandler");
-const initializeLogger = require("../log-service");
-const pools = require("../dbHandlers/dbPools");
+const queryHandler = require("../../utility/queryHandler");
+const initializeLogger = require("../../log-service");
+const pools = require("../../dbHandlers/dbPools");
 const sql = require("mssql");
-const { fetchDataRetrievalProcedureNamesWithCache } = require('../utility/router/queries');
-const { isSproc, extractSprocName } = require('../utility/router/pure');
-const { expandIfSelectStar } = require ('../utility/download/expandSelect');
+const { fetchDataRetrievalProcedureNamesWithCache } = require('../../utility/router/queries');
+const { isSproc, extractSprocName } = require('../../utility/router/pure');
+const directQuery = require('../../utility/directQuery');
+const { expandIfSelectStar } = require ('../../utility/download/expandSelect');
+const { transformFeatureResults } = require('./transforms');
 
 const moduleLogger = initializeLogger("controllers/data");
 
@@ -136,6 +138,7 @@ const cruiseTrajectory = async (req, res, next) => {
 
 // provide list of tables with ancillary data
 // uses sproc
+// TODO: bypass the router
 const ancillaryDatasets = async (req, res, next) => {
   let query = "EXEC uspDatasetsWithAncillary";
   req.cmapApiCallDetails.query = query;
@@ -147,6 +150,29 @@ const ciDatasets = async (req, res, next) => {
   let query = "EXEC uspDatasetBadges";
   req.cmapApiCallDetails.query = query;
   queryHandler(req, res, next, query);
+};
+
+const datasetFeatures = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
+  let query = "EXEC uspDatasetsWithAncillary EXEC uspDatasetBadges";
+  req.cmapApiCallDetails.query = query;
+
+  let [error, result] = await directQuery(query, { description: 'dataset features'}, log);
+
+  if (error) {
+    res.status (500).send ('error fetching dataset features');
+    return next (error);
+  }
+
+  if (result && Array.isArray(result.recordsets) && result.recordsets.length === 2) {
+    let featureMap = transformFeatureResults (result.recordsets, log);
+    res.json (featureMap);
+    next();
+  } else {
+    log.error('incomplete response while fetching dataset features', { result });
+    res.status(500).send ('incomplete response');
+    return next ('error: incomplete response while fetching dataset features');
+  }
 };
 
 // Retrieves all cruises
@@ -225,4 +251,5 @@ module.exports = {
   ciDatasets,
   cruiseList,
   tableStats,
+  datasetFeatures
 };
