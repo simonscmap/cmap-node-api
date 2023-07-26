@@ -166,8 +166,7 @@ module.exports.searchCatalog = async (req, res, next) => {
     sensor,
     region,
     make,
-    ci,
-    ancillary,
+    dataFeatures
   } = req.query;
 
   const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
@@ -259,14 +258,25 @@ module.exports.searchCatalog = async (req, res, next) => {
 
 
   // CMAP-806
-  if (ci) {
-    log.trace('using CI flag');
-    query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
-  }
+  if (Array.isArray(dataFeatures)) {
+    if (dataFeatures.includes('Continuously Updated')) {
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+    }
+    if (dataFeatures.includes('Ancillary Data')) {
+      log.trace('using ancillary flag');
+      // query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetsWithAncillary()))`;
 
-  if (ancillary) {
-    log.trace('using ancillary flag');
-    //
+    }
+  } else if (typeof dataFeatures === 'string') {
+    if (dataFeatures === 'Continuously Updated') {
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+
+    }
+    if (dataFeatures === 'Ancillary Data') {
+      // TODO
+      // query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetsWithAncillary()))`;
+
+    }
   }
 
   query += "\nORDER BY Dataset_Release_Date DESC";
