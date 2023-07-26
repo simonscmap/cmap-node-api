@@ -150,6 +150,7 @@ module.exports.keywords = async (req, res, next) => {
 
 // Web app /catalog search endpoint
 module.exports.searchCatalog = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -165,6 +166,8 @@ module.exports.searchCatalog = async (req, res, next) => {
     sensor,
     region,
     make,
+    ci,
+    ancillary,
   } = req.query;
 
   const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
@@ -254,10 +257,17 @@ module.exports.searchCatalog = async (req, res, next) => {
     }
   }
 
-  // query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
 
-  // select distinct Dataset_Name from dbo.udfCatalog() where Table_Name in (SELECT table_name FROM dbo.udfDatasetBadges())
+  // CMAP-806
+  if (ci) {
+    log.trace('using CI flag');
+    query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+  }
 
+  if (ancillary) {
+    log.trace('using ancillary flag');
+    //
+  }
 
   query += "\nORDER BY Dataset_Release_Date DESC";
 
