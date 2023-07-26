@@ -47,6 +47,7 @@ const run = async (query) => {
       datasetIds,
       datasetLocations,
       coreTables,
+      queryAnalysis,
     );
 
   // 7. assert priority

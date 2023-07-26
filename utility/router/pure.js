@@ -645,9 +645,9 @@ const extractTableNamesFromQuery = (query = "") => {
 };
 
 /*
- *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> [ServerName]
+ *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> QueryAnalysis -> [ServerName]
  */
-const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations) => {
+const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations, queryAnalysis) => {
   let {
     matchingCoreTables,
     matchingDatasetTables,
@@ -661,9 +661,10 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations)
   let respondWithErrorMessage;
 
   // 0. check args
-  if (noTablesNamed) {
+  if (noTablesNamed && queryAnalysis.commandType !== COMMAND_TYPES.sproc) {
     // this check prevents some valid queries, like "SELECT 1 + 1"
     // but also keeps nonsense queries from reaching the database layer
+    // NOTE: only log this as an error if query is not a stored procedure
     errors.push(['no tables were referenced in the query', { matchingTables }]);
     return { errors, candidateLocations: []};
   } else if (omittedTables && omittedTables.length) {

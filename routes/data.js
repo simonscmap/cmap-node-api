@@ -29,6 +29,13 @@ router.get(
   "/ci-datasets",
   asyncControllerWrapper(dataController.ciDatasets)
 );
+
+// Get a map of tables with dataset features
+router.get(
+  "/dataset-features",
+  asyncControllerWrapper(dataController.datasetFeatures)
+);
+
 // Get list of cruises
 router.get("/cruiselist", asyncControllerWrapper(dataController.cruiseList));
 

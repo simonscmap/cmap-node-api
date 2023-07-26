@@ -150,6 +150,7 @@ module.exports.keywords = async (req, res, next) => {
 
 // Web app /catalog search endpoint
 module.exports.searchCatalog = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -165,6 +166,7 @@ module.exports.searchCatalog = async (req, res, next) => {
     sensor,
     region,
     make,
+    dataFeatures
   } = req.query;
 
   const crosses180 = parseFloat(lonStart) > parseFloat(lonEnd);
@@ -254,10 +256,26 @@ module.exports.searchCatalog = async (req, res, next) => {
     }
   }
 
-  // query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
 
-  // select distinct Dataset_Name from dbo.udfCatalog() where Table_Name in (SELECT table_name FROM dbo.udfDatasetBadges())
+  // CMAP-806
+  if (Array.isArray(dataFeatures)) {
+    if (dataFeatures.includes('Continuously Updated')) {
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+    }
+    if (dataFeatures.includes('Ancillary Data')) {
+      log.trace('using ancillary flag');
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetsWithAncillary()))`;
 
+    }
+  } else if (typeof dataFeatures === 'string') {
+    if (dataFeatures === 'Continuously Updated') {
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges()))`;
+
+    }
+    if (dataFeatures === 'Ancillary Data') {
+      query += `\nAND (cat.Table_Name IN (SELECT table_name FROM dbo.udfDatasetsWithAncillary()))`;
+    }
+  }
 
   query += "\nORDER BY Dataset_Release_Date DESC";
 
