@@ -225,8 +225,7 @@ const cruiseList = async (req, res, next) => {
 
 // Retrieves table stats for a variable
 const tableStats = async (req, res, next) => {
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  let log = moduleLogger.setReqId (req.requestId);
 
   let query = `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
     (select tblD.ID, tblV.Table_Name FROM tblVariables tblV
@@ -234,12 +233,20 @@ const tableStats = async (req, res, next) => {
     on tblS.Dataset_ID= tblDV.ID
     where tblDV.Table_Name = '${req.query.table}'`;
 
-  let result = await request.query(query);
+  req.cmapApiCallDetails.query = query;
+  let options = { description: 'table stats'};
+  let [error, result] = await directQuery(query, options, log);
+
+  if (error) {
+    res.status(500).json({ error: 'error retrieving table stats' });
+    return next (error);
+  }
 
   if (result.recordset.length < 1) {
-    res.json({ error: "Table not found" });
-    return;
+    res.status(404).json({ error: "Table not found" });
+    return next ('table not found');
   }
+
   res.send(result.recordset[0].JSON_stats);
 };
 
