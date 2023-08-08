@@ -41,13 +41,14 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
 
 // ~~~~ CONTROLLERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-/* Custom query endpoint
-*/
+/* Custom query endpoint */
 const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
 
   log.info ("custom query", { ...req.query });
+
+  let query = req.query.query;
 
   if (isSproc (req.query.query)) {
     let uspDataRetrievingNames = await fetchDataRetrievalProcedureNamesWithCache();
@@ -71,8 +72,8 @@ const customQuery = async (req, res, next) => {
       if (error) {
         return res.status (500).send ('error preparing query');
       } else {
-        log.trace ('passing query to queryHandler', { queryToRun });
-        return queryHandler(req, res, next, queryToRun);
+        log.trace ('updating query to execute', { queryToRun });
+        query = queryToRun;
       }
     } else {
       // if sproc is not a data-retrieving sproc, let it run as is
@@ -81,18 +82,82 @@ const customQuery = async (req, res, next) => {
   }
 
   // if 'select * ...', replace '*' with columns
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (req.query.query);
 
-  let [errorMsg, updatedQuery] = await expandIfSelectStar (req.query.query);
-
-  let query = req.query.query;
   if (errorMsg) {
     log.warn (errorMsg, { query })
   } else {
+    if (queryWasModified) {
+      log.info ('using expanded query', { updatedQuery });
+    }
     query = updatedQuery;
   }
 
+  // Now we have the final query
+
+  // Check the size
+
   queryHandler (req, res, next, query);
 };
+
+const queryModifiers = async (req, res, next) => {
+  req.cmapApiCallDetails.query = req.query.query;
+  let log = moduleLogger.setReqId(req.requestId);
+
+  log.info ("custom query", { ...req.query });
+
+  let query = req.query.query;
+
+  if (isSproc (req.query.query)) {
+    let uspDataRetrievingNames = await fetchDataRetrievalProcedureNamesWithCache();
+
+    log.trace ('fetched usp data', uspDataRetrievingNames);
+
+    if (uspDataRetrievingNames === null) {
+      res.status (500).send ('error analyzing query');
+      return;
+    }
+
+    let sprocName = extractSprocName (req.query.query).toLocaleLowerCase();
+
+    if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
+      let spExecutionQuery = `${req.query.query}, 1`;
+
+      log.info ('fetching query for stored procedure', { sproc: spExecutionQuery });
+
+      let [error, queryToRun] = await fetchSprocQuery (req.requestId, spExecutionQuery, req.query);
+
+      if (error) {
+        return res.status (500).send ('error preparing query');
+      } else {
+        log.trace ('updating query to execute', { queryToRun });
+        query = queryToRun;
+      }
+    } else {
+      // if sproc is not a data-retrieving sproc, let it run as is
+      log.trace ('sproc is not a data-retrieving sproc');
+    }
+  }
+
+  // if 'select * ...', replace '*' with columns
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (req.query.query);
+
+  if (errorMsg) {
+    log.warn (errorMsg, { query })
+  } else {
+    if (queryWasModified) {
+      log.info ('using expanded query', { updatedQuery });
+    }
+    query = updatedQuery;
+  }
+
+  req.modifiedQuery = query;
+  next();
+
+};
+
+
+
 
 // Stored procedure call endpoint
 // NOTE: this only serves the subset of stored procedures that power the chart visualizations
@@ -157,7 +222,9 @@ const datasetFeatures = async (req, res, next) => {
   let query = "EXEC uspDatasetsWithAncillary EXEC uspDatasetBadges";
   req.cmapApiCallDetails.query = query;
 
-  let [error, result] = await directQuery(query, { description: 'dataset features'}, log);
+  let options = { description: 'dataset features'};
+
+  let [error, result] = await directQuery(query, options, log);
 
   if (error) {
     res.status (500).send ('error fetching dataset features');
@@ -171,7 +238,7 @@ const datasetFeatures = async (req, res, next) => {
   } else {
     log.error('incomplete response while fetching dataset features', { result });
     res.status(500).send ('incomplete response');
-    return next ('error: incomplete response while fetching dataset features');
+    return next (new Error('incomplete response while fetching dataset features'));
   }
 };
 
@@ -225,8 +292,7 @@ const cruiseList = async (req, res, next) => {
 
 // Retrieves table stats for a variable
 const tableStats = async (req, res, next) => {
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  let log = moduleLogger.setReqId (req.requestId);
 
   let query = `select tblDV.Table_Name, tblS.JSON_stats from tblDataset_Stats tblS inner join
     (select tblD.ID, tblV.Table_Name FROM tblVariables tblV
@@ -234,17 +300,26 @@ const tableStats = async (req, res, next) => {
     on tblS.Dataset_ID= tblDV.ID
     where tblDV.Table_Name = '${req.query.table}'`;
 
-  let result = await request.query(query);
+  req.cmapApiCallDetails.query = query;
+  let options = { description: 'table stats'};
+  let [error, result] = await directQuery(query, options, log);
+
+  if (error) {
+    res.status(500).json({ error: 'error retrieving table stats' });
+    return next (error);
+  }
 
   if (result.recordset.length < 1) {
-    res.json({ error: "Table not found" });
-    return;
+    res.status(404).json({ error: "Table not found" });
+    return next (new Error('table not found'));
   }
+
   res.send(result.recordset[0].JSON_stats);
 };
 
 module.exports = {
   customQuery,
+  queryModifiers,
   storedProcedure,
   cruiseTrajectory,
   ancillaryDatasets,

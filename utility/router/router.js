@@ -7,7 +7,6 @@ const { assertPriority, isSproc } = require ("./pure");
 
 const moduleLogger = initializeLogger("router/router");
 
-
 async function delegateExecution (req, res, next, query, candidates, attempts = 0) {
   let currentAttempt = attempts += 1;
 
@@ -93,4 +92,58 @@ async function routeQuery (req, res, next, query) {
   await delegateExecution (req, res, next, query, candidateLocations);
 }
 
-module.exports = { routeQuery };
+async function routeQueryFromMiddleware (req, res, next) {
+  let queryFromMiddleware = req.modifiedQuery;
+  let output = req.query.output &&
+               typeof req.query.output === 'string' &&
+               req.query.output.toLowerCase();
+
+  // each logged message will inclued the request id and query in its context
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', queryFromMiddleware ]);
+
+  if (output === 'project_size') {
+    res.json ({
+      query: queryFromMiddleware,
+      analysis: req.queryAnalysis,
+      projectedSize: req.projectedRowCount,
+    });
+    // stop further middleware from running
+    return;
+  }
+
+  // retrieve list of candidate servers (provided by middleware)
+  let candidateListResults = req.candidateListResults;
+
+  if (!candidateListResults) {
+    log.warn("no candidate analysis provided", { candidateListResults });
+    res.status(500).send("error preparing query for execution");
+    next();
+    return null;
+  }
+
+  let {
+    candidateLocations,
+    respondWithErrorMessage,
+    errors,
+    warnings,
+    messages,
+  } = candidateListResults;
+
+  // 2. log information from getCandidateList (esp. messages bubbled up from calculateCandidateTargets)
+  logErrors (log) (errors);
+  logMessages (log) (messages);
+  logWarnings (log) (warnings);
+
+  if (respondWithErrorMessage) {
+    log.error (respondWithErrorMessage, { candidates: candidateLocations });
+    res.status (400).send (respondWithErrorMessage);
+    return null;
+  }
+
+  // 3. delegate execution of the query
+  await delegateExecution (req, res, next, queryFromMiddleware, candidateLocations);
+}
+
+module.exports = { routeQuery, routeQueryFromMiddleware };

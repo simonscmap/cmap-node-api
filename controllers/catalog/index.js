@@ -1,15 +1,15 @@
 const sql = require("mssql");
-const nodeCache = require("../utility/nodeCache");
-const queryHandler = require("../utility/queryHandler");
-const { coerceTimeMinAndMax } = require("../utility/download/coerce-to-iso");
-const pools = require("../dbHandlers/dbPools");
-const datasetCatalogQuery = require("../dbHandlers/datasetCatalogQuery");
-const cruiseCatalogQuery = require("../dbHandlers/cruiseCatalogQuery");
-const { makeDatasetFullPageQuery } = require("../queries/datasetFullPageQuery")
-const { makeVariableUMQuery } = require("../queries/variableUM");
-const { getDatasetId } = require("../queries/datasetId");
-const catalogPlusLatCountQuery = require("../dbHandlers/catalogPlusLatCountQuery");
-const logInit = require("../log-service");
+const nodeCache = require("../../utility/nodeCache");
+const queryHandler = require("../../utility/queryHandler");
+const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
+const pools = require("../../dbHandlers/dbPools");
+const datasetCatalogQuery = require("../../dbHandlers/datasetCatalogQuery");
+const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
+const { makeDatasetFullPageQuery } = require("../../queries/datasetFullPageQuery")
+const { makeVariableUMQuery } = require("../../queries/variableUM");
+const { getDatasetId } = require("../../queries/datasetId");
+const catalogPlusLatCountQuery = require("../../dbHandlers/catalogPlusLatCountQuery");
+const logInit = require("../../log-service");
 
 // const log = logInit("controllers/catalog");
 const moduleLogger = logInit("controllers/catalog");
@@ -297,17 +297,26 @@ module.exports.searchCatalog = async (req, res, next) => {
 // Retrieves dataset and variable information for catalog pages
 module.exports.datasetFullPage = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
-  let { shortname } = req.query;
+  let { shortname, id } = req.query;
   let pool = await pools.dataReadOnlyPool;
 
-  // getDatasetId depends on a cached list of dataset ids
-  // this cache can be temporarily stale if a dateset's id has been updated
-  // the ttl is 60minutes
-  let datasetId = await getDatasetId (shortname, log);
 
-  if (!datasetId) {
-    log.error('could not find dataset id for dataset name', { shortname })
-    res.status(400).send('error finding dataset id');
+  let datasetId;
+  if (id) {
+    datasetId = id;
+  } else if (shortname) {
+    // getDatasetId depends on a cached list of dataset ids
+    // this cache can be temporarily stale if a dateset's id has been updated
+    // the ttl is 60minutes
+    datasetId = await getDatasetId(shortname, log);
+    if (!datasetId) {
+      log.error('could not find dataset id for dataset name', { shortname })
+      res.status(400).send('error finding dataset id');
+      return next();
+    }
+  } else {
+    log.error('neither shortname nor dataset id provided', { shortname, id })
+    res.status(400).send('insufficient args: provide a shortname or dataset id');
     return next();
   }
 
@@ -444,7 +453,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   if (!datasetId) {
     log.error('could not find dataset id for dataset name', { shortname })
     res.status(400).send('error finding dataset id');
-    return next('error finding dataset id');
+    return next(new Error('error finding dataset id'));
   }
 
   // get dataset and cruise info
@@ -457,7 +466,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   } catch (e) {
     log.error('error making full page query', { error: e });
     res.status(500).send('error making query');
-    return next('error querying dataset');
+    return next(new Error('error querying dataset'));
   }
 
   // the query contains 2 select statements,
@@ -468,7 +477,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   if (!dataset) {
     log.error('sql returned no dataset', { shortname, datasetId });
     res.status(500).send('error retrieving dataset');
-    return next('error querying dataset');
+    return next(new Error('error querying dataset'));
   }
 
   let { References, Sensors, ...topLevelDatasetProps } = dataset;
@@ -495,7 +504,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   } catch (e) {
     log.error('error making variable catalog query', { error: e })
     res.status(500).send('error making query');
-    return next('error querying variables');
+    return next(new Error('error querying variables'));
   }
 
   let vumQuery = makeVariableUMQuery (shortname);
@@ -506,7 +515,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   } catch (e) {
     log.error('error making variable UM query', { error: e })
     res.status(500).send('error making query');
-    return next('error querying variable metadata');
+    return next(new Error('error querying variable metadata'));
   }
 
   let vumMap = {}
@@ -520,7 +529,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   } else {
     log.error ('expected recordset to be an array', { recordsets: vumResult.recordsets });
     res.status(500).send('error marshaling query result');
-    return next('error marshaling variable metadata');
+    return next(new Error('error marshaling variable metadata'));
   }
 
   // join dataset stats and unstructured metadata with variables
@@ -821,7 +830,7 @@ module.exports.memberVariables = async (req, res, next) => {
   } else {
     log.error ('no record returned for member variables query', { record });
     res.sendStatus(404);
-    next ('no record returned for member variables query');
+    next (new Error('no record returned for member variables query'));
   }
 };
 
@@ -1116,7 +1125,7 @@ module.exports.variable = async (req, res, next) => {
     return next();
   } else {
    log.error ('no record returned for variable', { id });
-   return next ('no record returned from vairable query');
+   return next (new Error('no record returned from vairable query'));
   }
 };
 
