@@ -24,7 +24,7 @@
   "author": "Simons CMAP",
   "license": "ISC",
   "devDependencies": {
-    "ava": "^4.2.0",
+    "ava": "^3.15.0",
     "chalk": "^4.1.2",
     "eslint": "^8.22.0",
     "jest": "^25.5.4",
