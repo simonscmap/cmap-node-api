@@ -131,8 +131,6 @@ const traverseAST = (obj) => {
   let msg = '';
   let result = obj;
 
-  // console.log (argType);
-
   if (argType === 'object') {
 
     let entries = Object.entries(obj).reduce((acc, entry) => {
@@ -519,6 +517,7 @@ const queryToAST = (query = "") => {
     }
   }
   log.debug("queryToAst result", result);
+
   return result;
 };
 

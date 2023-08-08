@@ -6,19 +6,56 @@ Some CAMP datasets are too large to reasonably store on-prem and are therefore s
 
 The on-prem servers are named `rainier`, `rossby`, and `mariana`. The initial sparq cluster is named `cluster`. These are the names (strings) used to identify servers system wide.
 
-The Distributed Datasets Router detects which datasets an incoming query will visit and routes the query to a valid database.
+The Distributed Datasets Router manages incoming queries on the `api/data/query` route (also the "custom query route"), detecting which datasets an incoming query will visit and routes the query to a valid database.
+
+Additional functionality has been added to complement the routing feature: (1) select * expansion, (2) query size checking, and (3) automatic retries. Select * expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Query size checking evaluates incoming querise to ensure that they do not match more than 2 million rows; it will disallow queries that exceed that limit. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
+
+## Phases of the Query Route as Middleware
+
+The steps to implement data routing (and complementary features) on the `api/data/query` route have been separated into 5 pieces of middleware.
+
+| Step | Description | Function |
+| --- | --- | --- |
+| 1 | modifications are made to the query | [/controllers/data/index.js::queryModification](/controllers/data/index.js) |
+| 2 | the modified query is analyzed | [/middleware/queryAnalysis.js](/middleware/queryAnalysis.js) |
+| 3 | candidate servers are calculated | [/utility/router/routerMiddleware.js](/utility/router/routerMiddleware.js) |
+| 4 | the size of the query is derived | [/middleware/checkQuerySize.js](/middleware/checkQuerySize.js) |
+| 5 | the query is executed | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
+
+1. The incoming query is checked to see if it is executing a registered stored procedure, and if so that sproc is called with a flag that causes it to return an executable query string (which can be analyzed in a later step to determine which server to execute it on). The "select *" expansion function is then applied, and the final modified query is placed on the request obejct and passed to the next middleware function.
+
+2. The modified query is parsed; named tables are extracted and analyzed to determine if they are core tables or dataset tables. The results are placed on the request object for further use by other middleware.
+
+3. The extracted tables used to calculate candidate servers that are capable of executing the query. The result is placed on the request object.
+
+4. The modified query, along with the extracted table names, are used to derive the row count of query, ether by querying the appropriate database for a count or by calculating the result from the spatiotemporal constraints if the dataset is gridded. If the query is too large, an error response is sent and remaining middleware is bypassed.
+
+5. The query is executed: the list of candidate servers is already provided, and now the modified query is passed to the appropriate handler. If the query fails, and there are alternate servers, each server is tried in succession until the list is exhausted.
+
+## Middleware vs `queryHandler`
+
+The `api/data/query` route uses the middleware approach to clarify the different steps of handling an incoming query. Specifically, it uses `routeQueryFromMiddleware` function, which assumes that the query has been analyzed and candidate servers already identified.
+
+Other routes employ the `queryHandler` function, which implements the data routing features described above, given a query string.
+
 
 ## Tracing the path of the request through the router
 
 Here is a synoptic view of the sequence of function calls that make up the router.
 
+### Preparation
+
 - When a route controller delegates to the `queryHandler` in engages the router; the entry point is [/queryHandler/index.js](/utility/queryHandler/index.js) which calls [/router/router.js::routeQuery](/utility/router/router.js).
 - The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and then delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/queryCluster.js](/utility/queryHandler/queryCluster.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
 - `getCandidateList` contains the core function of the router, which includes analyzing the query to identify which datasets are requested, determining where those datasets are available, and calculating a viable server that has all required datasets.
 
-What follows are explanations of a few important implementation details.
+### Execution
 
-## Round Robin
+- Once the list of candidates has been calculated, the router executes the query. This is the point where the `routeQueryFromMiddleware` and the `routeQuery` function converge. They both delegate execution (via a function named `delegateExecution`) to the appropriate handler, either for an on-prem request or a request to the cluster. The `delegateExecution` function received the result of the query handler; if a retry is available, it calls itself with an updated list of candidate servers.
+
+## Implementation details
+
+### Round Robin
 
 The [round robin](/utility/router/roundRobin.js) is used to determine which server to direct the query to when multiple on-prem servers are valid targets. The round robin is called by `getPool` within `queryOnPrem`. It does not yet apply to cluster queries.
 
@@ -28,15 +65,15 @@ Note, if no list is provided, it will default to an empty list, and will return 
 
 The calling function `getPool` accomodates this `undefined` return by defaulting (via `mapServerNameToPoolConnection` in [roundRobin.js](/utility/router/roundRobin.js)) to `rainier`.
 
-## Automatic Retry on Ranier
+### Automatic Retry on Ranier
 
 `executeQueryOnPrem` uses an automatic retry on `rainier` if the query fails on a server other than ranier, and if the query can be rerun on `rainier`.
 
-## Respecting `servername` query arg
+### Respecting `servername` query arg
 
 A query parameter `servername` can be used to specify which server to run the query on. If this argument exists, the router does not try to run the query elsewhere. However, the router will return an error and decline to run the query if the provided server is not a valid target for the query.
 
-## Query-to-Database-Target
+### Query-to-Database-Target
 
 The `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
 - `commandType`: a string indicating whether the query is a sproc or a custom query (`sproc` | `custom`)

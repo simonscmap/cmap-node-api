@@ -68,6 +68,4 @@ test ("can parse CTE", (t) => {
 test ("can parse queries with backticks", (t) => {
   let [error, result] = traverseAST (qWithBackticks);
   t.is (error, false);
-  console.error (result);
-
 });

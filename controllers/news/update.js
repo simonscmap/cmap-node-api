@@ -67,7 +67,6 @@ let updateQueryDefinition = {
       sqlType: sql.DateTime,
       defaultTo: (new Date()).toISOString(),
       resolver: () => {
-        console.log((new Date()).toISOString())
         return S.Right((new Date()).toISOString())
       }
     }

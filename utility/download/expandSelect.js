@@ -197,7 +197,7 @@ let expandStar = async (queryString) => {
 
   let newQueryString = replaceStarWithCols (queryString, columnNames);
 
-  return [null, newQueryString];
+  return [null, newQueryString, true];
 }
 
 // if select, fetch columns, then replace * with columns
@@ -208,7 +208,7 @@ let expandIfSelectStar = async (queryString) => {
   if (shouldExpandStar (queryString)) {
     return await expandStar (queryString);
   } else {
-    return [null, queryString];
+    return [null, queryString, false];
   }
 };
 
