@@ -165,6 +165,11 @@ function extractQueryConstraints (queryString = '') {
 
       return [...resultLeft, ...resultRight];
     }
+
+    // else
+    return [];
+
+    // TODO handle 'IS_NOT' operator
   }
 
 
