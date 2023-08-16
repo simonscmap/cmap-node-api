@@ -42,6 +42,13 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   // 1. create connection
   const client = new DBSQLClient();
 
+  let hasError = false;
+
+  client.on("error", (e) => {
+    log.error("error connecting to cluster", { error: e });
+    hasError = true;
+  });
+
   try {
     await client.connect(connOptions);
   } catch (e) {
@@ -73,7 +80,6 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
   csvStream.pipe(accumulator).pipe(res);
 
-  let hasError = false;
   let pages = 0;
   let rowCount = 0;
 
@@ -99,7 +105,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
       });
     } catch (e) {
       hasError = true;
-      log.error("error fetching chunk", { error: e.message });
+      log.error("error fetching chunk", { error: e.message, fullError: e });
       endRespWithError(e);
       break;
     }

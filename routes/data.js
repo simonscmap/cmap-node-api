@@ -2,14 +2,40 @@ const router = require("express").Router();
 const passport = require("../middleware/passport");
 
 const dataController = require("../controllers/data");
+const queryAnalysis = require("../middleware/queryAnalysis");
+const checkQuerySize = require("../middleware/checkQuerySize");
+const candidateAnalysis = require("../utility/router/routerMiddleware")
+const { routeQueryFromMiddleware } = require("../utility/router/router");
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
+const wrap = asyncControllerWrapper;
+
+// Custom query statement route
+router.get(
+  "/query-old",
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  asyncControllerWrapper(dataController.customQuery)
+);
 
 // Custom query statement route
 router.get(
   "/query",
   passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
-  asyncControllerWrapper(dataController.customQuery)
+
+  // apply query modifiers
+  wrap(dataController.queryModifiers),
+
+  // analyze query
+  wrap(queryAnalysis),
+
+  // calculate targets
+  wrap(candidateAnalysis),
+
+  // regulate query size
+  wrap(checkQuerySize),
+
+  // execute
+  wrap(routeQueryFromMiddleware)
 );
 
 // Stored procedure route

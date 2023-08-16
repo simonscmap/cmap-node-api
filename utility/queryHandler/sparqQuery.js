@@ -1,7 +1,6 @@
 const { DBSQLClient } = require("@databricks/sql");
-
 const initializeLogger = require("../../log-service");
-const log = initializeLogger("cluster connect and query");
+const moduleLogger = initializeLogger("queryHandler/sparqQuery");
 
 const connOptions = {
   host: process.env.CLUSTER_HOST,
@@ -9,16 +8,21 @@ const connOptions = {
   token: process.env.CLUSTER_WAREHOUSE_TOKEN,
 };
 
-const queryCluster = async (query = "") => {
+// queryCluster :: Query String -> Request Id -> [ Error?, Result ]
+const queryCluster = async (query = "", requestId) => {
+  let log = moduleLogger
+    .setReqId (requestId)
+    .addContext(['query', query ]);
+
   const client = new DBSQLClient();
-  // connect
+
   try {
     await client.connect(connOptions);
   } catch (e) {
-    log.error("error connecting to cluster", { });
-    return;
+    log.trace ("error connecting to cluster", { error: e });
+    return [new Error ('error connecting to cluster')];
   }
-  // query
+
   let result;
   try {
     log.trace("opening session");
@@ -37,10 +41,13 @@ const queryCluster = async (query = "") => {
     await session.close();
     await client.close();
   } catch (e) {
-    log.error("error querrying cluster", { });
+    log.error("error querrying cluster", { error: e });
+    return [e];
   }
 
-  return result;
+  // console.log('sparq query result', result);
+
+  return [null, result];
 };
 
 module.exports = queryCluster;

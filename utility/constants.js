@@ -11,9 +11,12 @@ const COMMAND_TYPES = {
   custom: 'custom',
 }
 
+const QUERY_ROW_LIMIT = 2000000;
+
 module.exports = {
   SERVER_NAMES,
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS: 'cmap-data-submission@uw.edu',
   CLUSTER_CHUNK_MAX_ROWS,
   COMMAND_TYPES,
+  QUERY_ROW_LIMIT,
 };

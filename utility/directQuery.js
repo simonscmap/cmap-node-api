@@ -15,9 +15,10 @@ const directQuery = async (queryString, options = {}, logger = moduleLogger) => 
 
   let result;
   try {
+    logger.debug ('exectuing direct query', { queryString });
     result = await request.query(queryString);
   } catch (e) {
-    logger.error(`query ${description} failed`, { error: e });
+    logger.error(`query ${description} failed`, { error: e, queryString });
     return [e];
   }
 
