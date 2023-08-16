@@ -60,15 +60,12 @@ const makeGetRowCountAndReturnResponse = (allowQueryFn, prohibitQueryFn, makePro
   async (query, requestId) => {
     let [countError, countResult] = await getRowCountForQuery(query, requestId);
     let size = countResult;
-    // cluster result
     if (Array.isArray(countResult) && countResult.length === 1 && countResult[0].row_count) {
-      console.log ('getRowCountForQuery', countResult);
+      // cluster result
       size = countResult[0].row_count;
-
-    } else
+    } else if (countResult && Array.isArray(countResult.recordset) && countResult.recordset.length && countResult.recordset[0].row_count) {
       // on prem result
-    if (countResult && Array.isArray(countResult.recordset) && countResult.recordset.length && countResult.recordset[0].row_count) {
-     size = countResult.recordset[0].row_count;
+      size = countResult.recordset[0].row_count;
     } else {
       // unexpected condition
     }

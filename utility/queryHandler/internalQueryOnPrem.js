@@ -33,7 +33,6 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
   // 3. execute
   try {
     let result = await request.query(query);
-    console.log ('on prem result', result);
     return [null, result, remainingCandidates];
   } catch (e) {
     return [e, null, remainingCandidates];
