@@ -45,8 +45,6 @@ const queryCluster = async (query = "", requestId) => {
     return [e];
   }
 
-  // console.log('sparq query result', result);
-
   return [null, result];
 };
 

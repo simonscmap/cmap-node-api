@@ -41,8 +41,8 @@ const getRowCountForQuery = async (queryToAnalyze, requestId) => {
   return await internalRouter (query, requestId);
 }
 
-const makeResponsePayload = ({ modifiedQuery, analysis }) =>
-  ({ warnings, response, projection, constraints, allow }) => ({
+const makeResponsePayload = ({ modifiedQuery, analysis, constraints }) =>
+  ({ warnings, response, projection, allow }) => ({
     allow,
     response,
     warnings,
@@ -59,12 +59,22 @@ const makeResponsePayload = ({ modifiedQuery, analysis }) =>
 const makeGetRowCountAndReturnResponse = (allowQueryFn, prohibitQueryFn, makeProjection) =>
   async (query, requestId) => {
     let [countError, countResult] = await getRowCountForQuery(query, requestId);
-    if (countError) {
+    let size = countResult;
+    if (Array.isArray(countResult) && countResult.length === 1 && countResult[0].row_count) {
+      // cluster result
+      size = countResult[0].row_count;
+    } else if (countResult && Array.isArray(countResult.recordset) && countResult.recordset.length && countResult.recordset[0].row_count) {
+      // on prem result
+      size = countResult.recordset[0].row_count;
+    } else {
+      // unexpected condition
+    }
+    if (countError || typeof size !== 'number') {
       return prohibitQueryFn(null, null, ['error fetching count for query']);
-    } else if (countResult > QUERY_ROW_LIMIT) {
-      return prohibitQueryFn(null, makeProjection(countResult, 'query'))
+    } else if (size > QUERY_ROW_LIMIT) {
+      return prohibitQueryFn(null, makeProjection(size, 'query'))
     } else { // count is below threshold, allow query
-      return allowQueryFn(makeProjection(countResult, 'query'))
+      return allowQueryFn(makeProjection(size, 'query'))
     }
   }
 
@@ -221,7 +231,7 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
 
   let result = await checkQuerySize (args);
 
-  log.info ('result', { query: result.query, projection: result.projection })
+  log.info ('result', { ...result.query, ...result.projection, allow: result.allow })
 
   if (Array.isArray(result.warnings)) {
     result.warnings.forEach ((warning) => log.warning (warning, null ))
@@ -242,7 +252,7 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
   } else {
     res
       .status(result.response && result.respons.status || 400)
-      .send(result.response && result.response.messsage || 'query matches too large a result set');
+      .send(result.response && result.response.messsage || 'query exceeds maximum size allowed');
     return next (new Error('query failed size check'));
   }
 };

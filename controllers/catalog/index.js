@@ -1055,6 +1055,7 @@ module.exports.variableSearch = async (req, res, next) => {
 
 // No longer in use by web app
 module.exports.autocompleteVariableNames = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId).addContext (['query', req.query ]);
   let pool = await pools.dataReadOnlyPool;
   let request = await new sql.Request(pool);
 
@@ -1088,8 +1089,9 @@ module.exports.autocompleteVariableNames = async (req, res, next) => {
     await res.end(JSON.stringify(names));
     next();
   } catch (e) {
-    console.log(e);
+    log.error ('error querying variable names', { error: e });
     res.sendStatus(500);
+    next ()
   }
 };
 
