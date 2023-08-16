@@ -12,13 +12,6 @@ const wrap = asyncControllerWrapper;
 
 // Custom query statement route
 router.get(
-  "/query-old",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
-  asyncControllerWrapper(dataController.customQuery)
-);
-
-// Custom query statement route
-router.get(
   "/query",
   passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
 

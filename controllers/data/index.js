@@ -41,7 +41,8 @@ const fetchSprocQuery = async (reqId, spExecutionQuery, argSet) => {
 
 // ~~~~ CONTROLLERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-/* Custom query endpoint */
+/* Custom query controller, invokes data router */
+/* no longer in use, in favor of queryModifier middleware (below) */
 const customQuery = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
@@ -93,13 +94,13 @@ const customQuery = async (req, res, next) => {
     query = updatedQuery;
   }
 
-  // Now we have the final query
-
-  // Check the size
-
   queryHandler (req, res, next, query);
 };
 
+// custom query middleware
+// applies query modifications
+// - if query is a sproc, calls sproc to get executable sql back that can be used with the data router
+// - expand column names if query uses a `select *`
 const queryModifiers = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
