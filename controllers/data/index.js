@@ -101,7 +101,7 @@ const customQuery = async (req, res, next) => {
 // applies query modifications
 // - if query is a sproc, calls sproc to get executable sql back that can be used with the data router
 // - expand column names if query uses a `select *`
-const queryModifiers = async (req, res, next) => {
+const queryModification = async (req, res, next) => {
   req.cmapApiCallDetails.query = req.query.query;
   let log = moduleLogger.setReqId(req.requestId);
 
@@ -320,7 +320,7 @@ const tableStats = async (req, res, next) => {
 
 module.exports = {
   customQuery,
-  queryModifiers,
+  queryModification,
   storedProcedure,
   cruiseTrajectory,
   ancillaryDatasets,
