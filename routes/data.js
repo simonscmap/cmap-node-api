@@ -9,6 +9,7 @@ const { routeQueryFromMiddleware } = require("../utility/router/router");
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 const wrap = asyncControllerWrapper;
+const { queryModification } = dataController;
 
 // Custom query statement route
 router.get(
@@ -16,7 +17,7 @@ router.get(
   passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
 
   // apply query modifiers
-  wrap(dataController.queryModifiers),
+  wrap(queryModification),
 
   // analyze query
   wrap(queryAnalysis),
