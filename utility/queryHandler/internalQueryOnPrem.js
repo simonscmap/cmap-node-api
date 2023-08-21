@@ -17,7 +17,7 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
   if (error) {
     logErrors (log) (errors);
     logMessages (log) (messages);
-    return remainingCandidates;
+    return [error, null, remainingCandidates];
   }
 
   logMessages (log) (messages);
@@ -26,9 +26,15 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
 
   // 2. create request object
 
-  log.trace ("making request", { poolName });
+  log.trace ("creating request", { poolName, pool });
 
-  let request = await new sql.Request (pool);
+  let request;
+  try {
+    request = await new sql.Request (pool);
+  } catch (e) {
+    log.error (`unable to create new sql request from pool ${poolName}`, { error: e });
+    return [e, null, remainingCandidates]
+  }
 
   // 3. execute
   try {

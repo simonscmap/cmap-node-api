@@ -1,5 +1,5 @@
 const { internalRouter } = require ('../../utility/router/internal-router');
-
+const log = require('../../log-service') ('controllers/data/fetchDepthsForGriddedDataset');
 // fetcheDepths :: { id } -> [errorMessage?, data?]
 const fetchDepths = async (dataset) => {
   let { Table_Name, Time_Min, Lat_Min, Lon_Min } = dataset;
@@ -8,21 +8,32 @@ const fetchDepths = async (dataset) => {
     return [new Error('unexpected arg type: Table_Name is not string')];
   }
 
+  let timeExpression = Time_Min ? `time='${Time_Min}'` : `month=1`;
+
   let latNextTick = parseFloat(Lat_Min) + 0.5;
   let lonNextTick = parseFloat(Lon_Min) + 0.5;
 
   let query = `select distinct depth from ${Table_Name} where
-      time='${Time_Min}' AND
+      ${timeExpression} AND
       lat between ${Lat_Min} AND ${latNextTick} AND
       lon between ${Lat_Min} AND ${lonNextTick}
       order by depth`;
 
   let [error, result] = await internalRouter (query);
 
+  log.trace ('DEPTHS', { error, result });
+
   // TODO this could be a mssql response or a sparq sql response
-  if (!error && result && result.recordset) {
-    return [null, result.recordset];
+
+  // On Prem
+  if (!error && result && Array.isArray(result.recordset)) {
+    console.log(result.recordset);
+    let depths = result.recordset.map (({ depth }) => depth);
+    console.log ('transformed depths', depths);
+    return [null, depths];
   } else if (!error && result) {
+    // Cluster
+    console.log(result);
     return [null, result];
   } else if (error) {
     return [error];

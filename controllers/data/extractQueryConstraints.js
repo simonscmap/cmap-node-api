@@ -184,7 +184,7 @@ function extractQueryConstraints (queryString = '') {
   let constraints = constraintsList.reduce ((acc, curr) => {
     let { name, min, max } = curr;
 
-    if (!['time', 'lat', 'lon', 'depth'].includes(name)) {
+    if (!['time', 'lat', 'lon', 'depth', 'month'].includes(name)) {
       // don't accumulate non-geospatial constraints
       return acc;
     }
@@ -199,7 +199,12 @@ function extractQueryConstraints (queryString = '') {
       acc[name].max = max;
     }
     return acc;
-  }, template)
+  }, template);
+
+  if (constraints.month) {
+    constraints.time = constraints.month;
+    delete constraints.month;
+  }
 
   return constraints;
 }
