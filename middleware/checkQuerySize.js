@@ -13,27 +13,6 @@ const { internalRouter } = require ('../utility/router/internal-router');
 
 const getDataset = require('../controllers/catalog/fetchDataset');
 
-// Find the Dataset Id among an array of table/id tuples matching a provided table
-// getDatasetIdFromTableName :: Table Name -> [ { Table_Name, Dataset_ID } ] -> Null | Dataset ID
-const getDatasetIdFromTableName = (tableName, ids) => {
-  if (typeof tableName !== 'string' || !Array.isArray(ids)) {
-    return null;
-  }
-
-  let record = ids.find(({ Table_Name }) => {
-    if (Table_Name.toLowerCase() === tableName.toLowerCase()) {
-      return true;
-    }
-    return false;
-  });
-
-  if (record) {
-    return record.Dataset_ID;
-  } else {
-    return null;
-  }
-}
-
 // Make routed request to get a count of matching rows for a provided query
 // getRowCountForQuery :: Query String -> Request Id -> [ Error?, Result ]
 const getRowCountForQuery = async (queryToAnalyze, requestId) => {
@@ -85,8 +64,6 @@ const makeGetRowCountAndReturnResponse = (allowQueryFn, prohibitQueryFn, makePro
 // (2) multiple tables were identified, query row count and check against threshold
 // (3) Query visits exactly 1 table and therefore 1 dataset
 //   (a) get dataset stats: need Row_Count and for gridded datesets, extents for each axis
-//       - fetch dataset id
-//       - use dataset id to fetch dataset stats
 //   (b) check total row count
 //   (c) check if dataset is gridded
 //     (i)  get depths
@@ -96,7 +73,6 @@ const makeGetRowCountAndReturnResponse = (allowQueryFn, prohibitQueryFn, makePro
 const checkQuerySize = async (args) => {
   const {
     modifiedQuery: query,
-    datasetIds,
     matchingTables,
     queryAnalysis: analysis,
     requestId,
@@ -138,22 +114,9 @@ const checkQuerySize = async (args) => {
 
   // (3) Query visits exactly 1 table and therefore 1 dataset
   } else {
-    let tableName = matchingDatasetTables[0];
-    // (a) get dataset stats: need Row_Count and for gridded datesets, extents for each axis
-    // get dataset id
-    let datasetId = getDatasetIdFromTableName(tableName, datasetIds);
-    if (!datasetId) {
-      return prohibitQuery({
-        status: 500,
-        message: `failed to identify dataset by table named in query: ${tableName}`
-      },
-        null,
-        ['error fetching dataset while validating query']
-      );
-    }
+    let tablename = matchingDatasetTables[0];
 
-    // use dataset id to get dataset stats
-    let [fetchError, dataset] = await getDataset ({ id: datasetId });
+    let [fetchError, dataset] = await getDataset ({ tablename });
     if (fetchError) {
       return prohibitQuery({
         status: 500,
