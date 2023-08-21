@@ -25,11 +25,21 @@ router.get(
   // calculate targets
   wrap(candidateAnalysis),
 
-  // regulate query size
-  wrap(checkQuerySize),
-
   // execute
   wrap(routeQueryFromMiddleware)
+);
+
+router.get (
+  '/check-query-size',
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  // apply query modifiers
+  wrap(queryModification),
+
+  // analyze query
+  wrap(queryAnalysis),
+
+  // regulate query size
+  wrap(checkQuerySize)
 );
 
 // Stored procedure route

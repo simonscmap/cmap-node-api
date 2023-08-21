@@ -200,11 +200,6 @@ const checkQuerySize = async (args) => {
 
 // Middleware to Check Query Size
 // NOTE: Assumes prior middleware has performed query analysis
-// 1. if no tables were identified in query, allow query
-// 2. if multiple tables were identified, perform routed query to get a count of matching rows
-//    and check against preset limit
-// 3. if single table identified (as is the case with most dataset downloads)
-//
 const checkQuerySizeMiddleware = async (req, res, next) => {
   const {
     modifiedQuery: query,
@@ -239,24 +234,8 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
     result.warnings.forEach ((warning) => log.warning (warning, null ))
   }
 
-  let output = req.query.output &&
-    typeof req.query.output === 'string' &&
-               req.query.output.toLowerCase();
+  return res.json (result);
 
-  // if request output is the projection itself, respond
-  if (output === 'project_size') {
-    // stop further middleware from running, do not call next()
-    return res.json (result);
-  }
-
-  if (result.allow) {
-    next ();
-  } else {
-    res
-      .status(result.response && result.respons.status || 400)
-      .send(result.response && result.response.messsage || 'query exceeds maximum size allowed');
-    return next (new Error('query failed size check'));
-  }
 };
 
 
