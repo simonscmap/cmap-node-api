@@ -8,7 +8,7 @@ The on-prem servers are named `rainier`, `rossby`, and `mariana`. The initial sp
 
 The Distributed Datasets Router manages incoming queries on the `api/data/query` route (also the "custom query route"), detecting which datasets an incoming query will visit and routes the query to a valid database.
 
-Additional functionality has been added to complement the routing feature: (1) select * expansion, (2) query size checking, and (3) automatic retries. Select * expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Query size checking evaluates incoming querise to ensure that they do not match more than 2 million rows; it will disallow queries that exceed that limit. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
+Additional functionality has been added to complement the routing feature: (1) select * expansion, (2) automatic retries. Select * expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
 
 ## Phases of the Query Route as Middleware
 
@@ -19,8 +19,7 @@ The steps to implement data routing (and complementary features) on the `api/dat
 | 1 | modifications are made to the query | [/controllers/data/index.js::queryModification](/controllers/data/index.js) |
 | 2 | the modified query is analyzed | [/middleware/queryAnalysis.js](/middleware/queryAnalysis.js) |
 | 3 | candidate servers are calculated | [/utility/router/routerMiddleware.js](/utility/router/routerMiddleware.js) |
-| 4 | the size of the query is derived | [/middleware/checkQuerySize.js](/middleware/checkQuerySize.js) |
-| 5 | the query is executed | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
+| 4 | the query is executed | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
 
 1. The incoming query is checked to see if it is executing a registered stored procedure, and if so that sproc is called with a flag that causes it to return an executable query string (which can be analyzed in a later step to determine which server to execute it on). The "select *" expansion function is then applied, and the final modified query is placed on the request obejct and passed to the next middleware function.
 
@@ -28,9 +27,7 @@ The steps to implement data routing (and complementary features) on the `api/dat
 
 3. The extracted tables used to calculate candidate servers that are capable of executing the query. The result is placed on the request object.
 
-4. The modified query, along with the extracted table names, are used to derive the row count of query, ether by querying the appropriate database for a count or by calculating the result from the spatiotemporal constraints if the dataset is gridded. If the query is too large, an error response is sent and remaining middleware is bypassed.
-
-5. The query is executed: the list of candidate servers is already provided, and now the modified query is passed to the appropriate handler. If the query fails, and there are alternate servers, each server is tried in succession until the list is exhausted.
+4. The query is executed: the list of candidate servers is already provided, and now the modified query is passed to the appropriate handler. If the query fails, and there are alternate servers, each server is tried in succession until the list is exhausted.
 
 ## Middleware vs `queryHandler`
 
