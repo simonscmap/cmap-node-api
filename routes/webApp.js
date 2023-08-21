@@ -26,6 +26,8 @@ router.use(saveCall);
 
 router.get("/", sendSPA);
 router.get("/catalog", sendSPA);
+router.get("/catalog/cruises/:cruise", sendSPA);
+router.get("/catalog/datasets/:dataset", sendSPA);
 router.get("/visualization", sendSPA);
 router.get("/visualization/charts", sendSPA);
 router.get("/visualization/cruises", sendSPA);

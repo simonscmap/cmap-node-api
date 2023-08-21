@@ -4,11 +4,23 @@
 const Monthly_Climatology = 'Monthly Climatology';
 
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
+const isValidDateObject = (maybeDate) => maybeDate instanceof Date && !isNaN(maybeDate);
 
 // Generic Ratio Calculation
 // NOTE: if there is an obstacle to performing the divison, return 1 as the default factor
 // getRatio :: Min Number -> Max Number -> Subset Min Number -> Subset Max Number -> [ Warning?, Ratio]
+// a1 and a2 are the extremes for the dataset
+// b1 and b2 describe the subset
 const getRatio = (a1, a2, b1, b2, tag = '') => {
+  // b1 can't be less than a1, and b2 can't be greater than a2
+  // although this can sometimes happen by a quirk of the way non-subsetted download
+  // queries are constructed
+  if (b1 < a1) {
+    b1 = a1;
+  }
+  if (b2 > a2) {
+    b2 = a2;
+  }
   let maxSpan = a2 - a1;
   let subSpan = b2 - b1;
   if (maxSpan <= 0 || subSpan < 0 || subSpan > maxSpan) {
@@ -18,17 +30,21 @@ const getRatio = (a1, a2, b1, b2, tag = '') => {
 }
 
 const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
-  if (t2 - t1 < 0) {
-    return [`Unable to calculate time ratio for monthly data between months ${t1} and ${t2}`, 1];
-  }
   if (isMonthlyClimatology) {
+    // t1 and t2 are integers representing months
     return [null, (t2 - t1 + 1) / 12];
   }
   let tMinUnix = getUnixTimestamp (Time_Min);
   let tMaxUnix = getUnixTimestamp (Time_Max);
   let t1Unix = getUnixTimestamp (t1);
   let t2Unix =  getUnixTimestamp (t2);
-  // console.log ('time',tMinUnix, tMaxUnix, t1Unix, t2Unix);
+
+  if (t2Unix - t1Unix < 0) {
+    return [`Unable to calculate time ratio between ${t1} and ${t2}`, 1];
+  }
+  if (isNaN (tMinUnix) || isNaN (tMaxUnix || isNaN (t1Unix) || isNaN (t2Unix))) {
+    return [`Unable to calculate time ratio between (${Time_Min}, ${Time_Max}) and (${t1}, ${t2})`, 1];
+  }
   return getRatio (tMinUnix, tMaxUnix, t1Unix, t2Unix, 'time');
 };
 
@@ -100,7 +116,7 @@ function calculateSize (constraints, dataset, depths, log) {
   let [warnings, ...factors] = calculateFactors (constraints, dataset, depths);
   let [date, lat, lon, depth ] = factors;
   let result = dataset.Row_Count * date * lat * lon * depth;
-  log.trace (`result: ${result} (factors: date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
+  log.trace (`result: ${result} (factors: row count: ${dataset.Row_Count}, date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
 
   // pull revelant props from dataset
   let datasetSummary = ['Dataset_ID', 'Short_Name', 'Table_Name', 'Row_Count', 'Time_Min',
@@ -121,6 +137,7 @@ function calculateSize (constraints, dataset, depths, log) {
 module.exports = {
   calculateSize,
   calculateFactors,
+  getRatio,
   getDateRatio,
   getLatRatio,
   getLonRatio,

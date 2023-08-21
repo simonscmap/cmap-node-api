@@ -4,6 +4,18 @@ const sql = require('mssql');
 const initializeLogger = require('../log-service');
 const moduleLogger = initializeLogger('utility/directQuery');
 
+const removeWhitespaceAndTruncate = (str = '') => {
+  if (typeof str !== 'string') {
+    return str;
+  } else {
+    return [str]
+      .map (s => s.replace(/\n/g, ''))
+      .map (s => s.replace(/\s{2,}/g, ' '))
+      .map (s => s.length > 200 ? s.slice(0, 200) + '...' : s)
+      .shift ()
+  }
+}
+
 // directQuery
 // utility function to bootstrap a query to Rainier (not through the data router)
 // :: String -> Options{} -> Logger -> [ Error?, Result ]
@@ -15,10 +27,15 @@ const directQuery = async (queryString, options = {}, logger = moduleLogger) => 
 
   let result;
   try {
-    logger.debug ('exectuing direct query', { queryString });
+    logger.debug ('exectuing direct query', {
+      query: removeWhitespaceAndTruncate (queryString)
+    });
     result = await request.query(queryString);
   } catch (e) {
-    logger.error(`query ${description} failed`, { error: e, queryString });
+    logger.error(`query ${description} failed`, {
+      error: e,
+      query: removeWhitespaceAndTruncate (queryString)
+    });
     return [e];
   }
 

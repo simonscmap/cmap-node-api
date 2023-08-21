@@ -41,6 +41,8 @@ const getRowCountForQuery = async (queryToAnalyze, requestId) => {
   return await internalRouter (query, requestId);
 }
 
+// Helper to gather results of the query check along with relevant information
+// NOTE: this uses partial appliation
 const makeResponsePayload = ({ modifiedQuery, analysis, constraints }) =>
   ({ warnings, response, projection, allow }) => ({
     allow,
@@ -118,6 +120,7 @@ const checkQuerySize = async (args) => {
 
   const makeProjection = (size, provenance) => ({ size, provenance })
 
+  // partially apply data; create a function to handle querying the count and responding with result
   const getRowCountAndReturnResponse = makeGetRowCountAndReturnResponse (allowQuery, prohibitQuery, makeProjection);
 
   const { matchingDatasetTables } = matchingTables;
@@ -171,8 +174,7 @@ const checkQuerySize = async (args) => {
     } else if (isGriddedData(dataset)) {
       // (i) get depths
       let [depthError, depthsResult] = await getGriddedDatasetDepths (dataset);
-      let depths = depthError ? null : depthsResult.map (({ depth }) => depth);
-      log.trace ('received depths', depths);
+      let depths = depthError ? null : depthsResult;
       // (ii) calculate size of query
       let calculatedSize = calculateSize (constraints, dataset, depths, log);
       if (calculatedSize !== 0) {

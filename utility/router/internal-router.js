@@ -24,6 +24,7 @@ async function delegateExecution (query, candidates, requestId, attempts = 0) {
     .addContext(['candidates', candidates])
     .addContext(['attempt', currentAttempt]);
 
+
   log.trace ("delegate execution [internal] called", null);
 
   let { priorityTargetType } = assertPriority (candidates);
@@ -41,10 +42,12 @@ async function delegateExecution (query, candidates, requestId, attempts = 0) {
   // don't allow sprocs to execute on cluster
   if (targetIsCluster && !queryIsExecutingSproc) {
     // there are no retries when targeting the cluster, so just return the result
+    log.trace ('delegating to cluster query [internal]');
     return await clusterQuery (query, requestId);
   } else {
     // if the query is a sproc with no candidates, we will still hit this execute on prem,
     // and without a candidate, it will default to rainier (but if it fails on rainier, it will not run again)
+    log.trace ('delegating to on-prem [internal]');
     let [error, result, remainingCandidates] = await internalQueryOnPrem (query, candidates, requestId);
 
     // we don't need to check whether the failed query was a sproc without a target; if so, it already
