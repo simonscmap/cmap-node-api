@@ -4,7 +4,7 @@
 const Monthly_Climatology = 'Monthly Climatology';
 
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
-const isValidDateObject = (maybeDate) => maybeDate instanceof Date && !isNaN(maybeDate);
+// const isValidDateObject = (maybeDate) => maybeDate instanceof Date && !isNaN(maybeDate);
 
 // Generic Ratio Calculation
 // NOTE: if there is an obstacle to performing the divison, return 1 as the default factor
@@ -44,6 +44,9 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   }
   if (isNaN (tMinUnix) || isNaN (tMaxUnix || isNaN (t1Unix) || isNaN (t2Unix))) {
     return [`Unable to calculate time ratio between (${Time_Min}, ${Time_Max}) and (${t1}, ${t2})`, 1];
+  }
+  if (t2Unix === t1Unix) {
+    //
   }
   return getRatio (tMinUnix, tMaxUnix, t1Unix, t2Unix, 'time');
 };
@@ -92,46 +95,50 @@ const calculateFactors = (constraints, dataset, depths) => {
     time,
     lat,
     lon,
-    depth
+    depth,
   } = constraints;
+
+  let deltas = constraints.deltas || {};
 
   // get ratios
   let isMonthlyClimatology = dataset.Temporal_Resolution === Monthly_Climatology;
   let [dateRatioWarning, dateRatio] =
-    getDateRatio(Time_Min, Time_Max, time.min, time.max, isMonthlyClimatology);
+    getDateRatio(Time_Min, Time_Max, time.min, time.max, isMonthlyClimatology, deltas.time);
 
-  let [latRatioWarning, latRatio] = getLatRatio(Lat_Min, Lat_Max, lat.min, lat.max);
-  let [lonRatioWarning, lonRatio] = getLonRatio(Lon_Min, Lon_Max, lon.min, lon.max);
+  let [latRatioWarning, latRatio] = getLatRatio(Lat_Min, Lat_Max, lat.min, lat.max, deltas.lat);
+  let [lonRatioWarning, lonRatio] = getLonRatio(Lon_Min, Lon_Max, lon.min, lon.max, deltas.lon);
 
-  let [depthRatioWarning, depthRatio] = getDepthRatio(depth.min, depth.max, depths);
+  let [depthRatioWarning, depthRatio] = getDepthRatio(depth.min, depth.max, depths, deltas.depth);
 
-  let warnings = [dateRatioWarning, latRatioWarning, lonRatioWarning, depthRatioWarning]
+  let warnings = [dateRatioWarning, latRatioWarning, lonRatioWarning, depthRatioWarning].filter (m => !!m);
   // multiply totoal row count for dataset by each factor
   // TODO generate warnings
   return [warnings, dateRatio, latRatio, lonRatio, depthRatio];
 };
 
 
-function calculateSize (constraints, dataset, depths, log) {
-  let [warnings, ...factors] = calculateFactors (constraints, dataset, depths);
-  let [date, lat, lon, depth ] = factors;
+function calculateSize (constraints, dataset, depths) {
+  if (constraints === null) {
+    return [dataset.Row_Count, ['No constraints were provided']];
+  }
+
+  let [messages, ...factors] = calculateFactors(constraints, dataset, depths);
+  let [date, lat, lon, depth] = factors;
   let result = dataset.Row_Count * date * lat * lon * depth;
-  log.trace (`result: ${result} (factors: row count: ${dataset.Row_Count}, date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
+
+
+  messages.push(`result: ${result} (factors: row count: ${dataset.Row_Count}, date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
 
   // pull revelant props from dataset
   let datasetSummary = ['Dataset_ID', 'Short_Name', 'Table_Name', 'Row_Count', 'Time_Min',
-                        'Time_Max', 'Lat_Min', 'Lat_Max', 'Lon_Min', 'Lon_Max', 'Spatial_Resolution',
-                        'Temporal_Resolution']
+    'Time_Max', 'Lat_Min', 'Lat_Max', 'Lon_Min', 'Lon_Max', 'Spatial_Resolution',
+    'Temporal_Resolution']
     .reduce((acc, curr) => {
-      return {...acc, [curr]: dataset[curr] };
+      return { ...acc, [curr]: dataset[curr] };
     }, {});
 
-  warnings
-    .filter(warning => !!warning)
-    .forEach((warning) => log.warn (warning, { constraints, datasetSummary, depths, result }));
 
-  log.info ('calculated query size', { result })
-  return result;
+  return [result, messages, datasetSummary];
 }
 
 module.exports = {
