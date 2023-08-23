@@ -112,7 +112,6 @@ function extractQueryConstraints (queryString = '') {
   }
 
   if (!whereRoot) {
-    console.log ('no node representing WHERE', whereRoot, ast);
     return null;
   }
 
@@ -180,6 +179,7 @@ function extractQueryConstraints (queryString = '') {
     lat: {},
     lon: {},
     depth: {},
+
   };
   let constraints = constraintsList.reduce ((acc, curr) => {
     let { name, min, max } = curr;
@@ -198,6 +198,7 @@ function extractQueryConstraints (queryString = '') {
     if (max) {
       acc[name].max = max;
     }
+
     return acc;
   }, template);
 

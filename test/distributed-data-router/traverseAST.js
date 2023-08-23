@@ -69,3 +69,14 @@ test ("can parse queries with backticks", (t) => {
   let [error, result] = traverseAST (qWithBackticks);
   t.is (error, false);
 });
+
+test ("can parse alias", (t) => {
+  let [error, result] = traverseAST (aliasAlias);
+  t.is (error, false);
+});
+
+test ('can parse top n distinct ', (t) => {
+  let [error, result] = transformTopQueryToLimit (`select TOP 2 distinct time from tblMyTable order by time desc`);
+  t.is (error, false);
+  t.is(result, 'SELECT DISTINCT time FROM tblMyTable ORDER BY time DESC LIMIT 2');
+});

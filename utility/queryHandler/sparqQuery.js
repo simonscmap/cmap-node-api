@@ -1,6 +1,7 @@
 const { DBSQLClient } = require("@databricks/sql");
 const initializeLogger = require("../../log-service");
 const moduleLogger = initializeLogger("queryHandler/sparqQuery");
+const { tsqlToHiveTransforms } = require('../router/pure');
 
 const connOptions = {
   host: process.env.CLUSTER_HOST,
@@ -10,6 +11,8 @@ const connOptions = {
 
 // queryCluster :: Query String -> Request Id -> [ Error?, Result ]
 const queryCluster = async (query = "", requestId) => {
+  query = tsqlToHiveTransforms(query);
+
   let log = moduleLogger
     .setReqId (requestId)
     .addContext(['query', query ]);
@@ -26,11 +29,19 @@ const queryCluster = async (query = "", requestId) => {
   let result;
   try {
     log.trace("opening session");
-    const session = await client.openSession();
+    // Instead of: const session = await client.openSession();
+    // See: https://github.com/databricks/databricks-sql-nodejs/issues/77
+    const session = await (new Promise((resolve, reject) => {
+      client
+        .on('error', reject)
+        .openSession()
+        .then(resolve);
+    }));
 
     log.trace("executing query");
     const queryOperation = await session.executeStatement(query, {
       runAsync: true,
+      maxRows: 10000,
     });
 
     log.trace("fetching result");
