@@ -74,10 +74,6 @@ const fetchDims = async (tableName, dataset) => {
                   ${joinConstraints([timeConstraint, latConstraint, depthConstraint])}
                   order by lon desc`;
 
-  let queryDepth = `select top 2 distinct depth from ${tableName}
-                   ${joinConstraints([timeConstraint, latConstraint, lonConstraint])}
-                   order by depth desc`;
-
   let [timeError, timeResult] = await internalRouter (queryTime);
   console.log ('time result', timeResult);
 
@@ -87,28 +83,22 @@ const fetchDims = async (tableName, dataset) => {
   let [lonError, lonResult] = await internalRouter (queryLon);
   console.log('lonResult', lonResult);
 
-  let depthError, depthResult;
-  if (dataset.Depth_Min !== dataset.Depth_Max) {
-   [depthError, depthResult] = await internalRouter (queryDepth);
-    console.log ('depthResult', depthResult);
-  }
-
-  if (timeError || latError || lonError || depthError) {
-    return [timeError || latError || lonError || depthError];
+  if (timeError || latError || lonError) {
+    return [timeError || latError || lonError];
   }
 
   let results = {
     time: extractResult(timeResult),
     lat: extractResult(latResult),
     lon: extractResult(lonResult),
-    depth: extractResult(depthResult)
   };
 
   return [null, results];
 }
 
-
-
+// generateRowCount
+// :: Dataset -> Table Name -> [ Error?, Datapoints, Deltas ]
+// Datapoints ::
 const generateRowCount = async (dataset, tableName) => {
   let [error, result] = await fetchDims (tableName, dataset);
   if (error) {
@@ -147,12 +137,6 @@ const generateRowCount = async (dataset, tableName) => {
       c = getCount (dataset.Lat_Max, dataset.Lat_Min, deltas.lat);
     } else if (key === 'lon') {
       c = getCount (dataset.Lon_Max, dataset.Lon_Min, deltas.lon);
-    } else if (key === 'depth') {
-      if (deltas.depth === null) {
-        c = 1;
-      } else {
-        c = getCount (dataset.Depth_Max, dataset.Depth_Min, deltas.depth);
-      }
     }
 
     return Object.assign (acc, { [key]: c });

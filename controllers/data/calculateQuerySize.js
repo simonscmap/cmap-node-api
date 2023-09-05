@@ -66,6 +66,22 @@ const getDepthRatio = (depth1, depth2, depths) => {
     // return error and default factor of 1 (worst case scenario)
     return [`Unable to calculate depth; no depths provided`, 1];
   }
+
+  // no depth constraints
+  if (!depth1 && !depth2) {
+    return [null, 1];
+  }
+
+  // fallback values for depth constraints
+  if (!depth1) {
+    depth1 = 0;
+  }
+
+  if (!depth2) {
+    depth2 = depths[depths.length - 1];
+  }
+
+  // count the nubmber of depths that fall between depth1 and depth2
   let count = 0;
   for (let i = 0; i < depths.length; i++) {
     if (depths[i] > depth2) {
@@ -76,7 +92,7 @@ const getDepthRatio = (depth1, depth2, depths) => {
     }
   }
   if (count === 0 || depths.length === 0) {
-    return [`Unable to calculate depth ratio for count ${count} and depths length ${depths.length}`, 1];
+    return [`Unable to calculate depth ratio between ${depth1} and ${depth2} yielding count of ${count} with total depths of ${depths.length}`, 1];
   }
   return [null, count / depths.length];
 }
@@ -108,7 +124,7 @@ const calculateFactors = (constraints, dataset, depths) => {
   let [latRatioWarning, latRatio] = getLatRatio(Lat_Min, Lat_Max, lat.min, lat.max, deltas.lat);
   let [lonRatioWarning, lonRatio] = getLonRatio(Lon_Min, Lon_Max, lon.min, lon.max, deltas.lon);
 
-  let [depthRatioWarning, depthRatio] = getDepthRatio(depth.min, depth.max, depths, deltas.depth);
+  let [depthRatioWarning, depthRatio] = getDepthRatio(depth.min, depth.max, depths);
 
   let warnings = [dateRatioWarning, latRatioWarning, lonRatioWarning, depthRatioWarning].filter (m => !!m);
   // multiply totoal row count for dataset by each factor

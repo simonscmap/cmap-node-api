@@ -35,7 +35,8 @@ const queryCluster = async (query = "", requestId) => {
       client
         .on('error', reject)
         .openSession()
-        .then(resolve);
+        .then(resolve)
+        .catch((e) => reject (e));
     }));
 
     log.trace("executing query");
