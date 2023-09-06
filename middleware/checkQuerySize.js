@@ -75,7 +75,7 @@ const getRows = async (tablename, constraints, query) => {
 
     // get dataset row count, if not provided
     if (!datasetTotalRowCount) {
-      let [error, reconstructedRowCount, deltas] = await reconstructDatasetRowCount (dataset, tablename);
+      let [error, reconstructedRowCount, deltas] = await reconstructDatasetRowCount (dataset, tablename, depths);
       if (error) {
         return [error];
       } else {

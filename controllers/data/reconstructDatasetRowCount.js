@@ -1,6 +1,7 @@
 const { internalRouter } = require ('../../utility/router/internal-router');
 const Monthly_Climatology = 'Monthly Climatology';
 
+// gitTime returns miliseconds from the Unix Epoch
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
 
 const isMsSQLResult = (result) => result && !!result.recordset;
@@ -99,20 +100,21 @@ const fetchDims = async (tableName, dataset) => {
 // generateRowCount
 // :: Dataset -> Table Name -> [ Error?, Datapoints, Deltas ]
 // Datapoints ::
-const generateRowCount = async (dataset, tableName) => {
+const generateRowCount = async (dataset, tableName, depths) => {
+  // get two consecutive, distinct values for each dimension (except depth)
   let [error, result] = await fetchDims (tableName, dataset);
   if (error) {
     return [error];
   }
 
-  console.log ('dims result', result);
-
+  // calculate the interval, or 'delta', for each dimension
   let deltas = Object.keys(result).reduce((acc, key) => {
     if (result[key] === null) {
       return Object.assign(acc, { [key]: null });
     }
     let [k1, k2] = result[key].map((item) => item[key]);
     if (key === 'time') {
+      // console.log ('converting ticks to ms', k1, k2);
       k1 = getUnixTimestamp (k1);
       k2 = getUnixTimestamp (k2);
     }
@@ -122,17 +124,23 @@ const generateRowCount = async (dataset, tableName) => {
   }, {});
 
   // count for an axis is max - min / resolution
-  let getCount = (max, min, resolution) => max - min / resolution;
+  let getCount = (max, min, resolution) => {
+    // console.log('get count', `(${max} - ${min})/${resolution}`, `${max - min}/${resolution}`, ((max - min) / resolution));
+    return Math.floor((max - min) / resolution);
+  };
 
+  // calculate the number of ticks for each dimension: how many intervals between min and max
   let counts = Object.keys(deltas).reduce((acc, key) => {
     let c;
 
     if (key === 'time') {
+      // console.log('calculating time ticks', dataset.Time_Max, dataset.Time_Min, deltas.time);
       c = getCount (
         getUnixTimestamp (dataset.Time_Max),
         getUnixTimestamp (dataset.Time_Min),
         deltas.time
-      )
+      );
+      console.log('result', c);
     } else if (key === 'lat') {
       c = getCount (dataset.Lat_Max, dataset.Lat_Min, deltas.lat);
     } else if (key === 'lon') {
@@ -142,16 +150,19 @@ const generateRowCount = async (dataset, tableName) => {
     return Object.assign (acc, { [key]: c });
   }, {});
 
+  // depth is handled differently, because it doesn't have a regular interval; it has as many
+  // ticks as unique depths
+  Object.assign(counts, { depth: depths.length });
 
-  console.log ('deltas', deltas);
-  console.log ('counts', counts);
-
+  // calculate datapoints in the dataset by multiplying each dimension
   let datapoints = Math.abs(Object.entries(counts).reduce ((acc, curr) => {
     let [_, v] = curr;
     return acc * v;
   }, 1));
 
-
+  console.log ('ticks', result);
+  console.log ('deltas', deltas);
+  console.log ('counts', counts);
   console.log ('total datapoints', datapoints);
   return [null, datapoints, deltas];
 };

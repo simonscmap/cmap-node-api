@@ -23,18 +23,17 @@ const fetchDepths = async (dataset) => {
 
   log.trace ('DEPTHS', { error, result });
 
-  // TODO this could be a mssql response or a sparq sql response
-
   // On Prem
   if (!error && result && Array.isArray(result.recordset)) {
-    console.log(result.recordset);
+    // console.log(result.recordset);
     let depths = result.recordset.map (({ depth }) => depth);
-    console.log ('transformed depths', depths);
+    // console.log ('transformed depths', depths);
     return [null, depths];
   } else if (!error && result) {
     // Cluster
-    console.log(result);
-    return [null, result];
+    // console.log(result);
+    let depths = result.map(({ depth }) => depth);
+    return [null, depths];
   } else if (error) {
     return [error];
   } else {
