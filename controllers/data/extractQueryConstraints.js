@@ -207,6 +207,8 @@ function extractQueryConstraints (queryString = '') {
     delete constraints.month;
   }
 
+  console.log ('constraints', constraints);
+
   return constraints;
 }
 

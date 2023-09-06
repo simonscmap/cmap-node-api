@@ -100,7 +100,7 @@ const getDepthRatio = (depth1, depth2, depths) => {
     if (depths[i] > depth2) {
       break;
     }
-    if (depths[i] > depth1) {
+    if (depths[i] >= depth1) {
       count++;
     }
   }
@@ -153,7 +153,7 @@ function calculateSize (constraints, dataset, depths) {
 
   let [messages, ...factors] = calculateFactors(constraints, dataset, depths);
   let [date, lat, lon, depth] = factors;
-  let result = dataset.Row_Count * date * lat * lon * depth;
+  let result = Math.ceil(dataset.Row_Count * date * lat * lon * depth);
 
 
   messages.push(`result: ${result} (factors: row count: ${dataset.Row_Count}, date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
