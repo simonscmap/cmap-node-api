@@ -6,6 +6,8 @@ const Monthly_Climatology = 'Monthly Climatology';
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
 // const isValidDateObject = (maybeDate) => maybeDate instanceof Date && !isNaN(maybeDate);
 
+const isDateWithoutTimeStamp = (dateString) => dateString.slice(0,10).length === 10;
+
 // Generic Ratio Calculation
 // NOTE: if there is an obstacle to performing the divison, return 1 as the default factor
 // getRatio :: Min Number -> Max Number -> Subset Min Number -> Subset Max Number -> [ Warning?, Ratio]
@@ -34,10 +36,23 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
     // t1 and t2 are integers representing months
     return [null, (t2 - t1 + 1) / 12];
   }
+
+  // Convert dates to timestamps
+
   let tMinUnix = getUnixTimestamp (Time_Min);
   let tMaxUnix = getUnixTimestamp (Time_Max);
+
   let t1Unix = getUnixTimestamp (t1);
   let t2Unix =  getUnixTimestamp (t2);
+
+
+  // if the times are the same, check the specificity of the time string
+  // select * from tbl where time between '2012-09-15' and '2012-09-15' will match any times
+  // during the day of the 15th, namely between '2012-09-15' and '2012-09-15T23:59:59Z'
+  if (t1 === t2 && isDateWithoutTimeStamp(t2)) {
+    let t2EndOfDay = `${t2}T23:59:59Z`;
+    t2Unix = getUnixTimestamp (t2EndOfDay);
+  }
 
   if (t2Unix - t1Unix < 0) {
     return [`Unable to calculate time ratio between ${t1} and ${t2}`, 1];
@@ -45,9 +60,7 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   if (isNaN (tMinUnix) || isNaN (tMaxUnix || isNaN (t1Unix) || isNaN (t2Unix))) {
     return [`Unable to calculate time ratio between (${Time_Min}, ${Time_Max}) and (${t1}, ${t2})`, 1];
   }
-  if (t2Unix === t1Unix) {
-    //
-  }
+
   return getRatio (tMinUnix, tMaxUnix, t1Unix, t2Unix, 'time');
 };
 
