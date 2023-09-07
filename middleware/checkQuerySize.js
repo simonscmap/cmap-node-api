@@ -8,31 +8,12 @@ const { QUERY_ROW_LIMIT } = require("../utility/constants");
 const isGriddedData = require('../controllers/data/identifyDatasetType');
 const getGriddedDatasetDepths = require('../controllers/data/fetchDepthsForGriddedDataset');
 const reconstructDatasetRowCount = require ('../controllers/data/reconstructDatasetRowCount');
+const getRowCountForQuery = require('../controllers/data/fetchRowCountForQuery');
 const { extractQueryConstraints } = require('../controllers/data/extractQueryConstraints');
 const { calculateSize } = require('../controllers/data/calculateQuerySize');
-const { internalRouter } = require ('../utility/router/internal-router');
-
 const getDataset = require('../controllers/catalog/fetchDataset');
 
-// Make routed request to get a count of matching rows for a provided query
-// getRowCountForQuery :: Query String -> Request Id -> [ Error?, Result ]
-const getRowCountForQuery = async (queryToAnalyze, requestId) => {
-  let query = `select count(*) row_count from (${queryToAnalyze}) dont_crash_me`;
-  let [countError, countResult] = await internalRouter (query, requestId);
-
-  if (countError) {
-    return [countError];
-  } else if (Array.isArray(countResult) && countResult.length === 1 && countResult[0].row_count) {
-    // cluster result
-    return [null, countResult[0].row_count];
-  } else if (countResult && Array.isArray(countResult.recordset) && countResult.recordset.length && countResult.recordset[0].row_count) {
-    return [null, countResult.recordset[0].row_count];
-  } else {
-    // unexpected condition
-    return ['unexpected result; unable to get row count'];
-  }
-}
-
+// Helper Functions
 const makeResponders = ({ modifiedQuery, analysis, constraints }) => {
   let baseResponseObj = {
     query: {
@@ -52,8 +33,10 @@ const makeResponders = ({ modifiedQuery, analysis, constraints }) => {
 
 const makeProjection = (size, provenance) => ({ size, provenance });
 
-
-const getRows = async (tablename, constraints, query) => {
+// getRowCountProjection
+// :: TableName -> Constraints -> Query -> Logger -> [ Error?, Projection ]
+// returns the row count projection for a select query that visits 1 table
+const getRowCountProjection = async (tablename, constraints, query, logger) => {
   // get dataset
   let [fetchError, dataset] = await getDataset({ tablename });
   if (fetchError) {
@@ -70,8 +53,11 @@ const getRows = async (tablename, constraints, query) => {
   // (c) dataset is gridded, make calculation
   if (isGriddedData(dataset)) {
     // get depths
-    let [depthError, depthsResult] = await getGriddedDatasetDepths(dataset);
-    let depths = depthError ? null : depthsResult;
+    let depths = [];
+    if (dataset.Depth_Max) {
+      let [depthError, depthsResult] = await getGriddedDatasetDepths(dataset);
+      depths = depthError ? null : depthsResult;
+    }
 
     // get dataset row count, if not provided
     if (!datasetTotalRowCount) {
@@ -89,15 +75,13 @@ const getRows = async (tablename, constraints, query) => {
     }
 
     // calculate size of query
-    let [size, messages, datasetSummary] = calculateSize(constraints, dataset, depths);
-    // console.log(datasetSummary);
+    let [size, messages ] = calculateSize (constraints, dataset, depths);
     return [null, makeProjection(size, 'calculation'), messages];
   }
 
   // (d) dataset is irregular
-  // query a count of matching rows and compare to preset limit
-  // TODO, estimate this based on one slice
-  let [queryError, count] = await getRowCountForQuery(query)
+  // query a count of matching rows
+  let [queryError, count] = await getRowCountForQuery (tablename, constraints, dataset, logger.getReqId());
   if (queryError) {
     return [queryError]
   } else {
@@ -106,7 +90,7 @@ const getRows = async (tablename, constraints, query) => {
 };
 
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 // Driver for query check
 // (1) if no tables were identified, allow query to proceed
@@ -130,7 +114,6 @@ const checkQuerySize = async (args, logger) => {
 
   let constraints = extractQueryConstraints (query);
 
-
   const { allow, prohibit } = makeResponders ({ modifiedQuery: query, analysis, constraints });
 
   // (1) no tables were identified
@@ -145,7 +128,7 @@ const checkQuerySize = async (args, logger) => {
   }
 
   // (3) Query visits exactly 1 table and therefore 1 dataset: proceed to get query row count
-  let [error, projection, messages] = await getRows (matchingDatasetTables[0], constraints, query);
+  let [error, projection, messages] = await getRowCountProjection (matchingDatasetTables[0], constraints, query, logger);
   if (messages) {
     logger.info('size calculation messages:', { messages });
   }
@@ -163,6 +146,7 @@ const checkQuerySize = async (args, logger) => {
 };
 
 // Middleware to Check Query Size
+// Delegates to checkQuerySize and handles sending final response
 // NOTE: Assumes prior middleware has performed query analysis
 const checkQuerySizeMiddleware = async (req, res, next) => {
   const {

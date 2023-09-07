@@ -217,6 +217,9 @@ function createNewLogger(moduleName, extraContext = {}) {
     return createNewLogger (moduleName, { ...extraContext, extra: extra.concat([ctx])});
   };
 
+  // this method does not return a new logger
+  logger.getReqId = () => extraContext.requestId;
+
   Object.keys(logLevel).forEach((level) => {
     logger[level] = (content, additionalData) => {
       logger.level = logLevel[level];
