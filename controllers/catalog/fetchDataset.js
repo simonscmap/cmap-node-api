@@ -59,7 +59,6 @@ const fetchDataset = async ({ shortname, id, tablename }) => {
   let [error, result] = await directQuery (query, options, log);
 
   if (!error) {
-    // TODO parse result
     return [null, result.recordset[0]];
   }
   return [error];

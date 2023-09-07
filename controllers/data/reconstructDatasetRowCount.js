@@ -151,8 +151,9 @@ const generateRowCount = async (dataset, tableName, depths) => {
   }, {});
 
   // depth is handled differently, because it doesn't have a regular interval; it has as many
-  // ticks as unique depths
-  Object.assign(counts, { depth: depths.length });
+  // ticks as unique depths; some gridded data does not have depth, in which case it should
+  // have count of 1
+  Object.assign(counts, { depth: (depths.length > 0 ? depths.length : 1) });
 
   // calculate datapoints in the dataset by multiplying each dimension
   let datapoints = Math.abs(Object.entries(counts).reduce ((acc, curr) => {
@@ -160,10 +161,10 @@ const generateRowCount = async (dataset, tableName, depths) => {
     return acc * v;
   }, 1));
 
-  console.log ('ticks', result);
-  console.log ('deltas', deltas);
-  console.log ('counts', counts);
-  console.log ('total datapoints', datapoints);
+  // console.log ('ticks', result);
+  // console.log ('deltas', deltas);
+  // console.log ('counts', counts);
+  // console.log ('total datapoints', datapoints);
   return [null, datapoints, deltas];
 };
 

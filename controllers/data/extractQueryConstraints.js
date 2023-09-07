@@ -192,7 +192,8 @@ function extractQueryConstraints (queryString = '') {
     if (!acc[name]) {
       acc[name] = {};
     }
-    if (min) {
+    // min can be 0
+    if (typeof min === 'number' || typeof min === 'string' ) {
       acc[name].min = min;
     }
     if (max) {
@@ -207,7 +208,7 @@ function extractQueryConstraints (queryString = '') {
     delete constraints.month;
   }
 
-  console.log ('constraints', constraints);
+  // console.log ('CONSTRAINTS', constraints);
 
   return constraints;
 }
