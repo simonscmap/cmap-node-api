@@ -1,5 +1,6 @@
 const { internalRouter } = require ('../../utility/router/internal-router');
 const Monthly_Climatology = 'Monthly Climatology';
+const { v4: uuidv4 } = require('uuid');
 
 // gitTime returns miliseconds from the Unix Epoch
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
@@ -62,16 +63,17 @@ const fetchDims = async (tableName, dataset) => {
   let lonConstraint = getLonConstraint (dataset);
   let depthConstraint = getDepthConstraint (dataset);
   let timeConstraint = getTimeConstraint (dataset);
+  let id = (uuidv4()).slice(0,5);
 
-  let queryTime = `select top 2 distinct time from ${tableName}
+  let queryTime = `select  top 2 distinct time, 'id${id}' as id from ${tableName}
                    ${joinConstraints([latConstraint, lonConstraint, depthConstraint])}
                    order by time desc`;
 
-  let queryLat = `select top 2 distinct lat from ${tableName}
+  let queryLat = `select top 2 distinct lat, 'id${id}' as id from ${tableName}
                    ${joinConstraints([timeConstraint, lonConstraint, depthConstraint])}
                   order by lat desc`;
 
-  let queryLon = `select top 2 distinct lon from ${tableName}
+  let queryLon = `select top 2 distinct lon, 'id${id}' as id from ${tableName}
                   ${joinConstraints([timeConstraint, latConstraint, depthConstraint])}
                   order by lon desc`;
 
