@@ -1,3 +1,5 @@
+const { v4: uuidv4 } = require('uuid');
+
 const Monthly_Climatology = 'Monthly Climatology';
 
 const wrap = (val) => typeof val === 'string' ? `'${val}'` : val;
@@ -67,8 +69,9 @@ const generateQuery = (tablename, constraints, dataset) => {
   let timeConstraint = getTimeConstraint (constraints, dataset);
 
   let joinedConstraints = joinConstraints([timeConstraint, latConstraint, lonConstraint, depthConstraint]);
+  let id = (uuidv4()).slice(0,5);
 
-  let query = (`select count(time) as c from ${tablename} ${joinedConstraints}`).trim();
+  let query = (`select count(time) as c, 'id${id}' as id from ${tablename} ${joinedConstraints}`).trim();
 
   return query;
 }
