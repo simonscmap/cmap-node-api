@@ -9,6 +9,24 @@ const connOptions = {
   token: process.env.CLUSTER_WAREHOUSE_TOKEN,
 };
 
+
+const makeConnection = async (client, retry, log) => {
+  try {
+    await client.connect(connOptions);
+    log.trace ('success connecting to cluster');
+    return;
+  } catch (e) {
+    log.error("error connecting to cluster", { error: e });
+    // don't throw
+  }
+
+  if (retry > 5) {
+    throw new Error ('failed to connect to client 5 time');
+  } else {
+    await makeConnection (client, retry + 1, log);
+  }
+}
+
 // queryCluster :: Query String -> Request Id -> [ Error?, Result ]
 const queryCluster = async (query = "", requestId) => {
   query = tsqlToHiveTransforms(query);
@@ -20,9 +38,10 @@ const queryCluster = async (query = "", requestId) => {
   const client = new DBSQLClient();
 
   try {
-    await client.connect(connOptions);
+    // await client.connect(connOptions);
+    await makeConnection (client, 0, log);
   } catch (e) {
-    log.trace ("error connecting to cluster", { error: e });
+    log.error ("error connecting to cluster", { error: e });
     return [new Error ('error connecting to cluster')];
   }
 
