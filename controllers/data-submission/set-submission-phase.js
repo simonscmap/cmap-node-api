@@ -35,9 +35,11 @@ let getQuery = (phaseId) => {
         WHERE ID = @submissionID;
 
         SELECT [dbo].[tblData_Submissions].[Filename_Root],
-        [dbo].[tblUsers].[Email]
+        [dbo].[tblUsers].[Email],
+        [dbo].[tblUsers].[FirstName],
+        [dbo].[tblUsers].[FamilyName],
         FROM [dbo].[tblData_Submissions]
-        JOIN [dbo].[tblUsers] on [dbo].[tblData_Submissions].[Submitter_ID] = UserID
+        JOIN [dbo].[tblUsers] on [dbo].[tblData_Submissions].[Submitter_ID] = [dbo].[tblUsers].[UserID]
         WHERE ID = @submissionID
     `;
 };
@@ -75,7 +77,7 @@ const setSubmissionPhase = async (req, res) => {
 
   let datasetName = record.Filename_Root;
   let email = record.Email;
-  let userName = `${req.user.firstName} ${req.user.lastName}`;
+  let userName = `${record.FirstName} ${record.lastName}`;
 
   // (2) Notify User if Phase is 4 or 6
 
