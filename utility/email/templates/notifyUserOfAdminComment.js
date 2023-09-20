@@ -4,9 +4,13 @@ const baseTemplate = require("./base-template");
 const { notifyUserOfAdminComment } = require("./partials");
 
 const isProduction = process.env.NODE_ENV === "production";
+const isStaging = process.env.NODE_ENV === "staging";
+
 const domain = isProduction
-  ? "https://simonscmap.com"
-  : "http://localhost:8080";
+             ? "https://simonscmap.com"
+             : isStaging
+             ? "https://simonscmap.dev"
+             : "http://localhost:8080";
 
 // This template constitutes the notification sent to the user of
 // a data submission when an admin has added a comment to the submission
