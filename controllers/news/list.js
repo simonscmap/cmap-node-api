@@ -12,6 +12,8 @@ let query = `SELECT TOP (1000) [ID]
       ,[create_date]
       ,[modify_date]
       ,[publish_date]
+      ,[Status_ID]
+      ,[Highlight]
   FROM [Opedia].[dbo].[tblNews]`;
 
 const log = initializeLogger("controllers/news/list");
