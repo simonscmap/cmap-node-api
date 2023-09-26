@@ -43,7 +43,7 @@ let bodyResolver = pipe([
 ]);
 
 let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
-      (ID, headline, link, body, date, rank, view_status, create_date, UserID)
+      (ID, headline, link, body, date, rank, view_status, create_date, UserID, Status_ID, Highlight)
       VALUES (
          @ID
        , @headline
@@ -54,6 +54,8 @@ let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
        , @view_status
        , @create_date
        , @UserId
+       , @Status_ID
+       , @Highlight
       )`;
 
 
@@ -130,6 +132,24 @@ let createStoryQueryDefinition = {
         gets (is ($.Integer)) (["user", "id"]),
         maybeToEither("user id is required"),
       ])
+    },
+    {
+      vName: "Status_ID",
+      sqlType: sql.INT,
+      defaultTo: 0,
+      resolver: pipe([
+        gets (is ($.Integer)) (["body", "story", "Status_ID"]),
+        maybeToEither ('Expecting an integer'),
+      ]),
+    },
+    {
+      vName: "Highlight",
+      sqlType: sql.INT,
+      defaultTo: 0,
+      resolver: pipe([
+        gets (is ($.Integer)) (["body", "story", "Highlight"]),
+        maybeToEither ('Expecting an integer'),
+      ]),
     },
   ]
 }
