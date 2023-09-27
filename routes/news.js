@@ -15,6 +15,14 @@ let passportOptions = { session: false };
 router.get("/list", asyncControllerWrapper(newsController.list));
 
 router.post(
+  "/category",
+  passport.authenticate(passportMethods, passportOptions),
+  checkAdminAuth,
+  ensureContentType(contentTypes.json),
+  asyncControllerWrapper(newsController.category)
+);
+
+router.post(
   "/create",
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
