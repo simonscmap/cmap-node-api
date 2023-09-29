@@ -4,18 +4,20 @@ const sql = require('mssql');
 // const { trace } = require('../../lib')
 
 let {
+  Right,
   bimap,
+  compose,
   empty,
   encase,
+  fromMaybe,
   gets,
-  join,
   ifElse,
   is,
   isJust,
+  join,
   map,
   maybeToEither,
   pipe,
-  Right,
 } = S;
 
 let maybeNothingToRight = ifElse (isJust) (maybeToEither ("Oops")) ((arg) => Right(arg));
@@ -43,11 +45,12 @@ let bodyResolver = pipe([
 ]);
 
 let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
-      (ID, headline, link, body, date, rank, view_status, create_date, UserID, Status_ID, Highlight)
+      (ID, headline, link, label, body, date, rank, view_status, create_date, UserID, Status_ID )
       VALUES (
          @ID
        , @headline
        , @link
+       , @label
        , @body
        , @date
        , @rank
@@ -55,7 +58,6 @@ let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
        , @create_date
        , @UserId
        , @Status_ID
-       , @Highlight
       )`;
 
 
@@ -137,18 +139,17 @@ let createStoryQueryDefinition = {
       vName: "Status_ID",
       sqlType: sql.INT,
       defaultTo: 0,
-      resolver: pipe([
+      resolver: compose (S.Right) (compose (fromMaybe (0)) (
         gets (is ($.Integer)) (["body", "story", "Status_ID"]),
-        maybeToEither ('Expecting an integer'),
-      ]),
+      )),
     },
     {
-      vName: "Highlight",
-      sqlType: sql.INT,
-      defaultTo: 0,
+      vName: "label",
+      sqlType: sql.VarChar,
+      defaultTo: '',
       resolver: pipe([
-        gets (is ($.Integer)) (["body", "story", "Highlight"]),
-        maybeToEither ('Expecting an integer'),
+        gets (is ($.String)) (["body", "story", "label"]),
+        maybeToEither ('Expecting an string'),
       ]),
     },
   ]
