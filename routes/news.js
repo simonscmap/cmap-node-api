@@ -63,14 +63,6 @@ router.post(
 );
 
 router.post(
-  "/feature",
-  passport.authenticate(passportMethods, passportOptions),
-  checkAdminAuth,
-  ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.feature)
-);
-
-router.post(
   "/update",
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,

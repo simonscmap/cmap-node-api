@@ -3,7 +3,7 @@ const S = require("../../utility/sanctuary");
 const $ = require("sanctuary-def");
 const { generateController } = require("../futureController");
 
-let { compose, gets, is, maybeToEither } = S;
+let { compose, gets, is, maybeToEither, fromMaybe } = S;
 
 // function pieces for arg resolvers
 let eitherIdOrError = maybeToEither ("id is required");
@@ -21,6 +21,8 @@ let getBodyFromReq = gets (is ($.String)) (["body", "story", "body"]);
 let eitherDateOrError = maybeToEither ("date is required");
 let getDateFromReq = gets (is ($.String)) (["body", "story", "date"]);
 
+let getLabelFromReq = gets (is ($.String)) (["body", "story", "label"]);
+
 // Update News Item, Query Definition
 // Only used for updating the content of a news item
 // Use setRanks for updating rank, and
@@ -29,7 +31,13 @@ let updateQueryDefinition = {
   name: 'Update News Item',
   // TODO: update UserID as well
   template: () => `UPDATE [Opedia].[dbo].[tblNews]
-      SET headline = @headline, link = @link, body = @body, date = @date, modify_date = @modify_date
+      SET
+        headline = @headline,
+        label = @label,
+        link = @link,
+        body = @body,
+        date = @date,
+        modify_date = @modify_date
       WHERE ID = @ID`,
   args: [
     {
@@ -37,6 +45,13 @@ let updateQueryDefinition = {
       sqlType: sql.Int, // todo: check
       defaultTo: 0,
       resolver: compose (eitherIdOrError) (getIdFromReq),
+    },
+    {
+      vName: 'label',
+      sqlType: sql.VarChar, // todo: check
+      defaultTo: '',
+      resolver: compose (S.Right)
+        (compose (fromMaybe ('')) (getLabelFromReq))
     },
     {
       vName: 'headline',

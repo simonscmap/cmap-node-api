@@ -5,6 +5,7 @@ const initializeLogger = require("../../log-service");
 let query = `SELECT TOP (1000) [ID]
       ,[headline]
       ,[link]
+      ,[label]
       ,[body]
       ,[date]
       ,[rank]
@@ -12,8 +13,6 @@ let query = `SELECT TOP (1000) [ID]
       ,[create_date]
       ,[modify_date]
       ,[publish_date]
-      ,[Status_ID]
-      ,[Highlight]
   FROM [Opedia].[dbo].[tblNews]`;
 
 const log = initializeLogger("controllers/news/list");

@@ -1,7 +1,6 @@
 const category = require('./category');
 const create = require('./createF');
 const draft = require('./draft');
-const feature = require ('./feature');
 const list = require('./list');
 const preview = require('./preview');
 const publish = require('./publish');
@@ -13,7 +12,6 @@ module.exports = {
   category,
   create,
   draft,
-  feature,
   list,
   preview,
   publish,
