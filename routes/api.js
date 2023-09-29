@@ -7,6 +7,7 @@ const userRoutes = require("./user");
 const dataRoutes = require("./data");
 const catalogRoutes = require("./catalog");
 const communityRoutes = require("./community");
+const highlightsRoutes = require("./highlights");
 const dataSubmissionRoutes = require("./dataSubmission");
 const createNewLogger = require("../log-service");
 
@@ -29,6 +30,7 @@ router.use("/news", newsRoutes);
 router.use("/user", userRoutes);
 router.use("/data", dataRoutes);
 router.use("/catalog", catalogRoutes);
+router.use("/highlights", highlightsRoutes);
 router.use("/community", communityRoutes);
 router.use(
   "/datasubmission",
