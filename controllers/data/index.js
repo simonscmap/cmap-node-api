@@ -7,6 +7,7 @@ const { isSproc, extractSprocName } = require('../../utility/router/pure');
 const directQuery = require('../../utility/directQuery');
 const { expandIfSelectStar } = require ('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
+const { bulkDownloadController } = require('./bulk-download');
 
 const moduleLogger = initializeLogger("controllers/data");
 
@@ -319,13 +320,14 @@ const tableStats = async (req, res, next) => {
 };
 
 module.exports = {
-  customQuery,
-  queryModification,
-  storedProcedure,
-  cruiseTrajectory,
   ancillaryDatasets,
+  bulkDownloadController,
   ciDatasets,
   cruiseList,
+  cruiseTrajectory,
+  datasetFeatures,
+  queryModification,
+  storedProcedure,
   tableStats,
-  datasetFeatures
+  customQuery,
 };

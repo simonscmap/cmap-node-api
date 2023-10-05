@@ -19,7 +19,8 @@
     "failFast": false,
     "failWithoutAssertions": false,
     "environmentVariables": {},
-    "verbose": true
+    "verbose": true,
+    "timeout": "2m"
   },
   "author": "Simons CMAP",
   "license": "ISC",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@databricks/sql": "^1.2.1",
+    "archiver": "^6.0.1",
     "base64-url": "^2.3.3",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
@@ -62,6 +64,7 @@
     "pm2": "^4.5.6",
     "sanctuary": "^3.1.0",
     "sanctuary-def": "^0.22.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "xlsx": "^0.18.5"
   }
 }

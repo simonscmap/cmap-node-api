@@ -38,7 +38,7 @@ const fetchDatasetLocations = async () => {
   let result;
   try {
     result = await request.query(query);
-    log.trace("success fetching dataset servers");
+    // log.trace("success fetching dataset servers");
   } catch (e) {
     log.error("error fetching dataset servers", { error: e });
     return [true, []];
@@ -82,7 +82,7 @@ const fetchDatasetIds = async () => {
   let result;
   try {
     result = await request.query(query);
-    log.trace("success fetching dataset ids");
+    // log.trace("success fetching dataset ids");
   } catch (e) {
     log.error("error fetching dataset ids", { error: e });
     return [true, []];
@@ -124,7 +124,7 @@ const fetchAllOnPremTables = async () => {
   let result;
   try {
     result = await request.query(query);
-    log.debug("success fetching db tables", { result: result.recordset });
+    // log.debug("success fetching db tables", { result: result.recordset });
   } catch (e) {
     log.error("error fetching db tables", { error: e });
     return [true, []];
@@ -172,14 +172,14 @@ const fetchDataRetrievalProcedureNames = async () => {
   let result;
   try {
     result = await request.query(query);
-    log.debug("success fetching usp list", { result: result.recordset });
+    // log.debug("success fetching usp list", { result: result.recordset });
   } catch (e) {
     log.error("error fetching usp list", { error: e });
     return [true, null];
   }
 
   if (result && result.recordset && result.recordset.length) {
-    log.trace ('success fetchisg usp data', { result: result.recordset });
+    // log.trace ('success fetching usp data', { result: result.recordset });
     let nameList = result.recordset.map (({ USP_Name }) => USP_Name.trim() );
     return [false, nameList];
   } else {

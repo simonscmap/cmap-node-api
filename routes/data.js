@@ -81,4 +81,21 @@ router.get("/tablestats", asyncControllerWrapper(dataController.tableStats));
 // Protobuf test
 router.get("/proto", asyncControllerWrapper(dataController.testProto));
 
+// Bulk Download
+router.get(
+  "/bulk-download",
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  asyncControllerWrapper(dataController.bulkDownloadController)
+);
+
+router.post(
+  "/bulk-download",
+  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  asyncControllerWrapper(dataController.bulkDownloadController)
+);
+
+
+
+
+
 module.exports = router;

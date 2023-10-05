@@ -442,6 +442,123 @@ module.exports.datasetVariableUM = async (req, res, next) => {
   }
 };
 
+// export full page metadata for bulk query
+const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
+ let log = moduleLogger.setReqId (reqId);
+  let pool = await pools.dataReadOnlyPool;
+
+  let datasetId = await getDatasetId (shortName, log);
+  if (!datasetId) {
+    log.error('could not find dataset id for dataset name', { shortName })
+    return ['could not find dataset id for dataset name'];
+  }
+
+  // 1. get dataset and cruise info
+  let datasetQuery = makeDatasetFullPageQuery (datasetId);
+
+  let datasetResult;
+  try {
+    let request = await new sql.Request(pool);
+    datasetResult = await request.query(datasetQuery);
+  } catch (e) {
+    log.error('error making full page query', { error: e });
+    return ['error making full page metadata query'];
+  }
+
+  // the query contains 2 select statements,
+  // each is returned in the order queried as a recordset
+  let dataset = datasetResult.recordsets[0][0];
+  let cruises = datasetResult.recordsets[1];
+
+  if (!dataset) {
+    log.error('sql returned no dataset', { shortName, datasetId });
+    return ['query returned no dataset'];
+  }
+
+  let { References, Sensors, ...topLevelDatasetProps } = dataset;
+
+  // correct for sometimes incorrect date format
+  topLevelDatasetProps = coerceTimeMinAndMax (topLevelDatasetProps, log);
+
+  let sensors;
+  if (!Sensors || typeof Sensors !== 'string') {
+    sensors = [];
+  } else {
+    sensors = [...new Set(Sensors.split(","))];
+  }
+
+  let references = (References && typeof References === 'string')
+                 ? References.split("$$$")
+                 : [];
+
+  // 2. fetch variables
+  let variablesQuery = `EXEC uspVariableCatalog ${datasetId}`;
+  let variablesResult;
+  try {
+    let request = await new sql.Request(pool);
+    variablesResult = await request.query(variablesQuery);
+  } catch (e) {
+    log.error('error making variable catalog query', { error: e })
+    return ['error making variable catalog query'];
+  }
+
+  // 3. fetch variable unstructured metadata
+  let vumQuery = makeVariableUMQuery (shortName);
+  let vumResult;
+  try {
+    let request = await new sql.Request(pool);
+    vumResult = await request.query(vumQuery);
+  } catch (e) {
+    log.error('error making variable UM query', { error: e })
+    return ['error making variable unstructured metadata query'];
+  }
+
+  let vumMap = {}
+  if (Array.isArray(vumResult.recordsets[0])) {
+    // turn this into a key/value object
+    vumResult.recordsets[0].forEach((entry) => {
+      if (entry.Variable) {
+        vumMap[entry.Variable] = entry.Unstructured_Variable_Metadata;
+      }
+    });
+  } else {
+    log.error ('expected recordset to be an array', { recordsets: vumResult.recordsets });
+    return ['expected unstructured metadata recordset to be an array']
+  }
+
+  // join dataset stats and unstructured metadata with variables
+  let datasetStats = coerceTimeMinAndMax({
+    Time_Min: dataset.Time_Min,
+    Time_Max: dataset.Time_Max,
+    Lat_Min: dataset.Lat_Min,
+    Lat_Max: dataset.Lat_Max,
+    Lon_Min: dataset.Lon_Min,
+    Lon_Max: dataset.Lon_Max,
+    Depth_Min: dataset.Depth_Min,
+    Depth_Max: dataset.Depth_Max,
+  }, log);
+
+  let ammendedVariables = {};
+  if (variablesResult && Array.isArray(variablesResult.recordset)) {
+    ammendedVariables = variablesResult.recordset.map((variable) => {
+      return Object.assign({}, variable, datasetStats, {
+        Unstructured_Variable_Metadata: vumMap[variable.Variable] || null
+      });
+    });
+  }
+
+  let payload = {
+    dataset: topLevelDatasetProps,
+    sensors: sensors,
+    cruises: cruises,
+    references: references,
+    variables: ammendedVariables,
+  };
+
+  return [null, payload];
+};
+module.exports.fetchAndPrepareDatasetMetadata = fetchAndPrepareDatasetMetadata;
+
 // merge "fullpage" "variables" and "variableum" into one response
 // to serve the data for creating a download
 module.exports.datasetMetadata = async (req, res, next) => {
@@ -456,7 +573,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
     return next(new Error('error finding dataset id'));
   }
 
-  // get dataset and cruise info
+  // 1. get dataset and cruise info
   let datasetQuery = makeDatasetFullPageQuery (datasetId);
 
   let datasetResult;
@@ -496,6 +613,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
                  ? References.split("$$$")
                  : [];
 
+  // 2. fetch variables
   let variablesQuery = `EXEC uspVariableCatalog ${datasetId}`;
   let variablesResult;
   try {
@@ -507,6 +625,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
     return next(new Error('error querying variables'));
   }
 
+  // 3. fetch variable unstructured metadata
   let vumQuery = makeVariableUMQuery (shortname);
   let vumResult;
   try {
@@ -654,10 +773,30 @@ module.exports.cruiseFullPage = async (req, res, next) => {
         WHERE Name='${name}'
 
         SELECT
-        Dataset_Name,
-        Dataset_Long_Name
+          ID as Dataset_ID,
+          Dataset_Name,
+          Dataset_Long_Name,
+          JSON_stats
         FROM tblDatasets
-        WHERE ID IN (
+        JOIN tblDataset_Stats on tblDataset_Stats.Dataset_ID = tblDatasets.ID
+        WHERE tblDatasets.ID IN (
+            SELECT Dataset_ID
+            FROM tblDataset_Cruises
+            WHERE Cruise_ID IN (
+                SELECT ID
+                FROM tblCruise
+                WHERE Name='${name}'
+            )
+        )
+
+        SELECT
+          Dataset_ID,
+          Short_Name,
+          Long_Name,
+          Unit
+        FROM tblVariables
+        JOIN tblDatasets on tblDatasets.ID = tblVariables.Dataset_ID
+        WHERE tblDatasets.ID IN (
             SELECT Dataset_ID
             FROM tblDataset_Cruises
             WHERE Cruise_ID IN (
@@ -668,6 +807,9 @@ module.exports.cruiseFullPage = async (req, res, next) => {
         )
     `;
 
+  // select JSON_stats from tblDataset_Stats where Dataset_ID=570
+  // use lat count
+
   let result;
   try {
     result = await request.query(query);
@@ -677,15 +819,27 @@ module.exports.cruiseFullPage = async (req, res, next) => {
     return next();
   }
 
-  let cruiseData = result.recordsets[0] && result.recordsets[0][0];
-
-  if (!cruiseData) {
+  if (!result || !result.recordsets || !result.recordsets[0] || !result.recordsets[0][0]) {
     log.error('no matching cruise', { name })
     res.status(400).send('no matching cuise');
     return next();
   }
 
-  cruiseData.datasets = result.recordsets[1];
+  const cruiseData = result.recordsets[0][0];
+  const datasets = result.recordsets[1];
+  const variables = result.recordsets[2];
+
+  const datasetsWithVariables = datasets.map ((dataset) => ({
+      ...dataset,
+    variables: variables
+      .filter(({ Dataset_ID }) => Dataset_ID === dataset.Dataset_ID)
+      .map (({ Dataset_ID, ...rest }) => ({
+        ...rest,
+      }))
+  }));
+
+  cruiseData.datasets = datasetsWithVariables;
+
   res.writeHead(200, {
     "Cache-Control": "max-age=7200",
     "Content-Type": "application/json",

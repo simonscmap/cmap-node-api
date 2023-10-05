@@ -13,10 +13,13 @@ const COMMAND_TYPES = {
 
 const QUERY_ROW_LIMIT = 2000000;
 
+const TMP_DIR_PREFIX = 'CMAP-';  // used in bulk download
+
 module.exports = {
   SERVER_NAMES,
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS: 'cmap-data-submission@uw.edu',
   CLUSTER_CHUNK_MAX_ROWS,
   COMMAND_TYPES,
   QUERY_ROW_LIMIT,
+  TMP_DIR_PREFIX,
 };

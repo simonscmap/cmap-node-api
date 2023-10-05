@@ -167,6 +167,15 @@ function log(level, tags, context, message, isError, data) {
     if (payload.data) {
       abbreviatedPayload.data = payload.data;
     }
+
+
+    // TMP
+
+    /* if (payload && payload.data) {
+*   console.log(header + ' > ' + payload.message, payload.data);
+* } else {
+*   console.log(header + ' > ' + payload.message);
+* } */
     console.log(header);
     console.log(abbreviatedPayload);
   }
