@@ -5,6 +5,7 @@ const sql = require("mssql");
 const { fetchDataRetrievalProcedureNamesWithCache } = require('../../utility/router/queries');
 const { isSproc, extractSprocName } = require('../../utility/router/pure');
 const directQuery = require('../../utility/directQuery');
+const cacheAsync = require('../../utility/cacheAsync');
 const { expandIfSelectStar } = require ('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
 const { bulkDownloadController } = require('./bulk-download');
@@ -203,6 +204,41 @@ const cruiseTrajectory = async (req, res, next) => {
   queryHandler(req, res, next, query);
 };
 
+const cruiseTrajectories = async (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+  const ids = req.body.cruise_ids;
+
+  if (!Array.isArray (ids) || ids.length === 0) {
+    log.error ('invalid args', { body: req.body });
+    res.status(400).send('invalid argument');
+    return next ('expectd ids to be a non-empty array');
+  }
+
+  const query = `SELECT [Cruise_ID], [time], [lat], [lon]
+    FROM
+        tblCruise_Trajectory
+    WHERE
+        [Cruise_ID] IN (${ids.join(',')})
+    ORDER BY [Cruise_ID], [time], [lat], [lon]`;
+
+  req.cmapApiCallDetails.query = query;
+  const options = { description: 'cruise trajectories' };
+
+  const [error, result] = await directQuery(query, options, log);
+
+  if (error || result.recordsets.length <= 0) {
+    res.status(500).send('error fetching cruise trajectories');
+    return next(error);
+  }
+
+  const trajectoryData = result.recordsets[0];
+
+  console.log (trajectoryData)
+
+  res.send (trajectoryData);
+  next();
+}
+
 // provide list of tables with ancillary data
 // uses sproc
 // TODO: bypass the router
@@ -319,15 +355,51 @@ const tableStats = async (req, res, next) => {
   res.send(result.recordset[0].JSON_stats);
 };
 
+
+const fetchTrajectoryPointCounts = async (log) => {
+  const options = { description: 'table stats' };
+  const query = 'select Cruise_ID, count(Cruise_ID) points from tblCruise_Trajectory group by Cruise_ID';
+  let [e, result] = await directQuery(query, options, log);
+  if (e) {
+    moduleLogger.error ('error fetching trajectory counts', { error: e });
+    return [true, []];
+  }
+
+  const indexedCounts = result.recordset.reduce((acc, curr) => {
+    Object.assign(acc, { [curr.Cruise_ID]: curr.points });
+    return acc;
+  }, {});
+
+  return [null, indexedCounts];
+}
+
+const trajectoryPointCounts = async (req, res, next) => {
+  const result = await cacheAsync (
+    'CACHE_KEY_TRAJECTORY_POINTS',
+    fetchTrajectoryPointCounts,
+    { ttl: 60 * 60 * 24 }
+  );
+
+  if (result.length === 0) {
+    res.status(500).json({ error: 'error retrieving table stats' });
+    return next('error retrieving table stats');
+  }
+
+  res.json (result);
+  next();
+}
+
 module.exports = {
   ancillaryDatasets,
   bulkDownloadController,
   ciDatasets,
   cruiseList,
+  cruiseTrajectories,
   cruiseTrajectory,
+  customQuery,
   datasetFeatures,
   queryModification,
   storedProcedure,
   tableStats,
-  customQuery,
+  trajectoryPointCounts,
 };

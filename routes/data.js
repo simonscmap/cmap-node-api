@@ -75,18 +75,17 @@ router.get(
   asyncControllerWrapper(dataController.cruiseTrajectory)
 );
 
+// Get cruise trajectory
+router.post(
+  "/cruise-trajectories",
+  asyncControllerWrapper(dataController.cruiseTrajectories)
+);
+
 // Table stats
 router.get("/tablestats", asyncControllerWrapper(dataController.tableStats));
 
 // Protobuf test
 router.get("/proto", asyncControllerWrapper(dataController.testProto));
-
-// Bulk Download
-router.get(
-  "/bulk-download",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
-  asyncControllerWrapper(dataController.bulkDownloadController)
-);
 
 router.post(
   "/bulk-download",
@@ -94,8 +93,9 @@ router.post(
   asyncControllerWrapper(dataController.bulkDownloadController)
 );
 
-
-
-
+router.get(
+  "/trajectory-point-counts",
+  asyncControllerWrapper(dataController.trajectoryPointCounts)
+);
 
 module.exports = router;
