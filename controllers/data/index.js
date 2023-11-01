@@ -12,6 +12,16 @@ const { bulkDownloadController } = require('./bulk-download');
 
 const moduleLogger = initializeLogger("controllers/data");
 
+const toSetArray = (data) => {
+  if (!data || !Array.isArray(data)) {
+    moduleLogger.error ('toSetArray received incorrect arg; expecting arrray ', data);
+    return [];
+  }
+  let p = new Set();
+  data.forEach (p.add, p);
+  return Array.from (p);
+};
+
 // fetch sproc query: helper that calls a sproc endpoint
 // with a flag that will cause the sql server to respond with
 // an ansi compliant query that can be run on prem or on cluster
@@ -227,13 +237,12 @@ const cruiseTrajectories = async (req, res, next) => {
   const [error, result] = await directQuery(query, options, log);
 
   if (error || result.recordsets.length <= 0) {
+    log.error ('error fetching cruise trajectories', error);
     res.status(500).send('error fetching cruise trajectories');
     return next(error);
   }
 
   const trajectoryData = result.recordsets[0];
-
-  console.log (trajectoryData)
 
   res.send (trajectoryData);
   next();
@@ -301,6 +310,7 @@ const cruiseList = async (req, res, next) => {
     ,[keywords_agg].Keywords
     ,CAST(YEAR(Start_Time) as NVARCHAR) as Year
     ,cruise_regions.Regions
+    ,cruise_dataset_variables.Sensors
     ,CASE
         WHEN tblCruise_Series.Series IS NOT NULL THEN tblCruise_Series.Series
         WHEN tblCruise_Series.Series IS NULL THEN 'Other'
@@ -314,17 +324,41 @@ const cruiseList = async (req, res, next) => {
         LEFT JOIN tblRegions rg ON cr.Region_ID = rg.Region_ID
         GROUP BY cr.Cruise_ID
     ) cruise_regions ON tblCruise.ID = cruise_regions.ID
+    LEFT JOIN (
+      SELECT tblCruise.ID as cId, STRING_AGG(CAST(Sensor as NVARCHAR(MAX)), ',') as Sensors
+      FROM tblCruise
+      JOIN tblDataset_Cruises on tblCruise.ID = tblDataset_Cruises.Cruise_ID
+      JOIN tblVariables on tblVariables.Dataset_ID = tblDataset_Cruises.Dataset_ID
+      JOIN tblSensors on tblVariables.Sensor_ID = tblSensors.ID
+      GROUP BY tblCruise.ID
+    ) cruise_dataset_variables on tblCruise.ID = cruise_dataset_variables.cId
     LEFT JOIN (SELECT cruise_ID, STRING_AGG (CAST(key_table.keywords AS VARCHAR(MAX)), ', ') AS Keywords FROM tblCruise tblC
     JOIN tblCruise_Keywords key_table ON [tblC].ID = [key_table].cruise_ID GROUP BY cruise_ID) AS keywords_agg ON [keywords_agg].cruise_ID = [tblCruise].ID
     WHERE [tblCruise].ID IN (SELECT DISTINCT Cruise_ID FROM tblDataset_Cruises)
     `;
 
-  let result = await request.query(query);
+  let result;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    res.sendStats(500);
+    return next(e)
+  }
+
+  const cruises = result.recordset.map((c) => {
+    return {
+      ...c,
+      Sensors: toSetArray(c.Sensors.split(',')).sort()
+    }
+  });
+
   res.writeHead(200, {
     "Cache-Control": "max-age=7200",
     "Content-Type": "application/json",
   });
-  await res.end(JSON.stringify(result.recordset));
+
+
+  await res.end(JSON.stringify(cruises));
   next();
 };
 
