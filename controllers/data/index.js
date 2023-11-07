@@ -143,7 +143,7 @@ const queryModification = async (req, res, next) => {
   }
 
   // if 'select * ...', replace '*' with columns
-  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (req.query.query);
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (query);
 
   if (errorMsg) {
     log.warn (errorMsg, { query })
