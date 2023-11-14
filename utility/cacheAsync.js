@@ -21,7 +21,9 @@ const cacheAsync = async (cacheKey, job, options = {}) => {
 
   // the first value should be null if there is no error
   // if the first value is true, it will indicate
-  // that data is a fallback value
+  // that data is a fallback value;
+  // it is the responsibility of the passed job to flag errors
+  // and return a fallback value; otherwise an error value will be cached
   let [error, data] = await job();
 
   if (error) {
