@@ -9,6 +9,7 @@ const cacheAsync = require('../../utility/cacheAsync');
 const { expandIfSelectStar } = require ('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
 const { bulkDownloadController } = require('./bulk-download');
+const namedDataController = require('./namedDataController');
 
 const moduleLogger = initializeLogger("controllers/data");
 
@@ -432,6 +433,7 @@ module.exports = {
   cruiseTrajectory,
   customQuery,
   datasetFeatures,
+  namedDataController,
   queryModification,
   storedProcedure,
   tableStats,

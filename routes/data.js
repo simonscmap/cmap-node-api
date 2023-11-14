@@ -98,4 +98,9 @@ router.get(
   asyncControllerWrapper(dataController.trajectoryPointCounts)
 );
 
+router.get(
+  '/named/:name',
+  asyncControllerWrapper(dataController.namedDataController)
+);
+
 module.exports = router;
