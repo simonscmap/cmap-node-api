@@ -9,9 +9,7 @@ const cache = new NodeCache();
 const log = logInit("nodeCache");
 
 // https://github.com/node-cache/node-cache#events
-cache.on("expired", (key) => {
-  log.info("node cache: expired", { key })
-});
+
 
 cache.on("set", (key) => {
   log.info("node cache: set", { key })
@@ -20,6 +18,16 @@ cache.on("set", (key) => {
 cache.on("flush", () => {
   log.info("node cache: flush")
 });
+
+// report cache state every 15 min
+setInterval (() => {
+  log.info ('cache state', {
+    keys: cache.keys (),
+    stats: cache.getStats(),
+    sstTtl: cache.getTtl('SST_ANOM_PROCESSED'),
+    adtTtl: cache.getTtl('SST_ANOM_PROCESSED'),
+  });
+}, 1000 * 60 * 15);
 
 // NOTE other methods:
 // cache.del('key')

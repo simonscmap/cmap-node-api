@@ -1,9 +1,13 @@
 const initializeLogger = require("../../log-service");
 const moduleLogger = initializeLogger("controllers/namedData");
 const sparqQuery = require("../../utility/queryHandler/sparqQuery");
-const cache = require("../../utility/nodeCache");
+const preWarmCacheAsync = require("../../utility/preWarmCacheAsync");
+const cacheAsync = require("../../utility/cacheAsync");
 
+const oneMonthInSeconds = 60 * 60 * 24 * 30;
 
+// take sql result and transform it into an object
+// with `lat,lon` keys pointing to trace data
 const transformDataToTraceLines = (data, dataKey) => {
   if (!data) {
     return null;
@@ -13,7 +17,8 @@ const transformDataToTraceLines = (data, dataKey) => {
     const key = `${lat},${lon}`;
     const date = `${year}, ${month}`;
     let val = curr[dataKey];
-    if (val && typeof val.toFixed === 'function') {
+    if (typeof val === 'number') {
+      val = Math.round(val * 100);
       // val = val.toFixed (1);
     }
     if (!acc[key]) {
@@ -23,55 +28,81 @@ const transformDataToTraceLines = (data, dataKey) => {
     acc[key].y.push(val);
     return acc;
   }, {});
-}
+};
 
-const sstAnomalyPlotData = async (req, res, next) => {
-  const cacheKey = 'SST_ANOM_PROCESSED';
-  const cachedData = cache.get(cacheKey);
+/* SST */
+const fetchSSTAnomalyData = async () => {
+  const query = `SELECT year, month, lat, lon, sst_res
+    FROM tblts_sst
+    WHERE sst_res IS NOT NULL
+    ORDER BY year desc, month desc`;
 
-  if (cachedData) {
-    res.json (cachedData);
-    return next();
+  const startQuery = Date.now();
+  const [e, result] = await sparqQuery (query);
+  moduleLogger.debug ('sst query time', { duration: Date.now() - startQuery });
+
+  if (e) {
+    return [true];
   }
 
-  const query = 'select year, month, lat, lon, sst_res from tblts_sst where sst_res IS NOT NULL order by year desc, month desc'; // limit 10000
+  // Process data
+  const startTransform = Date.now();
+  const lines = transformDataToTraceLines (result, 'sst_res');
+  moduleLogger.debug ('sst trx time', { duration: Date.now() - startTransform });
 
-  const [e, result] = await sparqQuery (query, req.reqId);
-  if (e) {
+  return [false, lines];
+}
+
+const sstCacheKey = 'SST_ANOM_PROCESSED';
+const sstCacheOptions = { ttl: oneMonthInSeconds };
+preWarmCacheAsync (sstCacheKey, fetchSSTAnomalyData, sstCacheOptions);
+
+const sstAnomalyPlotData = async (req, res, next) => {
+  moduleLogger.trace ('executing named route: sst anomaly data', null);
+  const result = await cacheAsync (sstCacheKey, fetchSSTAnomalyData, sstCacheOptions);
+  if (!result) {
     res.status(500).send();
     return next ();
   }
-  // Process data
-  const lines = transformDataToTraceLines (result, 'sst_res');
 
-  cache.set (cacheKey, lines);
-
-  res.json (lines);
+  res.json (result);
   next ();
 }
 
-const adtAnomalyPlotData = async (req, res, next) => {
-  const cacheKey = 'ADT_ANOM_PROCESSED';
-  const cachedData = cache.get(cacheKey);
+/* ADT */
+const fetchADTAnomalyData = async () => {
+  const query = `SELECT year, month, lat, lon, adt_res
+    FROM tblts_adt
+    WHERE adt_res IS NOT NULL
+    ORDER BY year desc, month desc`;
 
-  if (cachedData) {
-    res.json (cachedData);
-    return next();
-  }
+  const startQuery = Date.now();
+  const [e, result] = await sparqQuery (query);
+  moduleLogger.debug ('adt query time', { duration: Date.now() - startQuery });
 
-  const query = 'select year, month, lat, lon, adt_res from tblts_adt where adt_res IS NOT NULL order by year desc, month desc'; // limit 10000
-
-  const [e, result] = await sparqQuery (query, req.reqId);
   if (e) {
-    res.status(500).send();
-    return next();
+    return [true];
   }
+
   // Process data
+  const startTransform = Date.now();
   const lines = transformDataToTraceLines (result, 'adt_res');
+  moduleLogger.debug ('adt trx time', { duration: Date.now() - startTransform });
 
-  cache.set (cacheKey, lines);
+  return [false, lines];
+}
+const adtCacheKey = 'ADT_ANOM_PROCESSED';
+const adtCacheOptions = { ttl: oneMonthInSeconds };
+preWarmCacheAsync (adtCacheKey, fetchADTAnomalyData, adtCacheOptions);
 
-  res.json (lines);
+const adtAnomalyPlotData = async (req, res, next) => {
+  moduleLogger.trace ('executing named route: adt anomaly data', null);
+  const result = await cacheAsync (adtCacheKey, fetchADTAnomalyData, adtCacheOptions);
+  if (!result) {
+    res.status(500).send();
+    return next ();
+  }
+  res.json (result);
   next ();
 }
 
