@@ -24,5 +24,9 @@ router.get('/variablesearch', asyncControllerWrapper(catalogController.variableS
 router.get('/autocompletevariablesnames', asyncControllerWrapper(catalogController.autocompleteVariableNames));
 router.get('/variable', asyncControllerWrapper(catalogController.variable));
 router.get('/datasetsummary', asyncControllerWrapper(catalogController.datasetSummary));
+router.get('/popular-datasets', asyncControllerWrapper(catalogController.popularDatasets));
+router.get('/recent-datasets', asyncControllerWrapper(catalogController.recentDatasets));
+router.get('/recommended-datasets', asyncControllerWrapper(catalogController.recommendedDatasets));
+
 
 module.exports = router;

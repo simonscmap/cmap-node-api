@@ -1,4 +1,5 @@
 const sql = require("mssql");
+const fetch = require('isomorphic-fetch');
 const nodeCache = require("../../utility/nodeCache");
 const queryHandler = require("../../utility/queryHandler");
 const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
@@ -8,11 +9,19 @@ const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
 const { makeDatasetFullPageQuery } = require("../../queries/datasetFullPageQuery")
 const { makeVariableUMQuery } = require("../../queries/variableUM");
 const { getDatasetId } = require("../../queries/datasetId");
+const fetchDataset = require('./fetchDataset');
 const catalogPlusLatCountQuery = require("../../dbHandlers/catalogPlusLatCountQuery");
+const cacheAsync = require("../../utility/cacheAsync");
+const recApis = require('./recs');
+
 const logInit = require("../../log-service");
 
 // const log = logInit("controllers/catalog");
 const moduleLogger = logInit("controllers/catalog");
+
+module.exports.popularDatasets = recApis.popularDatasets;
+module.exports.recentDatasets = recApis.recentDatasets;
+module.exports.recommendedDatasets = recApis.recommendedDatasets;
 
 // No longer used by web app
 module.exports.retrieve = async (req, res, next) => {
