@@ -16,6 +16,7 @@ const signOut = require("./signOut");
 const signUp = require("./signUp");
 const updateInfo = require("./updateInfo");
 const validate = require("./validate");
+const lastApiCall = require("./lastApiCall");
 
 module.exports = {
   addCartItem,
@@ -29,6 +30,7 @@ module.exports = {
   getCart,
   getGuestToken,
   googleAuth,
+  lastApiCall,
   removeCartItem,
   retrieveAPIKeys,
   signIn,

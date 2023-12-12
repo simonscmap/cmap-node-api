@@ -109,4 +109,10 @@ router.get(
   asyncControllerWrapper(userController.getGuestToken)
 );
 
+router.get (
+  "/last-api-call",
+  passport.authenticate("jwt", { session: false }),
+  asyncControllerWrapper(userController.lastApiCall)
+);
+
 module.exports = router;
