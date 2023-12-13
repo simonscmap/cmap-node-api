@@ -27,8 +27,6 @@ const fetchAndProcessDatasetsByTable = async (tableNames = []) => {
     return [...acc, dataset];
   }, [])
 
-  moduleLogger.trace ('success fetching datasets');
-
   return [null, responseData];
 }
 
@@ -168,6 +166,18 @@ module.exports.recommendedDatasets = async (req, res, next) => {
   const [err, responseData] = await fetchRecommendedDatasetsFromValidationAPI (user_id);
 
   if (responseData) {
+    /* moduleLogger.debug ('response data for SEE ALSO', responseData.length);
+* const report = responseData.map (({ Dataset_ID, Keywords, Sensors, Short_Name }) => ({
+*   id: Dataset_ID,
+*   shortName: Short_Name,
+*   keywordsCount: Keywords.split(',').length,
+*   keywordsStrLen: Keywords.length,
+*   sensorsCount: Sensors.split(',').length,
+*   sensorsStrLen: Sensors.length,
+* }));
+
+* console.table(report); */
+
     res.json (responseData);
     next ();
   } else {

@@ -124,6 +124,8 @@ const topToLimit = (top) => {
   }
 };
 
+// convert from tsql to ansi sql
+// replace 'TOP' with 'LIMIT'
 // :: -> [Error, Obj]
 const traverseAST = (obj) => {
   let argType = tagType (obj);

@@ -10,15 +10,56 @@ const communityRoutes = require("./community");
 const highlightsRoutes = require("./highlights");
 const dataSubmissionRoutes = require("./dataSubmission");
 const createNewLogger = require("../log-service");
-
+const pools = require("../dbHandlers/dbPools");
 const log = createNewLogger().setModule("routes/apiRouter.js");
+const sql = require("mssql");
 
 let passportMethods = ["headerapikey", "jwt"];
 let passportOptions = { session: false };
 
+const saveApiQueryInfo = async (id, queryType, matchingTables) => {
+  if (!Array.isArray(matchingTables)) {
+    log.warn ('no matching tables; unable to save api call query info',
+              { id, queryType, matchingTables});
+  }
+
+  const pool = await pools.userReadAndWritePool;
+
+  const insertJobs = matchingTables.map(async (tableName) => {
+    const request = await new sql.Request(pool);
+    request.input("Call_ID", sql.Int, id);
+    request.input("Type", sql.VarChar, queryType);
+    request.input("Table_Name", sql.VarChar, tableName);
+    const query = `INSERT INTO tblApi_Query
+      (Call_ID, Type, Table_Name)
+      VALUES (@Call_ID, @Type, @Table_Name)`;
+    return await request.query(query);
+  });
+
+  try {
+    await Promise.all(insertJobs);
+    log.info ('inserted call reference into tblApi_Query',
+              { id, queryType, matchingTables })
+  } catch (e) {
+    log.error ('error inserting data into tblApi_Query', e);
+  }
+}
+
 const saveCall = (req, res, next) => {
-  res.on('finish', () => { // allows ApiCallDetails to record response status
-    req.cmapApiCallDetails.save(res, { caller: 'api' });
+  res.on('finish', async () => { // allows ApiCallDetails to record response status
+    const apiCallRecordId = await req.cmapApiCallDetails.save(res, { caller: 'api' });
+
+    const queryType = req.sprocName || req.queryType;
+    const tableNames = req.matchingTables && req.matchingTables.matchingDatasetTables
+    if (apiCallRecordId && tableNames) {
+      try {
+        await saveApiQueryInfo (apiCallRecordId, queryType, tableNames);
+      } catch (e) {
+        console.log ('error attempting to save api query info');
+      }
+    } else {
+      log.warn ('missing parameters, skiping attempt to save api query info');
+    }
   });
   next();
 };

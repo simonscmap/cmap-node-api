@@ -3,7 +3,7 @@ const initializeLogger = require("../../log-service");
 const pools = require("../../dbHandlers/dbPools");
 const sql = require("mssql");
 const { fetchDataRetrievalProcedureNamesWithCache } = require('../../utility/router/queries');
-const { isSproc, extractSprocName } = require('../../utility/router/pure');
+const { isSproc, extractSprocName, queryToAST } = require('../../utility/router/pure');
 const directQuery = require('../../utility/directQuery');
 const cacheAsync = require('../../utility/cacheAsync');
 const { expandIfSelectStar } = require ('../../utility/download/expandSelect');
@@ -94,7 +94,6 @@ const customQuery = async (req, res, next) => {
       log.trace ('sproc is not a data-retrieving sproc');
     }
   }
-
   // if 'select * ...', replace '*' with columns
   let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (req.query.query);
 
@@ -123,6 +122,8 @@ const queryModification = async (req, res, next) => {
   let query = req.query.query;
 
   if (isSproc (req.query.query)) {
+    req.queryType = 'sproc'; // cache result on req obect
+
     let uspDataRetrievingNames = await fetchDataRetrievalProcedureNamesWithCache();
 
     log.trace ('fetched usp data', uspDataRetrievingNames);
@@ -133,6 +134,7 @@ const queryModification = async (req, res, next) => {
     }
 
     let sprocName = extractSprocName (req.query.query).toLocaleLowerCase();
+    req.sprocName = sprocName; // cache result on req object
 
     if (uspDataRetrievingNames.map(name => name.toLowerCase()).includes(sprocName)) {
       let spExecutionQuery = `${req.query.query}, 1`;
@@ -151,7 +153,19 @@ const queryModification = async (req, res, next) => {
       // if sproc is not a data-retrieving sproc, let it run as is
       log.trace ('sproc is not a data-retrieving sproc');
     }
+  } else { // query is not executing a sproc
+    // try to determine if it is a select
+    const ast = queryToAST (req.query.query);
+    if (ast && ast.parserResult && ast.parserResult.ast && ast.parserResult.ast.type) {
+      const operationType = ast.parserResult.ast.type;
+      if (typeof operationType === 'string') {
+        req.queryType = operationType.toUpperCase();
+      }
+    } else {
+      req.queryType = 'nodeApi:queryTypeUnknown';
+    }
   }
+
 
   // if 'select * ...', replace '*' with columns
   let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar (query);

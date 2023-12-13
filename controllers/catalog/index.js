@@ -286,7 +286,8 @@ module.exports.searchCatalog = async (req, res, next) => {
     }
   }
 
-  query += "\nORDER BY Dataset_Release_Date DESC";
+  // query += "\nORDER BY Dataset_Release_Date DESC";
+  query += "\nORDER BY Dataset_ID DESC";
 
   let result = await request.query(query);
 

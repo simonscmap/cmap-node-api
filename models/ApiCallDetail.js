@@ -115,12 +115,19 @@ module.exports = class ApiCallDetail {
                 @Api_Key_ID,
                 @Auth_Method,
                 @Request_Duration
-            )`;
+            )
+            SELECT SCOPE_IDENTITY() as apiCallId`;
 
     try {
-      await request.query(query);
+      const result = await request.query(query);
+      if (result && result.recordset && result.recordset.length) {
+        const apiCallId = result.recordset[0].apiCallId;
+        return apiCallId; // return the id of the inserted data
+      }
     } catch (e) {
       log.error('error while making insert into api calls table', e);
+      return null;
     }
+
   }
 };
