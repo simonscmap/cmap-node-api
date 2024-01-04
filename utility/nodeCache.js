@@ -24,8 +24,6 @@ setInterval (() => {
   log.info ('cache state', {
     keys: cache.keys (),
     stats: cache.getStats(),
-    sstTtl: cache.getTtl('SST_ANOM_PROCESSED'),
-    adtTtl: cache.getTtl('SST_ANOM_PROCESSED'),
   });
 }, 1000 * 60 * 15);
 
