@@ -2,6 +2,7 @@ const router = require("express").Router();
 const {
   addComment,
   beginUploadSession,
+  checkName,
   commitUpload,
   deleteSubmission,
   listComments,
@@ -20,6 +21,12 @@ const checkAdminAuth = require("../middleware/checkAdminAuth");
 router.post("/beginuploadsession", asyncControllerWrapper(beginUploadSession));
 router.post("/uploadfilepart", asyncControllerWrapper(uploadFilePart));
 router.post("/commitupload", asyncControllerWrapper(commitUpload));
+
+router.get(
+  "/checkname",
+  checkAdminAuth,
+  asyncControllerWrapper(checkName)
+);
 
 router.post(
   "/addcomment",
