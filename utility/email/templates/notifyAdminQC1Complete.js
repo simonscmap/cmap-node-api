@@ -4,9 +4,12 @@ const baseTemplate = require("./base-template");
 const { notifyAdminQC1Complete } = require("./partials");
 
 const isProduction = process.env.NODE_ENV === "production";
+const isStaging = process.env.NODE_ENV === "staging"
 const domain = isProduction
-  ? "https://simonscmap.com"
-  : "http://localhost:8080";
+             ? "https://simonscmap.com"
+             : isStaging
+             ? "https://simonscmap.dev"
+             : "http://localhost:8080";
 
 const render = ({ datasetName, userName }) => {
   // mustache.render :: template -> data -> partials -> render

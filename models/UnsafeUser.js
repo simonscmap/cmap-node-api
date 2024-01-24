@@ -1,15 +1,17 @@
 const bcrypt = require("bcryptjs");
 const sql = require("mssql");
+const pools = require("../dbHandlers/dbPools");
+const logService = require("../log-service");
 
 const userTable = "tblUsers";
 const apiKeyTable = "tblApi_Keys";
-
 const iss = "Simons CMAP";
 
-var pools = require("../dbHandlers/dbPools");
+const log = logService ("models/UnsafeUser");
 
-// This is the general user class. Instances can include a password in some routes, hence "unsafe". Makesafe
-// returns an object literal with partial information and no password.
+// This is the general user class.
+// Instances can include a password in some routes, hence "unsafe".
+// Makesafe returns an object literal with partial information and no password.
 module.exports = class UnsafeUser {
   constructor(userInfo) {
     this.firstName = userInfo.firstName || userInfo.FirstName || "Guest";
@@ -36,7 +38,7 @@ module.exports = class UnsafeUser {
 
   static async getUserByUsername(username) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("username", sql.NVarChar, username);
     request.on("error", (err) => console.log(err));
 
@@ -51,9 +53,10 @@ module.exports = class UnsafeUser {
     return result.recordset.length ? new this(result.recordset[0]) : false;
   }
 
+  // getUserByID is not used
   static async getUserByID(id) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("id", sql.Int, id);
     request.on("error", (err) => console.log(err));
     let result = await request.query(
@@ -64,18 +67,29 @@ module.exports = class UnsafeUser {
 
   static async getUserByEmail(email) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("email", sql.NVarChar, email);
-    request.on("error", (err) => console.log(err));
-    let result = await request.query(
-      `SELECT TOP 1 * FROM ${userTable} WHERE email = @email`
-    );
-    return result.recordset.length ? new this(result.recordset[0]) : false;
+
+    let result;
+    try {
+      result = await request.query(
+        `SELECT TOP 1 * FROM ${userTable} WHERE email = @email`
+      );
+    } catch (e) {
+      log.error ();
+    }
+    if (result && result.recordset && result.recordset.length) {
+      log.info ('sucessfully looked up user with email', { email });
+      return new this(result.recordset[0]);
+    } else {
+      log.info ('failed to lookup user by email', { email });
+      return false;
+    }
   }
 
   static async getUserByApiKey(key) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("key", sql.NVarChar, key);
     request.on("error", (err) => console.log(err));
     let result = await request.query(
@@ -89,21 +103,31 @@ module.exports = class UnsafeUser {
 
   static async getUserByGoogleID(id) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
+
     request.input("id", sql.VarChar, id);
-    request.on("error", (err) => console.log(err));
-    let result = await request.query(
-      `SELECT * FROM ${userTable} WHERE GoogleID = @id`
-    );
 
-    if (!result.recordset.length) return false;
+    let result;
+    try {
+      result = await request.query(
+        `SELECT * FROM ${userTable} WHERE GoogleID = @id`
+      );
+    } catch (e) {
+      log.error ('error looking up user by googleId', { googleId: id });
+    }
 
+    if (!result.recordset.length) {
+      log.info ('no user found with given google id', { googleId: id })
+      return false;
+    }
+
+    log.info ('user succesfully found with given google id', { googleId: id});
     return new this(result.recordset[0]);
   }
 
   static async getApiKeysByUserID(id) {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("user_id", sql.Int, id);
     request.on("error", (err) => console.log(err));
     let result = await request.query(
@@ -131,7 +155,7 @@ module.exports = class UnsafeUser {
 
   async validateUsernameAndEmail() {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     request.input("username", sql.NVarChar, this.username);
     request.input("email", sql.NVarChar, this.email);
 
@@ -147,7 +171,7 @@ module.exports = class UnsafeUser {
     // Validates and saves user to db.
 
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     let hashedPassword =
       this.password === "NoPass"
         ? "NoPass"
@@ -170,21 +194,28 @@ module.exports = class UnsafeUser {
   // Use to associate a google ID with an existing account for first time google sign-on
   async attachGoogleIDToExistingUser() {
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     let query = `UPDATE ${userTable} SET GoogleID = @googleid WHERE UserID = @id`;
 
     request.input("googleid", sql.VarChar, this.googleID);
-    request.input("id", sql.VarChar, this.id);
+    request.input("id", sql.Int, parseInt(this.id));
 
-    return await request.query(query);
+    try {
+      await request.query(query);
+    } catch (e) {
+      log.error ('failed to attach googleId to user', { userId: this.id, error: e });
+      return [e];
+    }
+    log.info ('attached googleId to user', { userId: this.id });
+    return [];
   }
 
   // Update method for less-sensitive information shown on the front end user profile
   async updateUserProfile() {
     console.log(this);
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     let query = `UPDATE ${userTable}
                  SET FirstName = @firstname, FamilyName = @familyname, Institute = @institute, Department = @department, Country = @country
@@ -205,7 +236,7 @@ module.exports = class UnsafeUser {
   async updatePassword() {
     // Updates password based on email
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     let hashedPassword = await bcrypt.hash(this.password, 10);
 
@@ -214,13 +245,17 @@ module.exports = class UnsafeUser {
     request.input("password", sql.NVarChar, hashedPassword);
     request.input("id", sql.Int, this.id);
 
-    return await request.query(query);
+    try {
+      return await request.query(query);
+    } catch (e) {
+      log.error ('error attempting to update user password', { userId: this.id });
+    }
   }
 
   async updateEmail() {
     // Updates password based on email
     let pool = await pools.userReadAndWritePool;
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
 
     let query = `UPDATE ${userTable} SET Email = @email WHERE UserID = @id`;
 

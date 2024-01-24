@@ -16,7 +16,9 @@ const pools = {
     dbConfig.userTableConfig
   ).connect(),
   // Mariana
-  [SERVER_NAMES.mariana]: new sql.ConnectionPool(dbConfig.mariana).connect(),
+  // TEMPORARILY REMOVE MARIANA FOR MAINTENANCE
+  // [SERVER_NAMES.mariana]: new sql.ConnectionPool(dbConfig.mariana).connect(),
+  //
   // Rossby
   [SERVER_NAMES.rossby]: new sql.ConnectionPool(dbConfig.rossby).connect(),
 };
@@ -24,7 +26,7 @@ const pools = {
 module.exports = {
   dataReadOnlyPool: pools.dataReadOnlyPool,
   userReadAndWritePool: pools.userReadAndWritePool,
-  [SERVER_NAMES.mariana]: pools.mariana,
+  // [SERVER_NAMES.mariana]: pools.mariana,
   [SERVER_NAMES.rossby]: pools.rossby,
   // also return Futures of these pool connections
   futures: {

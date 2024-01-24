@@ -2,6 +2,7 @@ const router = require("express").Router();
 const {
   addComment,
   beginUploadSession,
+  checkName,
   commitUpload,
   deleteSubmission,
   listComments,
@@ -14,12 +15,32 @@ const {
 
 const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 const checkAdminAuth = require("../middleware/checkAdminAuth");
+const passport = require("../middleware/passport");
 
 // all endpoints defined on this router undergo auth upstream in the apiRouter
 
-router.post("/beginuploadsession", asyncControllerWrapper(beginUploadSession));
-router.post("/uploadfilepart", asyncControllerWrapper(uploadFilePart));
-router.post("/commitupload", asyncControllerWrapper(commitUpload));
+router.post(
+  "/beginuploadsession",
+  passport.authenticate(["headerapikey", "jwt"], { session: false }),
+  asyncControllerWrapper(beginUploadSession)
+);
+router.post(
+  "/uploadfilepart",
+  passport.authenticate(["headerapikey", "jwt"], { session: false }),
+  asyncControllerWrapper(uploadFilePart)
+);
+
+router.post(
+  "/commitupload",
+  passport.authenticate(["headerapikey", "jwt"], { session: false }),
+  asyncControllerWrapper(commitUpload)
+);
+
+router.post(
+  "/checkname",
+  passport.authenticate(["jwt"], { session: false }),
+  asyncControllerWrapper(checkName)
+);
 
 router.post(
   "/addcomment",

@@ -55,14 +55,20 @@ const saveCall = (req, res, next) => {
       try {
         await saveApiQueryInfo (apiCallRecordId, queryType, tableNames);
       } catch (e) {
-        console.log ('error attempting to save api query info');
+        log.error ('error attempting to save api query info', e);
       }
     } else {
-      log.warn ('missing parameters, skiping attempt to save api query info');
+      // log.trace ('missing parameters, skiping attempt to save api query info');
     }
   });
   next();
 };
+
+
+const logRouteComplete = (req, res, next) => {
+  log.info ('response complete', { requestId: req.requestId });
+  next();
+}
 
 // Usage metrics logging
 router.use(saveCall);
@@ -80,6 +86,7 @@ router.use(
   dataSubmissionRoutes
 );
 
+router.use(logRouteComplete);
 
 // catch-all error logging
 // NOTE this must take 4 arguments

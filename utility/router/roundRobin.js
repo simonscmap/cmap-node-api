@@ -18,8 +18,10 @@ const mapServerNameToPoolConnection = async (name) => {
       return await pools.dataReadOnlyPool;
     case SERVER_NAMES.rossby:
       return await pools.rossby;
-    case SERVER_NAMES.mariana:
-      return await pools.mariana;
+
+    // TEMPORARILY REMOVE MARIANA FOR MAINTENANCE
+    // case SERVER_NAMES.mariana:
+    //   return await pools.mariana;
     default:
       log.warn ('defaulting to dataReadOnlyPool', { name });
       return await pools.dataReadOnlyPool;

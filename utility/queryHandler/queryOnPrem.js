@@ -45,7 +45,7 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
   logMessages (log) (messages);
 
-  log.info (`remaining candidates: ${remainingCandidates.join (' ')}`);
+  log.info (`remaining candidates: ${remainingCandidates.length ? remainingCandidates.join (' ') : 'none'}`);
 
   // 2. create request object
 
@@ -122,8 +122,9 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
     if (!requestError) {
       csvStream.end ();
     } else {
-      log.info ('unpiping accumulator from csvStream')
-      csvStream.unpipe(accumulator);
+      // log.info ('unpiping accumulator from csvStream')
+      // csvStream.unpipe(accumulator);
+      log.warn ('not unpiping res, assuming it ended');
     }
   });
 
@@ -151,9 +152,9 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
     }
 
     if (remainingCandidates.length === 0) {
-      log.info ("end response; no more candidates to try after error", { remainingCandidates });
-      res.flushHeaders();
+      log.error ("end response with error; no more candidates to try after error", { remainingCandidates });
       accumulator.unpipe(res);
+      res.flushHeaders();
       res.status(500).end(generateError(err));
     } else if (remainingCandidates.length > 0) {
       log.warn ("an error was emitted from the sql request; flagging for retry");
@@ -166,15 +167,17 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
   // 4. execute
 
+  let resp;
   try {
-    await request.query(query);
+    resp = await request.query(query);
   } catch (e) {
     // this block shouldn't run because request.on("error") is defined
     log.error("unexpected error executing query", { error: e });
   }
 
   if (!requestError || !retry) {
-    log.trace ('no request error or retry; returning null');
+    log.trace ('no request error or retry; returning null', {requestError, retry});
+    console.log (resp);
     res.end ();
     return null;
   }

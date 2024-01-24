@@ -3,6 +3,10 @@ const sql = require("mssql");
 const { dropbox } = require("../../utility/Dropbox");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
 
+const initializeLogger = require("../../log-service");
+const log = initializeLogger("controllers/data-submission/commit-upload");
+
+
 // Generates a temporary download link to the most recent version of a submission, and sends to client
 const retrieveMostRecentFile = async (req, res) => {
   let pool = await userReadAndWritePool;
@@ -28,12 +32,14 @@ const retrieveMostRecentFile = async (req, res) => {
   const timestamp = result.recordset[0].Timestamp.trim();
   let path = `/${dataset}/${dataset}_${timestamp}.xlsx`;
 
+  log.info ('retrieve last file submission info', { dataset, timestamp, path });
+
   try {
     let boxResponse = await dropbox.filesGetTemporaryLink({ path });
-    return res.json({ link: boxResponse.link, dataset });
+    log.info ('dropbox temp link response', { ...boxResponse });
+    return res.json({ link: boxResponse.result.link, dataset, submissionId: id });
   } catch (e) {
-    console.log("Failed to get temporary download link");
-    console.log(e);
+    log.error ('Failed to get temporary download link', e);
     return res.sendStatus(500);
   }
 };

@@ -10,6 +10,7 @@ const {
   chain,
   fromMaybe
 } = require("../utility/sanctuary");
+const filterLogsForDevelopment = require ("./filters");
 
 // the development server will use 'staging' in order to enable news preview
 const isProduction =
@@ -131,7 +132,13 @@ function log(level, tags, context, message, isError, data) {
     return;
   }
 
+  // DEVELOPMENT LOGGING
   if (isDevelopment) {
+    const shouldLog = filterLogsForDevelopment (payload);
+    if (!shouldLog) {
+      return;
+    }
+
     let levelHeader = Object.entries(logLevel)
                             .filter(([, val]) => val === level)
                             .flat()
@@ -168,14 +175,7 @@ function log(level, tags, context, message, isError, data) {
       abbreviatedPayload.data = payload.data;
     }
 
-
-    // TMP
-
-    /* if (payload && payload.data) {
-*   console.log(header + ' > ' + payload.message, payload.data);
-* } else {
-*   console.log(header + ' > ' + payload.message);
-* } */
+    // log
     console.log(header);
     console.log(abbreviatedPayload);
   }

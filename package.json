@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.12.0",
+  "version": "1.12.1-rchotfix.4",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
@@ -41,7 +41,7 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "csv-stringify": "^5.5.0",
-    "dropbox": "^4.0.30",
+    "dropbox": "^10.34.0",
     "express": "^4.17.1",
     "express-useragent": "^1.0.15",
     "fluture": "^14.0.0",
@@ -55,7 +55,7 @@
     "mustache": "^4.2.0",
     "ndjson": "^1.5.0",
     "node-cache": "^5.1.2",
-    "node-sql-parser": "^4.5.1",
+    "node-sql-parser": "^5.0.0",
     "passport": "^0.4.1",
     "passport-custom": "^1.1.1",
     "passport-headerapikey": "^1.2.1",

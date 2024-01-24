@@ -27,7 +27,7 @@ const directQuery = async (queryString, options = {}, logger = moduleLogger) => 
 
   let result;
   try {
-    logger.debug ('exectuing direct query', {
+    logger.trace ('exectuing direct query', {
       query: removeWhitespaceAndTruncate (queryString)
     });
     result = await request.query(queryString);

@@ -61,6 +61,8 @@ async function routeQuery (req, res, next, query) {
     .setReqId(req.requestId)
     .addContext(['query', query ]);
 
+  log.trace ('routeQuery', null);
+
   if (typeof query !== "string") {
     log.warn("no query", { typeOfQueryArg: typeof query, originalUrl: req.originalUrl });
     res.status(400).send("missing query");
@@ -85,7 +87,7 @@ async function routeQuery (req, res, next, query) {
   if (respondWithErrorMessage) {
     log.error (respondWithErrorMessage, { candidates: candidateLocations });
     res.status (400).send (respondWithErrorMessage);
-    return null;
+    return next('error getting list of candidate servers');
   }
 
   // 3. delegate execution of the query
@@ -102,6 +104,8 @@ async function routeQueryFromMiddleware (req, res, next) {
   const log = moduleLogger
     .setReqId(req.requestId)
     .addContext(['query', queryFromMiddleware ]);
+
+  log.trace ('routeQueryFromMiddleware', null);
 
   if (output === 'project_size') {
     res.json ({

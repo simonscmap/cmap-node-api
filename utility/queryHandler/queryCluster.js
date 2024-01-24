@@ -59,10 +59,9 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.trace("opening session");
   const session = await client.openSession();
 
-  log.trace("executing statement");
   let clusterQuery = query;
-
   clusterQuery = tsqlToHiveTransforms(clusterQuery);
+
   log.info ('sending query to cluster', { hiveSql: clusterQuery });
   const queryOperation = await session.executeStatement(clusterQuery, {
     runAsync: true,
@@ -106,6 +105,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     } catch (e) {
       hasError = true;
       log.error("error fetching chunk", { error: e.message, fullError: e });
+      console.log(e)
       endRespWithError(e);
       break;
     }

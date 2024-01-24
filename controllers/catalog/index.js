@@ -1,5 +1,4 @@
 const sql = require("mssql");
-const fetch = require('isomorphic-fetch');
 const nodeCache = require("../../utility/nodeCache");
 const queryHandler = require("../../utility/queryHandler");
 const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
@@ -9,14 +8,15 @@ const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
 const { makeDatasetFullPageQuery } = require("../../queries/datasetFullPageQuery")
 const { makeVariableUMQuery } = require("../../queries/variableUM");
 const { getDatasetId } = require("../../queries/datasetId");
-const fetchDataset = require('./fetchDataset');
 const catalogPlusLatCountQuery = require("../../dbHandlers/catalogPlusLatCountQuery");
-const cacheAsync = require("../../utility/cacheAsync");
 const recApis = require('./recs');
-
+const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
+const datasetVisualizableVariables = require('./datasetVisualizableVariables');
+const sampleVisualization = require('./variableSampleVisualization');
+// const cacheAsync = require("../../utility/cacheAsync");
+// const fetch = require('isomorphic-fetch');
+// const fetchDataset = require('./fetchDataset');
 const logInit = require("../../log-service");
-
-// const log = logInit("controllers/catalog");
 const moduleLogger = logInit("controllers/catalog");
 
 module.exports.popularDatasets = recApis.popularDatasets;
@@ -385,29 +385,28 @@ module.exports.datasetFullPage = async (req, res, next) => {
 };
 
 module.exports.datasetVariables = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId)
   let { shortname } = req.query;
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
 
-  let datasetId = await getDatasetId (shortname, log);
-  if (!datasetId) {
-    log.error('could not find dataset id for dataset name', { shortname })
-    res.status(400).send('error finding dataset id');
-    return;
+  const [err, data] = await datasetUSPVariableCatalog (shortname, req.requestId);
+  if (err) {
+    res.status(err.status).send (err.message);
+  } else {
+    res.json (data);
   }
+  next();
+}
 
-  let query = `EXEC uspVariableCatalog ${datasetId}`;
-  let result;
-  try {
-    result = await request.query(query);
-  } catch (e) {
-    log.error('error making variable catalog query', { err: e })
-    res.status(500).send('error making query');
-    return;
+module.exports.sampleVisualization = sampleVisualization;
+
+module.exports.listVisualizableVariables = async (req, res, next) => {
+  let { shortname } = req.query;
+
+  const [err, result] = await datasetVisualizableVariables (shortname, req.requestId);
+  if (err) {
+    res.status(err.status).send (err.message);
+  } else {
+    res.json (result);
   }
-
-  res.json(result.recordset);
   next();
 }
 

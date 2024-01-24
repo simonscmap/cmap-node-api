@@ -12,20 +12,20 @@ const log = logInit("nodeCache");
 
 
 cache.on("set", (key) => {
-  log.info("node cache: set", { key })
+  log.trace("node cache: set", { key })
 });
 
 cache.on("flush", () => {
-  log.info("node cache: flush")
+  log.trace("node cache: flush")
 });
 
-// report cache state every 15 min
+// report cache state every 60 min
 setInterval (() => {
   log.info ('cache state', {
     keys: cache.keys (),
     stats: cache.getStats(),
   });
-}, 1000 * 60 * 15);
+}, 1000 * 60 * 60);
 
 // NOTE other methods:
 // cache.del('key')

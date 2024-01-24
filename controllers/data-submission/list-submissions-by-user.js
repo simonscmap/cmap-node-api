@@ -11,8 +11,10 @@ const submissionsByUser = async (req, res) => {
   let query = `
         SELECT
             [dbo].[tblData_Submissions].[Filename_Root] as Dataset,
+            [dbo].[tblData_Submissions].[Dataset_Long_Name],
             [dbo].[tblData_Submissions].[ID] as Submission_ID,
             [dbo].[tblData_Submission_Phases].[Phase],
+            [dbo].[tblData_Submissions].[Phase_ID] as phaseId,
             [dbo].[tblData_Submissions].[Ingestion_Date_Time],
             [dbo].[tblData_Submissions].[QC1_Completion_Date_Time],
             [dbo].[tblData_Submissions].[QC2_Completion_Date_Time],

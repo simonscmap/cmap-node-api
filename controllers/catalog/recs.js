@@ -1,6 +1,7 @@
 const fetch = require('isomorphic-fetch');
 const fetchDataset = require('./fetchDataset');
 const cacheAsync = require("../../utility/cacheAsync");
+const { safePath } = require("../../utility/objectUtils");
 
 const logInit = require("../../log-service");
 
@@ -31,17 +32,23 @@ const fetchAndProcessDatasetsByTable = async (tableNames = []) => {
 }
 
 const safelyGetResponseJson = async (resp) => {
+  if (!resp.ok) {
+    const errorMessage = `validation service responded with ${resp.status}`;
+    moduleLogger.error (errorMessage, { responseText: resp.statusText });
+    return [new Error (errorMessage)];
+  }
+
   let data;
   try {
     data = await resp.json ();
   } catch (e) {
-    moduleLogger.error ('error parsing response for popular datasets', { error: e });
+    moduleLogger.error ('error parsing response for popular datasets', { error: e, respKeys: Object.keys(resp), response: resp });
     return [e]
   }
 
   if (data.error) {
-    moduleLogger.error ('validation api returned error', {  });
-    return ['validation api returned error']
+    moduleLogger.error ('validation api returned error', { error: data.error });
+    return ['validation api returned error'];
   }
 
   return [null, data];

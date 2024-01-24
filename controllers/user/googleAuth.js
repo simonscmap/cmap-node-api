@@ -35,9 +35,11 @@ module.exports = async (req, res, next) => {
     aud,
     sub: googleID,
     email,
-    given_name: firstName,
-    family_name: lastName,
+    // given_name: firstName,
+    // family_name: lastName,
   } = ticket.payload;
+
+  log.debug ('google ticket payload', ticket.payload);
 
   if (aud !== cmapClientID) {
     log.error("google auth token does not match cmap client id", { aud });
@@ -75,11 +77,25 @@ module.exports = async (req, res, next) => {
   if (existingUser) {
     let user = new UnsafeUser({ ...existingUser, googleID });
 
-    // TODO unhandled failure case
-    await user.attachGoogleIDToExistingUser();
+    const [attachErr] = await user.attachGoogleIDToExistingUser();
 
-    // TODO stringify can throw
-    res.cookie("UserInfo", JSON.stringify(user.makeSafe()), {
+    if (attachErr) {
+      res.status(500).send ('Failed to associate google Id with given email');
+      next ('Failed to associate google Id with user email');
+      return;
+    }
+
+    let stringifiedUser;
+    try {
+      stringifiedUser = JSON.stringify(user.makeSafe());
+    } catch (e) {
+      log.error ('attempt to stringify user info failed', { userEmail: email });
+      res.status (500).send ('Error logging in');
+      next ('Error logging in user');
+      return;
+    }
+
+    res.cookie("UserInfo", stringifiedUser, {
       ...standardCookieOptions,
       expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
     });
@@ -96,6 +112,14 @@ module.exports = async (req, res, next) => {
     res.json(true);
     return next();
   }
+
+  // else login fails
+  res.status(401).send ('No such user');
+  next ('login failed')
+}
+
+
+  /*
 
   // New user
   let user = new UnsafeUser({
@@ -124,4 +148,5 @@ module.exports = async (req, res, next) => {
   res.json(true);
 
   return next();
-};
+
+*/
