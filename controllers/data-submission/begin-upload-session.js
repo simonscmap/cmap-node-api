@@ -2,6 +2,7 @@ const { dropbox } = require("../../utility/Dropbox");
 const sql = require("mssql");
 const initializeLogger = require("../../log-service");
 const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
+const { safePath } = require("../../utility/objectUtils.js");
 
 const log = initializeLogger(
   "controllers/data-submission/begin-upload-session"
@@ -13,7 +14,20 @@ const beginUploadSession = async (req, res) => {
   // if new, we just need dataset name
   // if update, we need id
   const { submissionType, submissionId } = req.body;
+
   log.debug ("begin upload session", { submissionType, submissionId });
+
+  // Basic arg check
+  if (submissionType !== 'new' && submissionType !== 'update') {
+    res.status(400).send ("invalid args: submissionType must be 'new' or 'update'");
+    return;
+  }
+
+  if (submissionType === 'update' && !submissionId) {
+    res.status(400).send ("invalid args: submissionId must be set if submisisonType is 'update'");
+    return;
+  }
+
   let pool = await userReadAndWritePool;
 
   // if the user is not an admin, make sure that they are the owner of the file
@@ -65,8 +79,15 @@ const beginUploadSession = async (req, res) => {
 
 
     // option session_type: sequential | concurrent | other
-    let startResponse = await dropbox.filesUploadSessionStartBatch({ num_sessions })
-    return res.json({ sessionIds: startResponse.session_ids });
+    let response = await dropbox.filesUploadSessionStartBatch({ num_sessions });
+    let sessionIds = safePath (['result', 'session_ids']) (response);
+
+    if (Array.isArray (sessionIds)) {
+      return res.json({ sessionIds });
+    } else {
+      log.error ("failed to get session ids from dropbox", { response });
+      throw new Error ("Unexpected result from dropbox");
+    }
   } catch (e) {
     log.error("failed to start upload session", e);
     res.sendStatus(500);

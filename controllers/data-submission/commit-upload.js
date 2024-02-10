@@ -20,17 +20,31 @@ const commitUpload = async (req, res) => {
   const {
     submissionType,
     submissionId,
-    sessionIds,
     dataSource,
     datasetLongName,
   } = req.body;
 
   let {
     shortName,
+    sessionIds,
     offsets
   } = req.body;
 
-  offsets = offsets.map (o => parseInt (o, 10));
+  // based on whether we are uploading 1 file or 2, the formdata for offsets and sessionids
+  // may be single values, or an array of values; for now we normalize them into an array
+  if (Array.isArray (offsets)) {
+    offsets = offsets.map (o => parseInt (o, 10));
+  } else {
+    offsets = [parseInt(offsets, 10)];
+  }
+
+  if (!Array.isArray (sessionIds)) {
+    sessionIds = [sessionIds]
+  }
+
+
+  console.log ('offsets', offsets)
+
   shortName = req.body.shortName.trim();
 
   const currentTime = Date.now();
@@ -53,14 +67,6 @@ const commitUpload = async (req, res) => {
     res.status(400).send('Argument mismatch');
     return;
   }
-
-
-  // TODO
-  // - if "update", first call DB to get file name; also get phase
-  // - make dropbox call
-  // - if new, also commit raw file
-  // - udpate tblData_Submissions
-
 
   // 1. get submissionId, fileRoot, phase
 
@@ -112,7 +118,7 @@ const commitUpload = async (req, res) => {
   // - move folder in dropbox to new location
   // - update Filename_Root in tblData_Submissions
   if (nameChange) {
-    //
+    console.log ('TODO: Name change');
   }
 
   // 2. call dropbox api
@@ -124,7 +130,7 @@ const commitUpload = async (req, res) => {
     commit: {
       path,
       mode: 'add',
-      autorename: true,
+      autorename: false,
       mute: false,
     }
   });
@@ -140,6 +146,8 @@ const commitUpload = async (req, res) => {
     entries.push (makeEntryArg (sessionIds[1], offsets[1], rawFilePath));
   }
 
+  console.log ('dropbox args for filesUploadSessionFinishBatchV2', entries);
+
   try {
     /* await dropbox.filesUploadSessionFinish({
      *   cursor: {
@@ -153,14 +161,21 @@ const commitUpload = async (req, res) => {
      *     mute: false,
      *   },
      * }); */
-    let result = await dropbox.filesUploadSessionFinishBatchV2({ entries });
+    const response = await dropbox.filesUploadSessionFinishBatchV2({ entries });
+    const { status, result } = response;
+    if (status !== 200) {
+      log.error ('unable to commit upload, received non-200 response from dropbox', { status });
+      res.status(500).send (`Error: received ${status} response from dropbox`);
+      return;
+    }
     if (result && Array.isArray(result.entries)) {
       let allSucceeded = result.entries.every ((entry) => {
-        log.debug ('dropbox batch upload result entry', { entry });
-        return entry.tag === 'success';
+        console.log ('dbresp entry', entry);
+        return entry['.tag'] === 'success';
       });
       if (!allSucceeded) {
         // TODO: do we need a rollback?
+        log.debug ("dropbox resp", { response });
         throw new Error ('Error uploading files via batch api: not all results succeeded');
       }
     } else {

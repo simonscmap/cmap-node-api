@@ -1,8 +1,19 @@
+// fast check that value is integer
+// https://stackoverflow.com/questions/14636536/how-to-check-if-a-variable-is-an-integer-in-javascript
+function isInt(value) {
+  var x;
+  if (isNaN(value)) {
+    return false;
+  }
+  x = parseFloat(value);
+  return (x | 0) === x;
+}
+
 const safePath = (path) => (obj) => {
   if (!Array.isArray(path)) {
     return undefined;
   }
-  if (!path.every(item => typeof item === 'string')) {
+  if (!path.every(item => typeof item === 'string' || isInt (item))) {
     return undefined;
   }
   if (!obj || typeof obj !== 'object') {
