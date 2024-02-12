@@ -44,10 +44,10 @@ const checkSubmissionName = async (req, res) => {
   let folderExists = true;
   let resultOfFolderLs;
   try {
-    resultOfFolderLs = await dropbox.filesListFolder({ path: `/${name}` });
+    await dropbox.filesListFolder({ path: `/${name}` });
   } catch (e) {
-    if (e && e.response && e.response.status === 409) {
-      log.info ("folder not found", { responseStatus: e.response.status });
+    if (e && e.status === 409) {
+      log.info ("folder not found", { responseStatus: e.status });
       folderExists = false;
     } else {
       log.error("error getting folder ls", { ...e, userId: id });
