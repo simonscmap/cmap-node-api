@@ -100,7 +100,10 @@ const commitUpload = async (req, res) => {
 
       if (Filename_Root !== shortName) {
         // mismatch between file name in database, and short name in workbook
-        nameChange = true;
+        // nameChange = true;
+        // TODO
+        res.status(400).send ('Error: name change is not currently supported');
+        return;
       } else {
         fileNameRoot = Filename_Root;
       }

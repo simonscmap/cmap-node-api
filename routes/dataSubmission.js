@@ -22,7 +22,7 @@ router.post("/beginuploadsession", asyncControllerWrapper(beginUploadSession));
 router.post("/uploadfilepart", asyncControllerWrapper(uploadFilePart));
 router.post("/commitupload", asyncControllerWrapper(commitUpload));
 
-router.get(
+router.post(
   "/checkname",
   checkAdminAuth,
   asyncControllerWrapper(checkName)

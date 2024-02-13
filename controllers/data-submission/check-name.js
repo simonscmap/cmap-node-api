@@ -11,40 +11,44 @@ const log = initializeLogger(
 
 const checkSubmissionName = async (req, res) => {
   const { id } = (req.user || {});
-  const { name } = req.query;
+  const { shortName, longName } = req.body;
 
   const pool = await userReadAndWritePool;
-  const request = await new sql.Request(pool);
 
-  let sqlResponse;
-  let tableExists;
+  // 1. check short name
+
+  let shortNameIsAlreadyInUse = false;
   try {
-    const checkNameRequest = new sql.Request(pool);
-    sqlResponse = await checkNameRequest.query (`
+    const checkNameRequest = await new sql.Request(pool);
+    const sqlResponse = await checkNameRequest.query (`
       select ID from tblDatasets
-      where Dataset_Name = '${name}'
+      where Dataset_Name = '${shortName}'
     `);
+    shortNameIsAlreadyInUse = Boolean(safePath (['recordset', '0', 'ID']) (sqlResponse));
   } catch (e) {
     log.error ('sql error', { e });
     return res.sendStatus (500);
   }
 
-  const existingId = safePath (['recordset', '0', 'ID']) (sqlResponse);
-  if (existingId) {
-    log.info ("short name already exists in tblDatasets", {
-      name,
-      existingDatasetId: existingId,
-    });
-    tableExists = true;
+  // 2. check long name
+  let longNameIsAlreadyInUse = false;
+  try {
+    const checkLongNameRequest = await new sql.Request(pool);
+    const longNameResponse = await checkLongNameRequest.query (`
+      select ID from tblDatasets
+      where Dataset_Long_Name = '${longName}'
+    `);
+    longNameIsAlreadyInUse = Boolean (safePath (['recordset', '0', 'ID']) (longNameResponse));
+  } catch (e) {
+    log.error ('sql error', { e });
+    return res.sendStatus (500);
   }
 
-
-  log.debug ('checking submission name', { name });
+  // 3. check dropbox folder
 
   let folderExists = true;
-  let resultOfFolderLs;
   try {
-    await dropbox.filesListFolder({ path: `/${name}` });
+    await dropbox.filesListFolder({ path: `/${shortName}` });
   } catch (e) {
     if (e && e.status === 409) {
       log.info ("folder not found", { responseStatus: e.status });
@@ -55,13 +59,14 @@ const checkSubmissionName = async (req, res) => {
     }
   }
 
+  // 4. send results
 
-  log.info ("result of checkName", { folderExists, tableExists, name, userId: id });
+  log.info ("result of checkName", { folderExists, shortNameIsAlreadyInUse, longNameIsAlreadyInUse, shortName, longName, userId: id });
 
-  if (tableExists || folderExists) {
-    res.json ({ nameIsNotTaken: false, tableExists, folderExists });
+  if (folderExists || shortNameIsAlreadyInUse || longNameIsAlreadyInUse) {
+    res.json ({ conflict: true, shortNameIsAlreadyInUse, folderExists, longNameIsAlreadyInUse });
   } else {
-    res.json ({ nameIsNotTaken: true, name });
+    res.json ({ conflict: false, shortName, longName });
   }
 
 };
