@@ -42,11 +42,6 @@ const commitUpload = async (req, res) => {
     sessionIds = [sessionIds]
   }
 
-
-  console.log ('offsets', offsets)
-
-  shortName = req.body.shortName.trim();
-
   const currentTime = Date.now();
 
   log.info ('beginning dataset upload commit transaction', {
@@ -67,6 +62,28 @@ const commitUpload = async (req, res) => {
     res.status(400).send('Argument mismatch');
     return;
   }
+
+  // 0. Check uniqueness of long name
+
+    // 2. check long name
+  let longNameIsAlreadyInUse = false;
+  try {
+    const checkLongNameRequest = await new sql.Request(pool);
+    const longNameResponse = await checkLongNameRequest.query (`
+      select ID from tblDatasets
+      where Dataset_Long_Name = '${datasetLongName}'
+    `);
+    longNameIsAlreadyInUse = Boolean (safePath (['recordset', '0', 'ID']) (longNameResponse));
+  } catch (e) {
+    log.error ('sql error', { e });
+    return res.sendStatus (500);
+  }
+
+  if (longNameIsAlreadyInUse) {
+     return res.status (409).send (`Dataset long name "${datasetLongName}" is already in use.`);
+  }
+
+
 
   // 1. get submissionId, fileRoot, phase
 
