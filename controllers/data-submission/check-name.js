@@ -59,7 +59,7 @@ const checkSubmissionName = async (req, res) => {
       let existingSubmissionId = safePath(['recordset', '0', 'ID'])(longNameResponse);
       let existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(longNameResponse);
       longNameIsAlreadyInUse = Boolean(existingSubmissionId);
-
+      log.debug ('long name check', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
       if (existingSubmissionId !== targetSubmissionId || existingSubmissionSubmitterId !== userId) {
         longNameUpdateConflict = true;
       }
@@ -94,6 +94,8 @@ const checkSubmissionName = async (req, res) => {
       `);
       const existingSubmissionId = safePath(['recordset', '0', 'ID'])(resp);
       const existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(resp);
+      log.debug ('short name check', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
+
       if (existingSubmissionId !== targetSubmissionId || existingSubmissionSubmitterId !== userId) {
         shortNameUpdateConflict = true;
       }
