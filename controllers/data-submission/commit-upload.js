@@ -74,8 +74,12 @@ const commitUpload = async (req, res) => {
       where Dataset_Long_Name = '${datasetLongName}'
     `);
     let id = safePath (['recordset', '0', 'ID']) (longNameResponse);
-    if (id && id !== submissionId) {
-      longNameIsAlreadyInUse = true
+    if (id) {
+      const isUpdateButHasConflictWithOtherDataset = submissionType === 'update' && id !== submissionId;
+      const isNewButHasConflictWithOtherDataset = submissionType === 'new' && Boolean(id);
+      if (isUpdateButHasConflictWithOtherDataset || isNewButHasConflictWithOtherDataset) {
+        longNameIsAlreadyInUse = true;
+      }
     }
   } catch (e) {
     log.error ('sql error', { e });
