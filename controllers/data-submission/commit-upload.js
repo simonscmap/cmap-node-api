@@ -65,7 +65,7 @@ const commitUpload = async (req, res) => {
 
   // 0. Check uniqueness of long name
 
-    // 2. check long name
+  // 2. check long name
   let longNameIsAlreadyInUse = false;
   try {
     const checkLongNameRequest = await new sql.Request(pool);
@@ -73,7 +73,10 @@ const commitUpload = async (req, res) => {
       select ID from tblDatasets
       where Dataset_Long_Name = '${datasetLongName}'
     `);
-    longNameIsAlreadyInUse = Boolean (safePath (['recordset', '0', 'ID']) (longNameResponse));
+    let id = safePath (['recordset', '0', 'ID']) (longNameResponse);
+    if (id && id !== submissionId) {
+      longNameIsAlreadyInUse = true
+    }
   } catch (e) {
     log.error ('sql error', { e });
     return res.sendStatus (500);
