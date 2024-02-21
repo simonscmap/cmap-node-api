@@ -56,12 +56,22 @@ const checkSubmissionName = async (req, res) => {
         select ID, Submitter_ID from tblData_Submissions
         where Dataset_Long_Name = '${longName}'
       `);
-      let existingSubmissionId = safePath(['recordset', '0', 'ID'])(longNameResponse);
-      let existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(longNameResponse);
-      longNameIsAlreadyInUse = Boolean(existingSubmissionId);
-      log.debug ('long name check', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
-      if (existingSubmissionId !== targetSubmissionId || existingSubmissionSubmitterId !== userId) {
-        longNameUpdateConflict = true;
+      if (longNameResponse && longNameResponse.recordset && longNameResponse.recordset.length === 0) {
+        // no record with that long name found
+        log.debug ('long name check: no conflicting record found');
+      } else {
+        let existingSubmissionId = safePath(['recordset', '0', 'ID'])(longNameResponse);
+        let existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(longNameResponse);
+        if (!existingSubmissionId || !existingSubmissionSubmitterId) {
+          log.warn ('long name check: in use but missing fields', { targetSubmissionId, resp: longNameResponse.recordset[0] });
+        } else {
+          longNameUpdateConflict = true;
+          if (existingSubmissionId !== targetSubmissionId) {
+            log.debug ('long name check: in use by another submission', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
+          } else if (existingSubmissionSubmitterId !== userId) {
+            log.debug ('long name check: in use by submission not owned by user', { existingSubmissionId, userId, targetSubmissionId });
+          }
+        }
       }
     } catch (e) {
       log.error('sql error', { e });
