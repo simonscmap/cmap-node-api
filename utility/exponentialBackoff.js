@@ -25,7 +25,7 @@ const expBackoffWithMaxCallDepth = (maxDepth = 5, logProgress = false) => {
       if (logProgress) {
         console.log(`exp backoff caught error on attempt ${depth}`);
       }
-      if (depth > maxDepth) {
+      if (depth >= maxDepth) {
         return ['Depth exceeded', null, metadata(depth, Date.now() - timeStart)];
       }
 

@@ -22,19 +22,19 @@ test("resolves as expected", async (t) => {
 
   t.is(e, null);
   t.is(result, true);
-  t.is (metadata.attempts, 2);
+  t.is (metadata.attempts, 2); // should only take 2 iterations for the mockFn to return true
   t.truthy(metadata.timeElapsed);
 });
 
 test("fails when max depth exceeded", async (t) => {
-  const retry3 = expBackoffWithMaxCallDepth (2, true);
-  const mockFn = mockPollFn (4);
+  const retry2 = expBackoffWithMaxCallDepth (2, true);
+  const mockFn = mockPollFn (3);
   const pred = (x) => Boolean (x);
 
-  const [e, result, metadata] = await retry3 (mockFn, pred);
+  const [e, result, metadata] = await retry2 (mockFn, pred);
 
   t.truthy(e);
   t.is(result, null);
-  t.is(metadata.attempts, 3);
+  t.is(metadata.attempts, 2); // the expBackoff should be limited to 2 iterations
   t.truthy(metadata.timeElapsed);
 });
