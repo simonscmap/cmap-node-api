@@ -13,7 +13,7 @@ const setSubmissionPhase = require('./set-submission-phase');
 module.exports = {
   addComment,
   beginUploadSession,
-  checkName,
+  checkName: checkName.checkSubmissionName,
   commitUpload,
   deleteSubmission,
   listComments,

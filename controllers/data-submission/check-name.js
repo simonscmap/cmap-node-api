@@ -9,6 +9,75 @@ const log = initializeLogger(
   "data-submission/check-name"
 );
 
+const checkLongName = async (longName, userId, targetSubmissionId) => {
+  const pool = await userReadAndWritePool;
+
+  let longNameIsAlreadyInUse = false; // already in tblDatasets
+  let longNameUpdateConflict = false;
+  let error = false;
+
+  try {
+    const checkLongNameRequest = await new sql.Request(pool);
+    const longNameResponse = await checkLongNameRequest.query(`
+      select ID from tblDatasets
+      where Dataset_Long_Name = '${longName}'
+    `);
+    let id = safePath(['recordset', '0', 'ID'])(longNameResponse);
+    if (id) {
+      longNameIsAlreadyInUse = true;
+    }
+
+  } catch (e) {
+    log.error('sql error', { e });
+    error = e;
+  }
+
+  try {
+    const checkLongNameRequest = await new sql.Request(pool);
+    const resp = await checkLongNameRequest.query(`
+        select ID, Submitter_ID from tblData_Submissions
+        where Dataset_Long_Name = '${longName}'
+      `);
+    if (resp && resp.recordset && resp.recordset.length === 0) {
+      // no record with that long name found
+      log.debug('long name check: no conflicting record found');
+    } else {
+      let existingSubmissionId = safePath(['recordset', '0', 'ID'])(resp);
+      let existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(resp);
+
+      if (!existingSubmissionId || !existingSubmissionSubmitterId) {
+        log.warn('long name check: in use but missing fields', {
+          targetSubmissionId,
+          resp: resp.recordset[0]
+        });
+      } else {
+        if (Boolean(targetSubmissionId) && existingSubmissionId !== targetSubmissionId) {
+          longNameUpdateConflict = true;
+          log.debug('long name check: in use by another submission', {
+            existingSubmissionId,
+            existingSubmissionSubmitterId,
+            userId,
+            targetSubmissionId
+          });
+        } else if (existingSubmissionSubmitterId !== userId) {
+          longNameUpdateConflict = true;
+          log.debug('long name check: in use by submission not owned by user', {
+            existingSubmissionId,
+            userId,
+            targetSubmissionId
+          });
+        }
+      }
+    }
+  } catch (e) {
+    log.error('sql error', { e });
+    error = e;
+  }
+
+  return [error, { longNameUpdateConflict, longNameIsAlreadyInUse }];
+}
+
+
 const checkSubmissionName = async (req, res) => {
   const { id: userId } = (req.user || {});
   const { shortName, longName, submissionId: targetSubmissionId } = req.body;
@@ -50,32 +119,12 @@ const checkSubmissionName = async (req, res) => {
 
   // 2. check long name
   if (longName) {
-    try {
-      const checkLongNameRequest = await new sql.Request(pool);
-      const longNameResponse = await checkLongNameRequest.query(`
-        select ID, Submitter_ID from tblData_Submissions
-        where Dataset_Long_Name = '${longName}'
-      `);
-      if (longNameResponse && longNameResponse.recordset && longNameResponse.recordset.length === 0) {
-        // no record with that long name found
-        log.debug ('long name check: no conflicting record found');
-      } else {
-        let existingSubmissionId = safePath(['recordset', '0', 'ID'])(longNameResponse);
-        let existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(longNameResponse);
-        if (!existingSubmissionId || !existingSubmissionSubmitterId) {
-          log.warn ('long name check: in use but missing fields', { targetSubmissionId, resp: longNameResponse.recordset[0] });
-        } else {
-          longNameUpdateConflict = true;
-          if (existingSubmissionId !== targetSubmissionId) {
-            log.debug ('long name check: in use by another submission', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
-          } else if (existingSubmissionSubmitterId !== userId) {
-            log.debug ('long name check: in use by submission not owned by user', { existingSubmissionId, userId, targetSubmissionId });
-          }
-        }
-      }
-    } catch (e) {
-      log.error('sql error', { e });
+    const [error, result] = await checkLongName (longName, userId, targetSubmissionId);
+    if (error) {
       return res.sendStatus(500);
+    } else {
+      longNameUpdateConflict = result.longNameUpdateConflict;
+      longNameIsAlreadyInUse = result.longNameIsAlreadyInUse;
     }
   }
 
@@ -102,12 +151,21 @@ const checkSubmissionName = async (req, res) => {
         select ID, Submitter_ID from tblData_Submissions
         where Filename_Root = '${shortName}'
       `);
-      const existingSubmissionId = safePath(['recordset', '0', 'ID'])(resp);
-      const existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(resp);
-      log.debug ('short name check', { existingSubmissionId, existingSubmissionSubmitterId, userId, targetSubmissionId });
+      if (resp && resp.recordset && resp.recordset.length === 0) {
+        // no record with that long name found
+        log.debug ('long name check: no conflicting record found');
+      } else {
+        const existingSubmissionId = safePath(['recordset', '0', 'ID'])(resp);
+        const existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(resp);
 
-      if (existingSubmissionId !== targetSubmissionId || existingSubmissionSubmitterId !== userId) {
-        shortNameUpdateConflict = true;
+        if (existingSubmissionId !== targetSubmissionId) {
+          shortNameUpdateConflict = true;
+          if (existingSubmissionSubmitterId !== userId) {
+            log.info ('short name check: short name exists on a dataset belonging to another user');
+          } else {
+            log.info ('short name check: short name exists on another submission');
+          }
+        }
       }
     } catch (e) {
       log.error('sql error', { e });
@@ -135,4 +193,4 @@ const checkSubmissionName = async (req, res) => {
   res.json (payload);
 };
 
-module.exports = checkSubmissionName;
+module.exports = { checkLongName, checkSubmissionName };
