@@ -1,12 +1,11 @@
 // change data submission short name
-// [X] 1. create temporary folder in dropbox
-// [X] 2. commit uploaded file to temporary folder (implemented elsewhere)
-// [ ] 3. copy files from previous folder
-// [X] 4. update record in sql (implemented elsewhere elsewhere)
-// [ ] 5. rename temporary folder to new name
-// [ ] 6. delete old folder
+// 1. create temporary folder in dropbox
+// 2. commit uploaded file to temporary folder (implemented elsewhere)
+// 3. copy files from previous folder
+// 4. update record in sql (implemented elsewhere elsewhere)
+// 5. rename temporary folder to new name
+// 6. delete old folder
 
-const sql = require("mssql");
 const { dropbox } = require("../../utility/Dropbox");
 const { safePath } = require("../../utility/objectUtils");
 const { expBackoffWithMaxCallDepth } = require("../../utility/exponentialBackoff");
@@ -80,7 +79,6 @@ const copyFiles = async ({ prevPath, newPath }) => {
   let resp;
   try {
     resp = await dropbox.filesCopyBatchV2({ entries });
-    console.log(resp);
   } catch (e) {
     log.error('error copying folder contents', { entries, ...e });
     console.log(e);
@@ -125,7 +123,6 @@ const renameFolder = async ({ prevPath, newPath }) => {
     error = e;
   }
   log.info ('successfully renamed folder', { ...arg, result });
-  console.log (result);
   return [error, result];
 };
 
@@ -142,7 +139,6 @@ const deleteFolder = async (folderPath) => {
     error = e;
   }
   log.info ('successfully deleted folder', { ...arg, result });
-  console.log (result);
   return [error, result];
 };
 

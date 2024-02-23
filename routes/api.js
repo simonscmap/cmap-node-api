@@ -55,10 +55,10 @@ const saveCall = (req, res, next) => {
       try {
         await saveApiQueryInfo (apiCallRecordId, queryType, tableNames);
       } catch (e) {
-        console.log ('error attempting to save api query info');
+        log.error ('error attempting to save api query info', e);
       }
     } else {
-      log.warn ('missing parameters, skiping attempt to save api query info');
+      log.trace ('missing parameters, skiping attempt to save api query info');
     }
   });
   next();

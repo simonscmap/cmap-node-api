@@ -24,7 +24,7 @@ const wrapper = async (cacheKey, job, options = {}) => {
 
   // re-warm upon expiration
   nodeCache.on('expired', (keyOfExpiredCache /* , expiredValue */) => {
-    console.log ('cache event: expired');
+    log.info ('cache event: expired', { key: keyOfExpiredCache });
     if (keyOfExpiredCache === cacheKey) {
       log.info ('re-warming cache', { cacheKey });
       // trigger job & cache result
@@ -33,7 +33,7 @@ const wrapper = async (cacheKey, job, options = {}) => {
           log.error ('error re-warming cache', { cacheKey, error: e });
         });
     } else {
-      console.log ('expired key did not match', keyOfExpiredCache);
+      log.info ('expired key did not match', keyOfExpiredCache);
     }
   });
 

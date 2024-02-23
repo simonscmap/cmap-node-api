@@ -335,7 +335,7 @@ const commitUpload = async (req, res) => {
             ${changeLongNameDirective}
         WHERE ID = ${submissionId}`;
 
-      console.log ('update query', dataSubmissionPhaseChangeQuery);
+      log.debug ('update query', dataSubmissionPhaseChangeQuery);
 
       await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
     }
