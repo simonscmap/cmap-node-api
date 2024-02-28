@@ -58,7 +58,7 @@ const saveCall = (req, res, next) => {
         log.error ('error attempting to save api query info', e);
       }
     } else {
-      log.trace ('missing parameters, skiping attempt to save api query info');
+      // log.trace ('missing parameters, skiping attempt to save api query info');
     }
   });
   next();
