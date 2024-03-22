@@ -18,7 +18,7 @@ public/favicon-32x32.png
 public/manifest.json
 public/safari-pinned-tab.svg
 public/service-worker.js
-public/images/.DS_Store
+public/images/
 
 *.zip
 shell.nix
