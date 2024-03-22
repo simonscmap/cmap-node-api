@@ -398,11 +398,18 @@ module.exports.datasetVariables = async (req, res, next) => {
 module.exports.listVisualizableVariables = async (req, res, next) => {
   let { shortname } = req.query;
 
-  const [err, data] = await datasetVisualizableVariables (shortname, req.requestId);
+  const [err, result] = await datasetVisualizableVariables (shortname, req.requestId);
   if (err) {
     res.status(err.status).send (err.message);
   } else {
-    res.json (data);
+    const isGriddedData = (v) => Boolean (v.Temporal_Resolution) && Boolean (v.Spatial_Resolution)
+      && v.Temporal_Resolution !== 'Irregular' && v.Spatial_Resolution !== 'Irregular'
+    const isModelData = (v) => v.Make === 'Model';
+    const getVisType = (v) => (isGriddedData (v) && isModelData (v)) ? 'Heatmap' : 'Histogram';
+
+    const addMetaData = (v) => Object.assign (v, { meta: { visType: getVisType(v) }});
+    const data = result.data && result.data.map (addMetaData);
+    res.json ({ data, stats: result.stats });
   }
   next();
 }
