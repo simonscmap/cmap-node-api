@@ -81,7 +81,6 @@ const fetchAvgSSTAnomalyData = async () => {
   const startQuery = Date.now();
   const [e, result] = await sparqQuery (query);
 
-  console.log (result);
   moduleLogger.debug ('sst query time', { duration: Date.now() - startQuery });
 
   if (e) {

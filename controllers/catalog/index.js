@@ -12,6 +12,7 @@ const catalogPlusLatCountQuery = require("../../dbHandlers/catalogPlusLatCountQu
 const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
 const datasetVisualizableVariables = require('./datasetVisualizableVariables');
+const sampleVisualization = require('./variableSampleVisualization');
 // const cacheAsync = require("../../utility/cacheAsync");
 // const fetch = require('isomorphic-fetch');
 // const fetchDataset = require('./fetchDataset');
@@ -395,6 +396,8 @@ module.exports.datasetVariables = async (req, res, next) => {
   next();
 }
 
+module.exports.sampleVisualization = sampleVisualization;
+
 module.exports.listVisualizableVariables = async (req, res, next) => {
   let { shortname } = req.query;
 
@@ -402,14 +405,7 @@ module.exports.listVisualizableVariables = async (req, res, next) => {
   if (err) {
     res.status(err.status).send (err.message);
   } else {
-    const isGriddedData = (v) => Boolean (v.Temporal_Resolution) && Boolean (v.Spatial_Resolution)
-      && v.Temporal_Resolution !== 'Irregular' && v.Spatial_Resolution !== 'Irregular'
-    const isModelData = (v) => v.Make === 'Model';
-    const getVisType = (v) => (isGriddedData (v) && isModelData (v)) ? 'Heatmap' : 'Histogram';
-
-    const addMetaData = (v) => Object.assign (v, { meta: { visType: getVisType(v) }});
-    const data = result.data && result.data.map (addMetaData);
-    res.json ({ data, stats: result.stats });
+    res.json (result);
   }
   next();
 }

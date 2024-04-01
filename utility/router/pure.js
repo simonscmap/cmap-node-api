@@ -245,7 +245,7 @@ let transformTopQueryToLimit = (q) => {
     return [true, null, 'AST Parse Error: ' + e];
   }
 
-  let [e2, newAst] = traverseAST (ast);
+  let [e2, newAst] = traverseAST (ast); // traverse and transform
 
   if (e2) {
     return [true, null, 'Traverse Error: ' + e2];

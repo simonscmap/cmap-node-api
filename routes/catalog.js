@@ -29,5 +29,6 @@ router.get('/submissionoptions', asyncControllerWrapper(catalogController.submis
 router.get('/variable', asyncControllerWrapper(catalogController.variable));
 router.get('/variablesearch', asyncControllerWrapper(catalogController.variableSearch));
 router.get('/visualizable-variables', asyncControllerWrapper(catalogController.listVisualizableVariables))
+router.get('/variable-sample-visualization', asyncControllerWrapper(catalogController.sampleVisualization));
 
 module.exports = router;

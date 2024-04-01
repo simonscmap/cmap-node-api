@@ -106,6 +106,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     } catch (e) {
       hasError = true;
       log.error("error fetching chunk", { error: e.message, fullError: e });
+      console.log(e)
       endRespWithError(e);
       break;
     }
