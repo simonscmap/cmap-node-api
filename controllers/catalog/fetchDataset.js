@@ -2,6 +2,7 @@ const directQuery = require('../../utility/directQuery');
 const initializeLogger = require("../../log-service");
 const { getDatasetId } = require("../../queries/datasetId");
 const { makeDatasetFullPageQuery } = require("../../queries/datasetFullPageQuery")
+const { makeDatasetQuery } = require("../../queries/makeDatasetQuery")
 const {
   fetchDatasetIdsWithCache,
 } = require("../../utility/router/queries");
@@ -30,8 +31,10 @@ const getDatasetIdFromTableName = (tableName, ids) => {
 }
 
 // fetcheDataset :: { shortname?, id?, tablename? } -> [errorMessage?, dataset?]
-const fetchDataset = async ({ shortname, id, tablename }) => {
+const fetchDataset = async ({ shortname, id, tablename }, options = {}) => {
   let log = moduleLogger;
+
+  const { useNewDatasetModel } = options
 
   let datasetId;
   if (id) {
@@ -53,10 +56,16 @@ const fetchDataset = async ({ shortname, id, tablename }) => {
     return ['unable to determine dataset id'];
   }
 
-  let query = makeDatasetFullPageQuery (datasetId);
-  let options = { description: 'query dataset'};
+  let query;
+  if (useNewDatasetModel) {
+    query = makeDatasetQuery (datasetId);
+  } else {
+    query = makeDatasetFullPageQuery (datasetId);
+  }
 
-  let [error, result] = await directQuery (query, options, log);
+  let directQueryOptions = { description: 'query dataset'};
+
+  let [error, result] = await directQuery (query, directQueryOptions, log);
 
   if (!error) {
     return [null, result.recordset[0]];

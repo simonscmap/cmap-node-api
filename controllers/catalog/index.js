@@ -2,6 +2,7 @@ const sql = require("mssql");
 const nodeCache = require("../../utility/nodeCache");
 const queryHandler = require("../../utility/queryHandler");
 const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
+const { safePath } = require("../../utility/objectUtils");
 const pools = require("../../dbHandlers/dbPools");
 const datasetCatalogQuery = require("../../dbHandlers/datasetCatalogQuery");
 const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
@@ -13,6 +14,7 @@ const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
 const datasetVisualizableVariables = require('./datasetVisualizableVariables');
 const sampleVisualization = require('./variableSampleVisualization');
+const { getDatasetIdsByProgramName, getAllDatasets } = require('./getProgramDatasets');
 // const cacheAsync = require("../../utility/cacheAsync");
 // const fetch = require('isomorphic-fetch');
 // const fetchDataset = require('./fetchDataset');
@@ -1324,3 +1326,76 @@ module.exports.datasetSummary = async (req, res, next) => {
     next();
   }
 };
+
+module.exports.programs = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
+  let response;
+  try {
+    response = await request.query(`SELECT * FROM tblPrograms`);
+  } catch (e) {
+    log.error ('error retrieving programs', { error: e });
+    res.sendStatus(500);
+    return next();
+  }
+
+  const result = safePath (['recordset']) (response);
+
+  if (result) {
+    res.json (result);
+    return next();
+  } else {
+    log.error ('unexpected response while fetching programs', { result });
+    res.sendStatus (500);
+    next ('error fetching programs');
+  }
+}
+
+module.exports.programDatasets = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
+  let pool = await pools.dataReadOnlyPool;
+  let request = await new sql.Request(pool);
+  let response;
+  try {
+    response = await request.query(`SELECT * FROM tblDataset_Programs`);
+  } catch (e) {
+    log.error ('error retrieving program datasets', { error: e });
+    res.sendStatus(500);
+    return next();
+  }
+
+  const result = safePath (['recordset']) (response);
+
+  if (result) {
+    res.json (result);
+    return next();
+  } else {
+    log.error ('unexpected response while fetching program datasets', { result });
+    res.sendStatus (500);
+    next ('error fetching program datasets');
+  }
+}
+
+
+module.exports.programData = async (req, res, next) => {
+  // let log = moduleLogger.setReqId (req.requestId);
+  const { programName } = req.params;
+
+  // program name -> dataset ids
+  const datasetIds = await getDatasetIdsByProgramName (programName);
+
+  if (!datasetIds) {
+    return next (`no dataset ids for program ${programName}`);
+  }
+
+  // dataset ids -> datasets
+  const [errors, results] = await getAllDatasets (datasetIds);
+
+  if (errors) {
+    return next (errors);
+  }
+
+  res.json (results);
+  next();
+}
