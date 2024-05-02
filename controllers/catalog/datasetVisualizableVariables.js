@@ -153,16 +153,23 @@ const addMetaData = (metaArgs) => (v) => {
 
 
 // :: shortname -> reqId -> [Error, Data]
-const datasetVariables = async (shortname, reqId) => {
+const datasetVariables = async ({ shortname, id }, reqId) => {
   let log = moduleLogger.setReqId (reqId)
   let pool = await pools.dataReadOnlyPool;
   let request = new sql.Request(pool);
 
+  // console.log ('method', shortname, id)
+
   // get id from shortname
-  let datasetId = await getDatasetId (shortname, log);
+  let datasetId;
+  if (!id && shortname) {
+    datasetId = await getDatasetId (shortname, log);
+  } else {
+    datasetId = id;
+  }
 
   if (!datasetId) {
-    log.error('could not find dataset id for dataset name', { shortname })
+    log.error('could not find dataset id for dataset name', { shortname, id })
     return [{status: 400, message: `no dataset found with name ${shortname}`}];
   }
 
@@ -269,7 +276,7 @@ const datasetVariables = async (shortname, reqId) => {
   const variables = result.recordset.map (addMetaData (metaArgs));
 
 
-  return [null, { variables, stats }];
+  return [null, { variables, stats, datasetId }];
 }
 
 module.exports = datasetVariables;

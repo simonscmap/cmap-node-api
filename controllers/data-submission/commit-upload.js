@@ -154,7 +154,6 @@ const commitUpload = async (req, res) => {
 
   // 1 (c) short name check
   if (nameChange) {
-    // TODO verify that desired name is available
     try {
       let [error, shortNameCheckResult] = await checkShortName (shortName, userId, submissionId);
       if (error || !shortNameCheckResult) {

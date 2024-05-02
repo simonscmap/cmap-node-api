@@ -2,6 +2,7 @@ const sql = require("mssql");
 const nodeCache = require("../../utility/nodeCache");
 const queryHandler = require("../../utility/queryHandler");
 const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
+const { safePath } = require("../../utility/objectUtils");
 const pools = require("../../dbHandlers/dbPools");
 const datasetCatalogQuery = require("../../dbHandlers/datasetCatalogQuery");
 const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
@@ -13,9 +14,19 @@ const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
 const datasetVisualizableVariables = require('./datasetVisualizableVariables');
 const sampleVisualization = require('./variableSampleVisualization');
-// const cacheAsync = require("../../utility/cacheAsync");
-// const fetch = require('isomorphic-fetch');
-// const fetchDataset = require('./fetchDataset');
+const {
+  listPrograms,
+  getDatasetIdsByProgramName,
+  getAllDatasets,
+  getAllDatasetShortNames,
+  getCrossOverDatasetsWithCache,
+} = require('./fetchPrograms');
+const {
+  cruisesForDatasetList,
+  fetchAllCruises,
+  fetchAllTrajectories,
+  fetchDatasetsForCruises,
+} = require('./fetchCruises');
 const logInit = require("../../log-service");
 const moduleLogger = logInit("controllers/catalog");
 
@@ -401,7 +412,7 @@ module.exports.sampleVisualization = sampleVisualization;
 module.exports.listVisualizableVariables = async (req, res, next) => {
   let { shortname } = req.query;
 
-  const [err, result] = await datasetVisualizableVariables (shortname, req.requestId);
+  const [err, result] = await datasetVisualizableVariables ({ shortname }, req.requestId);
   if (err) {
     res.status(err.status).send (err.message);
   } else {
@@ -738,7 +749,7 @@ module.exports.datasetsFromCruise = async (req, res, next) => {
 module.exports.cruisesFromDataset = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  let request = new sql.Request(pool);
   const { datasetID } = req.query;
 
   let query = `
@@ -1324,3 +1335,187 @@ module.exports.datasetSummary = async (req, res, next) => {
     next();
   }
 };
+
+module.exports.programs = async (req, res, next) => {
+  const [err, result] = await listPrograms (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId);
+
+  const [errCX, resultCX] = await getCrossOverDatasetsWithCache (req.requestId);
+
+  if (errCX) {
+    log.error ('error fetching crossover datasets', errCX);
+  } else if (resultCX) {
+    log.debug ('fetched crossover datasets')
+  }
+
+  if (err) {
+    res.status(500).send (err && err.message);
+    return next (err);
+  } else {
+    res.json (result);
+  }
+}
+
+module.exports.programDatasets = async (req, res, next) => {
+
+  const { programName } = req.params;
+
+  if (!programName) {
+    res.status(400).send ('Bad Request; No program name provided');
+    return next ('no program name provided')
+  }
+
+  const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
+
+  if (err) {
+    res.status(500).send (err && err.message);
+    return next (err);
+  } else {
+    res.json(datasetIds)
+  }
+}
+
+module.exports.programData = async (req, res, next) => {
+  let log = moduleLogger.setReqId (req.requestId);
+  const { programName } = req.params;
+  const { downSample } = req.query;
+
+  log.debug ('program-data called with downsample', { programName, downSample });
+
+  // check cache
+
+  const cachedData = nodeCache.get(`program_data_${programName}`);
+  if (cachedData) {
+    log.debug ('responding with cached data', { programName });
+    res.json (cachedData);
+    return next();
+  } else {
+    log.debug ('program detail cache miss', { programName })
+  }
+
+  const [errLP, resultLP] = await listPrograms (req.requestId);
+  const program = !errLP && Object.values(resultLP)
+                                   .find((p) => p && p.name.toLowerCase() === programName.toLowerCase());
+
+
+  // program name -> dataset ids
+  const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
+
+  if (err) {
+    return next (`no dataset ids for program ${programName}`);
+  }
+
+  // dataset ids -> datasets
+  const [errors, datasets] = await getAllDatasets (datasetIds, req.requestId);
+
+  if (errors) {
+    return next (errors);
+  }
+
+  // get cruises for each dataset
+  const [cruiseMapErr, cruisesResult] = await cruisesForDatasetList (datasetIds, req.requestId);
+
+  if (cruiseMapErr) {
+    return next (cruiseMapErr);
+  }
+
+  const { map: cruiseMap, list: cruiseList } = cruisesResult;
+
+  // update datasets with cruise data
+  Object.keys(datasets).forEach ((id) => {
+    if (datasets[id]) {
+      if (cruiseMap[id]) {
+        datasets[id].cruises = cruiseMap[id];
+      } else {
+        datasets[id].cruises = [];
+      }
+    }
+  });
+
+  const [cruiseListErr, cruises] = await fetchAllCruises (cruiseList, req.requestId);
+  if (cruiseListErr) {
+    return next(cruiseListErr);
+  }
+
+  // get crossover datasets (for cruise info) :: { Dataset_ID: Set<Program_ID> }
+  // take info from cruiseMap and flag corresponding cruises
+  const [errCX, crossoverDatasets] = await getCrossOverDatasetsWithCache (req.requestId);
+
+  const [errCDs, cruiseToDatasetMap] = await fetchDatasetsForCruises (cruiseList, req.requestId);
+
+
+  const missingDatasetIds = Array.from(
+    new Set(
+      Object.values(cruiseToDatasetMap).reduce ((acc, curr) => {
+        for (let c of curr) {
+          acc.push (c); // our version of node does not support Set.pototype.union ()
+        }
+        return acc;
+      }, [])
+    )
+  );
+
+  const [errSup, supplementalDatasetNames] = await getAllDatasetShortNames (missingDatasetIds, req.requestId);
+
+
+  // emend cruises object
+  // add cruises.datasets with array of dataset metadata, including programs associated with the dataset
+  if (crossoverDatasets && cruiseToDatasetMap) {
+    const cruiseToDatasetWithPrograms = Object.keys(cruiseToDatasetMap).reduce((acc, cId) => {
+      const datasetSet = cruiseToDatasetMap[cId];
+
+      const matchingDatasetPrograms = Array.from (datasetSet).map ((dId) => ({
+        datasetId: dId,
+        datasetShortName: (datasets && datasets[dId] && datasets[dId].Dataset_Name)
+         || supplementalDatasetNames && supplementalDatasetNames[dId],
+        programIds: crossoverDatasets && crossoverDatasets[dId]
+                 && Array.from (crossoverDatasets[dId]),
+        programNames: crossoverDatasets && crossoverDatasets[dId]
+                   && Array.from (crossoverDatasets[dId])
+                           .map((pId) => resultLP && resultLP[pId] && resultLP[pId].name),
+      })).filter((x) => x && x.programIds && x.programIds.length);
+
+      acc[cId] = matchingDatasetPrograms;
+      return acc;
+    }, {});
+
+    Object.keys(cruises).forEach ((cId) => {
+      if (cruiseToDatasetWithPrograms[cId]) {
+        const datasetInfo = cruiseToDatasetWithPrograms[cId];
+        const cruiseIsMultiProgram = new Set(datasetInfo.reduce((acc, d) => acc.concat(d.programIds), []));
+        cruises[cId].isMultiProgram = cruiseIsMultiProgram.size > 0;
+        cruises[cId].datasets = cruiseToDatasetWithPrograms[cId];
+      }
+    });
+  }
+
+  const [trajectoryErr, trajectories] = await fetchAllTrajectories (cruiseList, req.requestId, { downSample });
+
+  if (trajectoryErr) {
+    return next(trajectoryErr);
+  }
+
+  log.debug ('preparing payload', { programName });
+
+  Object.keys (trajectories).forEach ((id) => {
+    if (cruises[id]) {
+      if (trajectories[id]) {
+        cruises[id].trajectory = trajectories[id];
+      } else {
+        cruises[id].trajectory = [];
+      }
+    }
+  });
+
+  const payload = {
+    id: program && program.id,
+    datasets,
+    cruises,
+  };
+
+  nodeCache.set (`program_data_${programName}`, payload);
+  log.debug ('set cache for program', { programName });
+
+  res.json (payload);
+  next();
+}
