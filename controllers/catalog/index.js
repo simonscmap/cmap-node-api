@@ -14,7 +14,16 @@ const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
 const datasetVisualizableVariables = require('./datasetVisualizableVariables');
 const sampleVisualization = require('./variableSampleVisualization');
-const { getDatasetIdsByProgramName, getAllDatasets } = require('./getProgramDatasets');
+const {
+  listPrograms,
+  getDatasetIdsByProgramName,
+  getAllDatasets
+} = require('./fetchPrograms');
+const {
+  cruisesForDatasetList,
+  fetchAllCruises,
+  fetchAllTrajectories,
+} = require('./fetchCruises');
 // const cacheAsync = require("../../utility/cacheAsync");
 // const fetch = require('isomorphic-fetch');
 // const fetchDataset = require('./fetchDataset');
@@ -740,7 +749,7 @@ module.exports.datasetsFromCruise = async (req, res, next) => {
 module.exports.cruisesFromDataset = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId);
   let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  let request = new sql.Request(pool);
   const { datasetID } = req.query;
 
   let query = `
@@ -1328,74 +1337,101 @@ module.exports.datasetSummary = async (req, res, next) => {
 };
 
 module.exports.programs = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId);
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
-  let response;
-  try {
-    response = await request.query(`SELECT * FROM tblPrograms`);
-  } catch (e) {
-    log.error ('error retrieving programs', { error: e });
-    res.sendStatus(500);
-    return next();
-  }
+  const [err, result] = await listPrograms (req.requestId);
 
-  const result = safePath (['recordset']) (response);
-
-  if (result) {
-    res.json (result);
-    return next();
+  if (err) {
+    res.status(500).send (err && err.message);
+    return next (err);
   } else {
-    log.error ('unexpected response while fetching programs', { result });
-    res.sendStatus (500);
-    next ('error fetching programs');
+    res.json (result);
   }
 }
 
 module.exports.programDatasets = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId);
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
-  let response;
-  try {
-    response = await request.query(`SELECT * FROM tblDataset_Programs`);
-  } catch (e) {
-    log.error ('error retrieving program datasets', { error: e });
-    res.sendStatus(500);
-    return next();
+  const { programName } = req.params;
+
+  if (!programName) {
+    res.status(400).send ('Bad Request; No program name provided');
+    return next ('no program name provided')
   }
 
-  const result = safePath (['recordset']) (response);
+  const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
 
-  if (result) {
-    res.json (result);
-    return next();
+  if (err) {
+    res.status(500).send (err && err.message);
+    return next (err);
   } else {
-    log.error ('unexpected response while fetching program datasets', { result });
-    res.sendStatus (500);
-    next ('error fetching program datasets');
+    res.json(datasetIds)
   }
 }
 
 
 module.exports.programData = async (req, res, next) => {
-  // let log = moduleLogger.setReqId (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId);
   const { programName } = req.params;
+  const { downSample } = req.query;
+
+  log.debug ('program-data called with downsample', { programName, downSample });
 
   // program name -> dataset ids
-  const datasetIds = await getDatasetIdsByProgramName (programName);
+  const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
 
-  if (!datasetIds) {
+  if (err) {
     return next (`no dataset ids for program ${programName}`);
   }
 
   // dataset ids -> datasets
-  const [errors, results] = await getAllDatasets (datasetIds);
+  const [errors, datasets] = await getAllDatasets (datasetIds, req.requestId);
 
   if (errors) {
     return next (errors);
   }
 
-  res.json (results);
+  // get cruises for each dataset
+  const [cruiseMapErr, cruisesResult] = await cruisesForDatasetList (datasetIds, req.requestId);
+
+  if (cruiseMapErr) {
+    return next (cruiseMapErr);
+  }
+
+  const { map: cruiseMap, list: cruiseList } = cruisesResult;
+
+  // update datasets with cruise data
+  Object.keys(datasets).forEach ((id) => {
+    if (datasets[id]) {
+      if (cruiseMap[id]) {
+        datasets[id].cruises = cruiseMap[id];
+      } else {
+        datasets[id].cruises = [];
+      }
+    }
+  });
+
+  const [cruiseListErr, cruises] = await fetchAllCruises (cruiseList, req.requestId);
+  if (cruiseListErr) {
+    return next(cruiseListErr);
+  }
+
+  console.log ({downSample})
+  const [trajectoryErr, trajectories] = await fetchAllTrajectories (cruiseList, req.requestId, { downSample });
+
+  if (trajectoryErr) {
+    return next(trajectoryErr);
+  }
+
+  Object.keys (cruises).forEach ((id) => {
+    if (cruises[id]) {
+      if (trajectories[id]) {
+        cruises[id].trajectory = trajectories[id];
+      } else {
+        cruises[id].trajectory = [];
+      }
+    }
+  });
+
+  res.json ({
+    datasets,
+    cruises,
+  });
   next();
 }

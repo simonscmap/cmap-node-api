@@ -23,7 +23,7 @@ router.get('/membervariables', asyncControllerWrapper(catalogController.memberVa
 router.get('/popular-datasets', asyncControllerWrapper(catalogController.popularDatasets));
 router.get('/programs', asyncControllerWrapper(catalogController.programs));
 router.get('/programs/:programName', asyncControllerWrapper(catalogController.programData));
-router.get('/program-datasets', asyncControllerWrapper(catalogController.programDatasets));
+router.get('/program-datasets/:programName', asyncControllerWrapper(catalogController.programDatasets));
 router.get('/recent-datasets', asyncControllerWrapper(catalogController.recentDatasets));
 router.get('/recommended-datasets', asyncControllerWrapper(catalogController.recommendedDatasets));
 router.get('/searchcatalog', asyncControllerWrapper(catalogController.searchCatalog));
