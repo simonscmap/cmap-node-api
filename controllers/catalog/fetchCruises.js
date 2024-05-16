@@ -103,6 +103,70 @@ const fetchAllCruises = async (cruiseIds, reqId) => {
   return [null, map];
 }
 
+//
+
+function analyzeTrajectory (trajectoryData) {
+    const { lons, lats } = trajectoryData;
+
+    let lonStart = lons[0];
+    let latStart = lats[0];
+    let maxDistance = 0;
+
+    // Create a new path array each time 180 lon is crossed
+    lons.forEach((lon, i) => {
+      let lat = lats[i];
+
+      let latDistance = Math.abs(lat - latStart);
+      let _lonDistance = Math.abs(lon - lonStart);
+      let lonDistance = _lonDistance > 180 ? 360 - _lonDistance : _lonDistance;
+
+      let distance = Math.sqrt(
+        latDistance * latDistance + lonDistance * lonDistance,
+      );
+      maxDistance = distance > maxDistance ? distance : maxDistance;
+    });
+
+    const center = [
+      lons[Math.floor(lons.length / 2)],
+      lats[Math.floor(lons.length / 2)]
+    ];
+
+    return {
+      center,
+      maxDistance,
+    };
+}
+
+// take a known list of cruise ids and an array of
+// trajectory points and munge them into a map
+// of { CruiseId: { lats: [], lots: [], times: []} }
+// (which is the interface the web app uses for charting trajectories)
+// add maxDistance and center values
+const mapTrajectories = (cIds = [], tPts = []) => {
+  const accumulator = cIds.reduce((acc, curr) => {
+    return Object.assign(acc, {
+      [curr]: {
+        lats: [],
+        lons: [],
+        times: [],
+      }
+    });
+  }, {});
+
+  const trajectoryMap = tPts.reduce((acc, curr) => {
+    acc[curr.Cruise_ID].lats.push(curr.lat);
+    acc[curr.Cruise_ID].lons.push(curr.lon);
+    acc[curr.Cruise_ID].times.push(curr.time);
+    return acc;
+  }, accumulator);
+
+  Object.keys(trajectoryMap).forEach ((cId) => {
+    Object.assign(trajectoryMap[cId], analyzeTrajectory(trajectoryMap[cId]));
+  });
+
+  return trajectoryMap;
+};
+
 const fetchAllTrajectories = async (cruiseIds, reqId, options = {}) => {
   const log = moduleLogger.setReqId (reqId);
 
@@ -125,18 +189,7 @@ const fetchAllTrajectories = async (cruiseIds, reqId, options = {}) => {
     log.debug ('fetch all trajectories: options', { options })
   }
 
-  const map = {};
-  if (Array.isArray (result) && result.length) {
-    const points = result;
-    points.forEach ((point) => {
-      const { Cruise_ID, time, lat, lon } = point;
-      if (Array.isArray (map[Cruise_ID])) {
-        map[Cruise_ID].push ({ time, lat, lon });
-      } else {
-        map[Cruise_ID] = [{ time, lat, lon }];
-      }
-    });
-  }
+  const map = mapTrajectories (cruiseIds, result);
 
   return [false, map];
 }
