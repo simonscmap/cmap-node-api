@@ -198,7 +198,7 @@ const sampleVis = async (req, res, next) => {
   log.info ('preparing sample visualization', { variableId: varId, datasetShortName: shortname })
 
   // get dataset info
-  const [e, data] = await getDatasetVisualizableVariables (shortname, requestId);
+  const [e, data] = await getDatasetVisualizableVariables ({ shortname }, requestId);
   if (e) {
     log.error ('get dataset vis vars failed', { error: e });
     res.status (e.status).send (e.message);

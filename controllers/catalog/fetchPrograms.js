@@ -1,6 +1,7 @@
 const sql = require("mssql");
 const fetchDataset = require('./fetchDataset');
-const nodeCache = require("../../utility/nodeCache");
+const datasetVisualizableVariables = require('./datasetVisualizableVariables');
+// const nodeCache = require("../../utility/nodeCache");
 const pools = require("../../dbHandlers/dbPools");
 const { safePath } = require("../../utility/objectUtils");
 const logInit = require("../../log-service");
@@ -84,12 +85,25 @@ const getAllDatasets = async (datasetIds, reqId) => {
   }
 
   const opt = { useNewDatasetModel: true };
-  let results;
+  let results; // array of [Error, Data] tuples
   try {
     results = await Promise.all (datasetIds.map ((id) =>
       fetchDataset ({ id }, opt)));
   } catch (e) {
     log.error ('error fetching program dataset data', {
+      datasetIds,
+      error: e
+    });
+    return [e];
+  }
+
+
+  let variableResults; // array of [Error, Data] tuples
+  try {
+    variableResults = await Promise.all (datasetIds.map ((id) =>
+      datasetVisualizableVariables({ id }, reqId)));
+  } catch (e) {
+    log.error ('error fetching program dataset visualizable variables', {
       datasetIds,
       error: e
     });
@@ -105,6 +119,14 @@ const getAllDatasets = async (datasetIds, reqId) => {
       })
     }
     if (data) {
+      // get associated visualizable variables
+      const matchingVariables = variableResults.filter(([, vData]) => {
+        return vData && vData.datasetId === datasetIds[index];
+      }).map (([,matching]) => matching);
+
+      Object.assign(data, { visualizableVariables: matchingVariables });
+
+      // add dataset to map
       map[data.ID] = data;
     }
   })

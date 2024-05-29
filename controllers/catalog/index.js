@@ -412,7 +412,7 @@ module.exports.sampleVisualization = sampleVisualization;
 module.exports.listVisualizableVariables = async (req, res, next) => {
   let { shortname } = req.query;
 
-  const [err, result] = await datasetVisualizableVariables (shortname, req.requestId);
+  const [err, result] = await datasetVisualizableVariables ({ shortname }, req.requestId);
   if (err) {
     res.status(err.status).send (err.message);
   } else {
@@ -1366,12 +1366,29 @@ module.exports.programDatasets = async (req, res, next) => {
 }
 
 
+const TEMP_CACHE = {};
+
 module.exports.programData = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId);
   const { programName } = req.params;
   const { downSample } = req.query;
 
   log.debug ('program-data called with downsample', { programName, downSample });
+
+  // check cache
+
+  /* const cachedData = nodeCache.get(`program_data_${programName}`);
+   * if (cachedData) {
+   *   log.debug ('responding with cached data', { programName });
+   *   res.json (cachedData);
+   *   return next();
+   * } */
+
+  if (TEMP_CACHE[programName]) {
+    log.debug ('responding with cached data', { programName });
+    res.json (TEMP_CACHE[programName]);
+    return next();
+  }
 
   // program name -> dataset ids
   const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
@@ -1400,6 +1417,7 @@ module.exports.programData = async (req, res, next) => {
   Object.keys(datasets).forEach ((id) => {
     if (datasets[id]) {
       if (cruiseMap[id]) {
+        console.log (`associating dataset ${id} with cruise ${cruiseMap[id].ID}`)
         datasets[id].cruises = cruiseMap[id];
       } else {
         datasets[id].cruises = [];
@@ -1412,14 +1430,15 @@ module.exports.programData = async (req, res, next) => {
     return next(cruiseListErr);
   }
 
-  console.log ({downSample})
   const [trajectoryErr, trajectories] = await fetchAllTrajectories (cruiseList, req.requestId, { downSample });
 
   if (trajectoryErr) {
     return next(trajectoryErr);
   }
 
-  Object.keys (cruises).forEach ((id) => {
+  log.debug ('preparing payload', { programName });
+
+  Object.keys (trajectories).forEach ((id) => {
     if (cruises[id]) {
       if (trajectories[id]) {
         cruises[id].trajectory = trajectories[id];
@@ -1429,9 +1448,15 @@ module.exports.programData = async (req, res, next) => {
     }
   });
 
-  res.json ({
+  const payload = {
     datasets,
     cruises,
-  });
+  };
+
+  TEMP_CACHE[programName] = payload;
+  //nodeCache.set (`program_data_${programName}`, payload);
+  // log.debug ('set cache for program', { programName });
+
+  res.json (payload);
   next();
 }
