@@ -120,7 +120,7 @@ const getAllDatasets = async (datasetIds, reqId) => {
     }
     if (data) {
       // get associated visualizable variables
-      const matchingVariables = variableResults.filter(([, vData]) => {
+      const [matchingVariables] = variableResults.filter(([, vData]) => {
         return vData && vData.datasetId === datasetIds[index];
       }).map (([,matching]) => matching);
 
