@@ -158,7 +158,7 @@ const datasetVariables = async ({ shortname, id }, reqId) => {
   let pool = await pools.dataReadOnlyPool;
   let request = new sql.Request(pool);
 
-  console.log ('method', shortname, id)
+  // console.log ('method', shortname, id)
 
   // get id from shortname
   let datasetId;

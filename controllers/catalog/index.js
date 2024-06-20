@@ -1377,17 +1377,13 @@ module.exports.programData = async (req, res, next) => {
 
   // check cache
 
-  /* const cachedData = nodeCache.get(`program_data_${programName}`);
-   * if (cachedData) {
-   *   log.debug ('responding with cached data', { programName });
-   *   res.json (cachedData);
-   *   return next();
-   * } */
-
-  if (TEMP_CACHE[programName]) {
+  const cachedData = nodeCache.get(`program_data_${programName}`);
+  if (cachedData) {
     log.debug ('responding with cached data', { programName });
-    res.json (TEMP_CACHE[programName]);
+    res.json (cachedData);
     return next();
+  } else {
+    log.debug ('program detail cache miss', { programName })
   }
 
   // program name -> dataset ids
@@ -1417,7 +1413,7 @@ module.exports.programData = async (req, res, next) => {
   Object.keys(datasets).forEach ((id) => {
     if (datasets[id]) {
       if (cruiseMap[id]) {
-        console.log (`associating dataset ${id} with cruise ${cruiseMap[id].ID}`)
+        // console.log (`associating dataset ${id} with cruise ${cruiseMap[id].ID}`)
         datasets[id].cruises = cruiseMap[id];
       } else {
         datasets[id].cruises = [];
@@ -1453,9 +1449,8 @@ module.exports.programData = async (req, res, next) => {
     cruises,
   };
 
-  TEMP_CACHE[programName] = payload;
-  //nodeCache.set (`program_data_${programName}`, payload);
-  // log.debug ('set cache for program', { programName });
+  nodeCache.set (`program_data_${programName}`, payload);
+  log.debug ('set cache for program', { programName });
 
   res.json (payload);
   next();
