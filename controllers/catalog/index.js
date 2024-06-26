@@ -17,12 +17,14 @@ const sampleVisualization = require('./variableSampleVisualization');
 const {
   listPrograms,
   getDatasetIdsByProgramName,
-  getAllDatasets
+  getAllDatasets,
+  getCrossOverDatasetsWithCache,
 } = require('./fetchPrograms');
 const {
   cruisesForDatasetList,
   fetchAllCruises,
   fetchAllTrajectories,
+  fetchDatasetsForCruises,
 } = require('./fetchCruises');
 // const cacheAsync = require("../../utility/cacheAsync");
 // const fetch = require('isomorphic-fetch');
@@ -1338,6 +1340,15 @@ module.exports.datasetSummary = async (req, res, next) => {
 
 module.exports.programs = async (req, res, next) => {
   const [err, result] = await listPrograms (req.requestId);
+  let log = moduleLogger.setReqId (req.requestId);
+
+  const [errCX, resultCX] = await getCrossOverDatasetsWithCache (req.requestId);
+
+  if (errCX) {
+    log.error ('error fetching crossover datasets', errCX);
+  } else if (resultCX) {
+    log.debug ('fetched crossover datasets')
+  }
 
   if (err) {
     res.status(500).send (err && err.message);
@@ -1348,6 +1359,7 @@ module.exports.programs = async (req, res, next) => {
 }
 
 module.exports.programDatasets = async (req, res, next) => {
+
   const { programName } = req.params;
 
   if (!programName) {
@@ -1364,9 +1376,6 @@ module.exports.programDatasets = async (req, res, next) => {
     res.json(datasetIds)
   }
 }
-
-
-const TEMP_CACHE = {};
 
 module.exports.programData = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId);
@@ -1386,6 +1395,11 @@ module.exports.programData = async (req, res, next) => {
     log.debug ('program detail cache miss', { programName })
   }
 
+  const [errLP, resultLP] = await listPrograms (req.requestId);
+  const program = !errLP && Object.values(resultLP)
+                                   .find((p) => p && p.name.toLowerCase() === programName.toLowerCase());
+
+
   // program name -> dataset ids
   const [err, datasetIds] = await getDatasetIdsByProgramName (programName, req.requestId);
 
@@ -1399,6 +1413,8 @@ module.exports.programData = async (req, res, next) => {
   if (errors) {
     return next (errors);
   }
+
+
 
   // get cruises for each dataset
   const [cruiseMapErr, cruisesResult] = await cruisesForDatasetList (datasetIds, req.requestId);
@@ -1426,6 +1442,39 @@ module.exports.programData = async (req, res, next) => {
     return next(cruiseListErr);
   }
 
+  // get crossover datasets (for cruise info) :: { Dataset_ID: Set<Program_ID> }
+  // take info from cruiseMap and flag corresponding cruises
+  const [errCX, crossoverDatasets] = await getCrossOverDatasetsWithCache (req.requestId);
+
+  const [errCDs, cruiseToDatasetMap] = await fetchDatasetsForCruises (cruiseList, req.requestId);
+
+
+  if (crossoverDatasets && cruiseToDatasetMap) {
+    const cruiseToDatasetWithPrograms = Object.keys(cruiseToDatasetMap).reduce((acc, cId) => {
+      const datasetSet = cruiseToDatasetMap[cId];
+
+      const matchingDatasetPrograms = Array.from (datasetSet).map ((dId) => ({
+        datasetId: dId,
+        datasetShortName: datasets && datasets[dId] && datasets[dId].Dataset_Name,
+        programIds: crossoverDatasets && crossoverDatasets[dId] && Array.from (crossoverDatasets[dId]),
+        programNames: crossoverDatasets && crossoverDatasets[dId]
+                   && Array.from (crossoverDatasets[dId]).map((pId) => resultLP && resultLP[pId] && resultLP[pId].name),
+      })).filter((x) => x && x.programIds && x.programIds.length);
+
+      acc[cId] = matchingDatasetPrograms;
+      return acc;
+    }, {});
+
+    Object.keys(cruises).forEach ((cId) => {
+      if (cruiseToDatasetWithPrograms[cId]) {
+        const datasetInfo = cruiseToDatasetWithPrograms[cId];
+        const cruiseIsMultiProgram = new Set(datasetInfo.reduce((acc, d) => acc.concat(d.programIds), []));
+        cruises[cId].isMultiProgram = cruiseIsMultiProgram.size > 0;
+        cruises[cId].datasets = cruiseToDatasetWithPrograms[cId];
+      }
+    });
+  }
+
   const [trajectoryErr, trajectories] = await fetchAllTrajectories (cruiseList, req.requestId, { downSample });
 
   if (trajectoryErr) {
@@ -1445,6 +1494,7 @@ module.exports.programData = async (req, res, next) => {
   });
 
   const payload = {
+    id: program && program.id,
     datasets,
     cruises,
   };

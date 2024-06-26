@@ -6,11 +6,7 @@ const pools = require("../../dbHandlers/dbPools");
 const { safePath } = require("../../utility/objectUtils");
 const logInit = require("../../log-service");
 const moduleLogger = logInit("controllers/catalog/getProgramDatasets");
-
-const TEMP_TABLE = {
-  'Test': [156,157,238]
-};
-
+const cacheAsync = require("../../utility/cacheAsync");
 
 // :: () -> [error, [Program] ]
 // Program :: { id, name }
@@ -45,12 +41,6 @@ const listPrograms = async (reqId) => {
 const getDatasetIdsByProgramName = async (programName, reqId) => {
   const log = moduleLogger.setReqId (reqId);
 
-  const maybeData = TEMP_TABLE[programName];
-  if (maybeData) {
-    log.debug ('returning test data for program', programName);
-    return maybeData;
-  }
-
   const pool = await pools.dataReadOnlyPool;
   const request = new sql.Request(pool);
 
@@ -74,6 +64,61 @@ const getDatasetIdsByProgramName = async (programName, reqId) => {
     return [new Error ('no results returned')]
   }
 }
+
+// :: () -> { Dataset_ID: Set<Program_ID> }
+const getCrossOverDatasets = async (reqId) => {
+  const log = moduleLogger.setReqId (reqId);
+
+  const pool = await pools.dataReadOnlyPool;
+  const request = new sql.Request(pool);
+
+  let response;
+  try {
+    response = await request.query(`
+      SELECT * FROM tblDataset_Programs
+      WHERE Dataset_ID IN (
+        SELECT Dataset_ID FROM tblDataset_Programs
+        GROUP BY Dataset_ID
+        HAVING COUNT(Dataset_ID) >= 2
+      )`)
+  } catch (e) {
+    log.error ('error retrieving crossover datasets', { error: e });
+    return [e];
+  }
+
+  const result = safePath (['recordset']) (response);
+
+  if (Array.isArray(result)) {
+
+    const datasetsProgramsByDatasetId = result.reduce((acc, curr) => {
+      if (!curr) {
+        return acc;
+      }
+      const { Dataset_ID, Program_ID } = curr;
+
+      if (acc[Dataset_ID] && acc[Dataset_ID].add) {
+        acc[Dataset_ID].add (Program_ID);
+      } else {
+        acc[Dataset_ID] = new Set([Program_ID])
+      }
+      return acc;
+    }, {});
+
+    return [false, datasetsProgramsByDatasetId];
+  } else {
+    return [new Error ('no results returned')]
+  }
+}
+
+const oneDayInSeconds = 60 * 60 * 24;
+const cacheOptions = { ttl: oneDayInSeconds };
+const getCrossOverDatasetsWithCache = async () => {
+  const result = await cacheAsync ('CROSS_OVER_PROGRAM_DATASETS', getCrossOverDatasets, cacheOptions);
+  return [Boolean (result), result];
+};
+
+
+
 
 // :: [id] -> [err, [Dataset]]
 const getAllDatasets = async (datasetIds, reqId) => {
@@ -139,4 +184,6 @@ module.exports = {
   listPrograms,
   getDatasetIdsByProgramName,
   getAllDatasets,
+  getCrossOverDatasets,
+  getCrossOverDatasetsWithCache,
 };

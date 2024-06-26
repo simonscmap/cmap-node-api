@@ -29,7 +29,6 @@ const listCruisesForDatasetId = async (datasetId, reqId) => {
   });
 
   if (err) {
-    // return [err];
     throw new Error (err);
   }
 
@@ -38,11 +37,8 @@ const listCruisesForDatasetId = async (datasetId, reqId) => {
     return transformedResult;
   } else {
     return null;
-    throw new Error ('no records returned')
-    return [new Error ('no records returned')]
   }
 }
-
 
 const cruisesForDatasetList = async (datasetIds, reqId) => {
   const log = moduleLogger.setReqId (reqId);
@@ -55,7 +51,7 @@ const cruisesForDatasetList = async (datasetIds, reqId) => {
     log.error ('error while fetching curises for dataset list', { error: e })
   }
 
-  const map = {};
+  const map = {}; // { Dataset_ID: [cruiseIds] }
   const list = new Set();
   results.forEach ((result, index) => {
     if (result) {
@@ -68,6 +64,33 @@ const cruisesForDatasetList = async (datasetIds, reqId) => {
   });
 
   return [null, { map, list: Array.from(list) }];
+};
+
+const fetchDatasetsForCruises = async (cruiseIds, reqId) => {
+  const queryString = `
+    SELECT Dataset_ID, Cruise_ID FROM tblDataset_Cruises
+    WHERE Cruise_ID IN (${cruiseIds.join (', ')})
+  `;
+  const [err, result] = await makeDataQuery (queryString, reqId, {
+    operationName: 'fetch datasets for cruises'
+  });
+
+  if (err) {
+    return [err];
+  } else {
+    const map = result.reduce ((acc, curr) => {
+      const { Dataset_ID, Cruise_ID } = curr;
+      if (acc[Cruise_ID]) {
+        acc[Cruise_ID].add (Dataset_ID);
+      } else {
+        acc[Cruise_ID] = new Set ([Dataset_ID])
+      }
+      return acc;
+    }, {})
+
+    return [false, map];
+  }
+
 };
 
 
@@ -344,4 +367,5 @@ module.exports = {
   cruisesForDatasetList,
   fetchAllCruises,
   fetchAllTrajectories,
+  fetchDatasetsForCruises,
 };
