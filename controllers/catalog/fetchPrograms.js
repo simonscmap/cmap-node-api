@@ -117,7 +117,40 @@ const getCrossOverDatasetsWithCache = async () => {
   return [Boolean (result), result];
 };
 
+const getAllDatasetShortNames = async (datasetIds, reqId) => {
+  const log = moduleLogger.setReqId (reqId);
 
+  if (!Array.isArray (datasetIds)) {
+    log.error ('received wrong argument to getAllDatasetShortNames')
+    return [new Error ('wrong argument type')];
+  }
+
+  const pool = await pools.dataReadOnlyPool;
+  const request = new sql.Request(pool);
+
+  let response;
+  try {
+    response = await request.query(`
+      SELECT ID, Dataset_Name FROM tblDatasets
+      WHERE ID IN (${datasetIds.join(',')})`)
+  } catch (e) {
+    log.error ('error retrieving supplemental dataset names', { error: e });
+    return [e];
+  }
+
+  const result = safePath (['recordset']) (response)
+  if (!result) {
+    return [true, null];
+  } else {
+    const returnValue = result.reduce ((acc, curr) => {
+      acc[curr.ID] = curr.Dataset_Name;
+      return acc;
+    }, {})
+
+    console.log (returnValue);
+    return [false, returnValue];
+  }
+};
 
 
 // :: [id] -> [err, [Dataset]]
@@ -184,6 +217,7 @@ module.exports = {
   listPrograms,
   getDatasetIdsByProgramName,
   getAllDatasets,
+  getAllDatasetShortNames,
   getCrossOverDatasets,
   getCrossOverDatasetsWithCache,
 };

@@ -18,6 +18,7 @@ const {
   listPrograms,
   getDatasetIdsByProgramName,
   getAllDatasets,
+  getAllDatasetShortNames,
   getCrossOverDatasetsWithCache,
 } = require('./fetchPrograms');
 const {
@@ -1414,8 +1415,6 @@ module.exports.programData = async (req, res, next) => {
     return next (errors);
   }
 
-
-
   // get cruises for each dataset
   const [cruiseMapErr, cruisesResult] = await cruisesForDatasetList (datasetIds, req.requestId);
 
@@ -1429,7 +1428,6 @@ module.exports.programData = async (req, res, next) => {
   Object.keys(datasets).forEach ((id) => {
     if (datasets[id]) {
       if (cruiseMap[id]) {
-        // console.log (`associating dataset ${id} with cruise ${cruiseMap[id].ID}`)
         datasets[id].cruises = cruiseMap[id];
       } else {
         datasets[id].cruises = [];
@@ -1449,16 +1447,35 @@ module.exports.programData = async (req, res, next) => {
   const [errCDs, cruiseToDatasetMap] = await fetchDatasetsForCruises (cruiseList, req.requestId);
 
 
+  const missingDatasetIds = Array.from(
+    new Set(
+      Object.values(cruiseToDatasetMap).reduce ((acc, curr) => {
+        for (let c of curr) {
+          acc.push (c); // our version of node does not support Set.pototype.union ()
+        }
+        return acc;
+      }, [])
+    )
+  );
+
+  const [errSup, supplementalDatasetNames] = await getAllDatasetShortNames (missingDatasetIds, req.requestId);
+
+
+  // emend cruises object
+  // add cruises.datasets with array of dataset metadata, including programs associated with the dataset
   if (crossoverDatasets && cruiseToDatasetMap) {
     const cruiseToDatasetWithPrograms = Object.keys(cruiseToDatasetMap).reduce((acc, cId) => {
       const datasetSet = cruiseToDatasetMap[cId];
 
       const matchingDatasetPrograms = Array.from (datasetSet).map ((dId) => ({
         datasetId: dId,
-        datasetShortName: datasets && datasets[dId] && datasets[dId].Dataset_Name,
-        programIds: crossoverDatasets && crossoverDatasets[dId] && Array.from (crossoverDatasets[dId]),
+        datasetShortName: (datasets && datasets[dId] && datasets[dId].Dataset_Name)
+         || supplementalDatasetNames && supplementalDatasetNames[dId],
+        programIds: crossoverDatasets && crossoverDatasets[dId]
+                 && Array.from (crossoverDatasets[dId]),
         programNames: crossoverDatasets && crossoverDatasets[dId]
-                   && Array.from (crossoverDatasets[dId]).map((pId) => resultLP && resultLP[pId] && resultLP[pId].name),
+                   && Array.from (crossoverDatasets[dId])
+                           .map((pId) => resultLP && resultLP[pId] && resultLP[pId].name),
       })).filter((x) => x && x.programIds && x.programIds.length);
 
       acc[cId] = matchingDatasetPrograms;
