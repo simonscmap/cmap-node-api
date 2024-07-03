@@ -147,7 +147,6 @@ const getAllDatasetShortNames = async (datasetIds, reqId) => {
       return acc;
     }, {})
 
-    console.log (returnValue);
     return [false, returnValue];
   }
 };
