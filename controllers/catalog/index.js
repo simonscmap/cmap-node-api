@@ -27,9 +27,6 @@ const {
   fetchAllTrajectories,
   fetchDatasetsForCruises,
 } = require('./fetchCruises');
-// const cacheAsync = require("../../utility/cacheAsync");
-// const fetch = require('isomorphic-fetch');
-// const fetchDataset = require('./fetchDataset');
 const logInit = require("../../log-service");
 const moduleLogger = logInit("controllers/catalog");
 
