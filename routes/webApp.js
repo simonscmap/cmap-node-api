@@ -32,7 +32,8 @@ router.get("/visualization", sendSPA);
 router.get("/visualization/charts", sendSPA);
 router.get("/visualization/cruises", sendSPA);
 router.get("/datasubmission/guide", sendSPA);
-router.get("/datasubmission/validationtool", sendSPA);
+router.get("/datasubmission/validationtool", sendSPA); // deprecated, but don't 404
+router.get("/datasubmission/submission-portal", sendSPA);
 router.get("/datasubmission/userdashboard", sendSPA);
 router.get("/datasubmission/admindashboard", sendSPA);
 router.get("/datasubmission/nominate-data", sendSPA);
