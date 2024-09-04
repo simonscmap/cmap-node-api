@@ -16,14 +16,16 @@ const removeWhitespaceAndTruncate = (str = '') => {
   }
 }
 
-// directQuery
-// utility function to bootstrap a query to Rainier (not through the data router)
-// :: String -> Options{} -> Logger -> [ Error?, Result ]
+/* directQuery
+ * utility function to bootstrap a query directly,
+ * (not through the data router)
+ * :: String -> Options{} -> Logger -> [ Error?, Result ]
+ */
 const directQuery = async (queryString, options = {}, logger = moduleLogger) => {
 
   let pool;
   if (options.poolName) {
-    if (pools[optionsPoolName]) {
+    if (pools[options.poolName]) {
       pool = await pools[options.poolName];
     } else {
       logger.warn (`could not resolve requested pool, using default`, { options })

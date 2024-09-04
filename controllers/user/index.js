@@ -22,19 +22,19 @@ const createSubscription = require("./createSubscription");
 const deleteSubscriptions = require("./deleteSubscriptions");
 
 module.exports = {
-  addCartItem,
+  addCartItem, // TODO deprecate this
   changeEmail,
   changePassword,
   choosePassword,
-  clearCart,
+  clearCart, // TODO deprecate this
   contactUs,
   forgotPassword,
   generateAPIKey,
-  getCart,
+  getCart, // TODO deprecate this
   getGuestToken,
   googleAuth,
   lastApiCall,
-  removeCartItem,
+  removeCartItem, // TODO deprecate this
   retrieveAPIKeys,
   signIn,
   signOut,

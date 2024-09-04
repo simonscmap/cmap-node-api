@@ -7,7 +7,9 @@ const moduleLogger = logInit("controllers/catalog");
 const fetch = async () => {
   let log = moduleLogger;
   const query = "SELECT Dataset_Name, Dataset_Long_Name, ID FROM tblDatasets";
-  const options = { description: "get a full list of short names"};
+  const options = {
+    description: "get a full list of short names"
+  };
   const [err, resp] = await directQuery (query, options, log);
   if (err) {
     return [err, []]; // return empty list if error
