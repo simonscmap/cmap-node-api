@@ -22,6 +22,11 @@ const transformDatasetListToMap = (recordset) => {
   return map;
 };
 
+/* NOTE: fetchDataset list always reads from 'dataReadOnlyPool'
+ * which traces back to Rainier 128.208.239.16
+ * that means that if the calling routine needs a server-local id
+ * for a different server, there could be a mismatch
+ */
 const fetchDatasetList = async () => {
   let pool;
   try {
@@ -31,7 +36,7 @@ const fetchDatasetList = async () => {
     return [true, []];
   }
 
-  let request = await new sql.Request(pool);
+  let request = new sql.Request(pool);
   let q = 'select id, dataset_name from tblDatasets';
   let result;
   try {
@@ -79,3 +84,22 @@ const getDatasetId = async (shortname, log) => {
 }
 
 module.exports.getDatasetId = getDatasetId;
+
+const getServerLocalDatasetId = (serverName) => async (shortName, log) => {
+  // 1. get correct pool for server
+  let pool;
+  try {
+    pool = await pools[serverName];
+  } catch (e) {
+    log.error("attempt to connect to pool failed", { error: e });
+    return null;
+  }
+  // 2. get id
+  const request = new sql.Request(pool);
+  request.input ('shortName', sql.VarChar, shortName);
+  const query = 'SELECT id, dataset_name FROM tblDatasets WHERE dataset_name = @shortName';
+
+  // TODO execute query and return result
+};
+
+module.exports.getServerLocalDatasetId = getServerLocalDatasetId;

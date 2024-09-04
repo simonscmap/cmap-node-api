@@ -1,6 +1,7 @@
 const sql = require("mssql");
 const nodeCache = require("../../utility/nodeCache");
 const queryHandler = require("../../utility/queryHandler");
+const directQuery = require("../../utility/directQuery");
 const { coerceTimeMinAndMax } = require("../../utility/download/coerce-to-iso");
 const { safePath } = require("../../utility/objectUtils");
 const pools = require("../../dbHandlers/dbPools");
@@ -14,6 +15,7 @@ const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
 const datasetVisualizableVariables = require('./datasetVisualizableVariables');
 const sampleVisualization = require('./variableSampleVisualization');
+const datasetShortNamesFullList = require ('./datasetShortNamesFullList');
 const {
   listPrograms,
   getDatasetIdsByProgramName,
@@ -45,20 +47,11 @@ module.exports.retrieve = async (req, res, next) => {
   queryHandler(req, res, next, "EXEC uspCatalog", true);
 };
 
-// No longer used by web app
-module.exports.datasets = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId)
-
-  log.error("deprecated", {
-    route: req.originalUrl,
-    controller: "catalog.datasets",
-  });
-  queryHandler(req, res, next, "SELECT * FROM tblDatasets", true);
-};
+module.exports.datasetShortNamesFullList = datasetShortNamesFullList.controller;
 
 module.exports.description = async (req, res) => {
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  const pool = await pools.dataReadOnlyPool;
+  const request = new sql.Request(pool);
 
   let query =
     "SELECT Description FROM [Opedia].[dbo].[tblDatasets] WHERE ID = 1";

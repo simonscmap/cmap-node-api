@@ -17,6 +17,9 @@ const signUp = require("./signUp");
 const updateInfo = require("./updateInfo");
 const validate = require("./validate");
 const lastApiCall = require("./lastApiCall");
+const getSubscriptions = require("./getSubscriptions");
+const createSubscription = require("./createSubscription");
+const deleteSubscriptions = require("./deleteSubscriptions");
 
 module.exports = {
   addCartItem,
@@ -38,4 +41,7 @@ module.exports = {
   signUp,
   updateInfo,
   validate,
+  getSubscriptions,
+  createSubscription,
+  deleteSubscriptions,
 }

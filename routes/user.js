@@ -115,4 +115,22 @@ router.get (
   asyncControllerWrapper(userController.lastApiCall)
 );
 
+router.get (
+  "/subscriptions",
+  passport.authenticate("jwt", { session: false }),
+  asyncControllerWrapper(userController.getSubscriptions)
+);
+
+router.post (
+  "/subscriptions",
+  passport.authenticate("jwt", { session: false }),
+  asyncControllerWrapper(userController.createSubscription)
+);
+
+router.delete (
+  "/subscriptions",
+  passport.authenticate("jwt", { session: false }),
+  asyncControllerWrapper(userController.deleteSubscriptions)
+);
+
 module.exports = router;

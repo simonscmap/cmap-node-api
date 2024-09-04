@@ -1,5 +1,5 @@
 const category = require('./category');
-const create = require('./createF');
+const create = require('./create');
 const draft = require('./draft');
 const list = require('./list');
 const preview = require('./preview');
