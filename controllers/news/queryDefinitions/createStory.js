@@ -137,7 +137,7 @@ let createStoryQueryDefinition = {
     },
     {
       vName: "Status_ID",
-      sqlType: sql.INT,
+      sqlType: sql.Int,
       defaultTo: 0,
       resolver: compose (S.Right) (compose (fromMaybe (0)) (
         gets (is ($.Integer)) (["body", "story", "Status_ID"]),

@@ -3,6 +3,7 @@ const multer = require("multer");
 const passport = require("../middleware/passport");
 const upload = multer();
 const newsRoutes = require("./news");
+const notificationsRoutes = require("./notifications");
 const userRoutes = require("./user");
 const dataRoutes = require("./data");
 const catalogRoutes = require("./catalog");
@@ -74,6 +75,7 @@ const logRouteComplete = (req, res, next) => {
 router.use(saveCall);
 
 router.use("/news", newsRoutes);
+router.use("/notifications", notificationsRoutes);
 router.use("/user", userRoutes);
 router.use("/data", dataRoutes);
 router.use("/catalog", catalogRoutes);

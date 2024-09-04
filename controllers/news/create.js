@@ -14,36 +14,40 @@ const log = initializeLogger("controllers/news/create");
      thus creating a news story will never publish it, that must be a
      separate action
 
-   Dates:
-
  */
 
-let query = `INSERT INTO [Opedia].[dbo].[tblNews]
-      (ID, headline, link, body, date, rank, view_status, create_date, UserID)
+const query = `INSERT INTO [Opedia].[dbo].[tblNews]
+      (id, headline, link, label, body, date, rank, view_status, create_date, UserID, Status_ID)
+      OUTPUT Inserted.ID
       VALUES (
          @ID
        , @headline
        , @link
+       , @label
        , @body
        , @date
        , @rank
        , @view_status
        , @create_date
        , @UserId
+       , @statusId
       )`;
 
 const requiredKeys = [
-  "id",
+  // "id",
   "headline",
+  // "label",
   "link",
   "body",
   "date",
-  "rank",
-  "viewStatus",
+  // "rank", // ranks are set on update, not on create
+  // "view_status", // view_status is set to 0 on create, and updated later
+  // "statusId", // not required, default to 0
+  "tags",
 ];
 
 module.exports = async (req, res) => {
-  log.info("request for create news story", { reqBody: req.body });
+  log.info("request for create news story", { ...req.body });
 
   if (!req.body.story) {
     log.warn("no data provided", { reqBody: req.body });
@@ -68,7 +72,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  let { id, headline, link, body, date, rank, viewStatus } = story;
+  let { headline, link, label = '', body, date, rank, view_status = 2, Status_ID = 0, tags } = story;
   let createDate = new Date().toISOString();
 
   let parsedBody;
@@ -86,23 +90,43 @@ module.exports = async (req, res) => {
 
   log.trace("inserting new news item");
 
-  let pool = await pools.userReadAndWritePool;
-  let request = new sql.Request(pool);
+  // get the last id
+  const readPool = await pools.dataReadOnlyPool;
+  const idReq = new sql.Request(readPool);
+
+  let nextId;
+  try {
+    const resp = await idReq.query (`SELECT TOP 1 ID FROM tblNews ORDER BY ID DESC`);
+    if (resp.recordset[0].ID) {
+      nextId = 1 + resp.recordset[0].ID;
+    }
+  } catch (e) {
+    log.error("error preparing new news item", { error: e });
+    res.status(500).send("Error creating news item");
+    return;
+  }
+
+  // create insert query
+  const writePool = await pools.userReadAndWritePool;
+  const request = new sql.Request(writePool);
 
   // input
-  request.input("ID", sql.Int, id);
+  request.input("ID", sql.Int, nextId);
   request.input("headline", sql.NVarChar, headline);
   request.input("link", sql.NVarChar, link);
+  request.input("label", sql.VarChar, label);
   request.input("body", sql.NVarChar, parsedBody);
   request.input("date", sql.NVarChar, date);
   request.input("rank", sql.Int, rank);
-  request.input("view_status", sql.Int, viewStatus);
+  request.input("view_status", sql.Int, view_status);
   request.input("create_date", sql.DateTime, createDate);
   request.input("UserId", sql.Int, req.user.id);
+  request.input("statusId", sql.Int, Status_ID);
 
   let result;
 
   try {
+    log.trace ('executing news insert', query)
     result = await request.query(query);
   } catch (e) {
     log.error("error inserting new news item", { error: e });
@@ -110,13 +134,32 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (result) {
+  if (!result) {
+    log.error("unknown error creating news item");
+    res.sendStatus(500);
+    return;
+  } else {
     log.info("success creating news item", { result });
     res.status(200).send(result.recordset);
+  }
+
+  log.trace("inserting news item's tagged datasets", { result, tags, nextId });
+
+  const tagRequest = new sql.Request (writePool);
+  const template = (newsId, datasetName) =>
+        `INSERT INTO tblNews_Datasets (News_ID, Dataset_ID)
+         SELECT ${newsId}, ID FROM tblDatasets
+         WHERE Dataset_Name='${datasetName}';`;
+  const tagInsertQuery = tags.map ((tag) => template (nextId, tag)).join (' ');
+
+  let tagInsertResp;
+  try {
+    tagInsertResp = await tagRequest.query (tagInsertQuery);
+  } catch (e) {
+    log.error("error inserting news item tags", { error: e });
     return;
   }
 
-  log.error("unknown error creating news item");
-  res.sendStatus(500);
+  log.info("success inserting news tags", tagInsertResp);
   return;
 };

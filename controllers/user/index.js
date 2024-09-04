@@ -17,25 +17,31 @@ const signUp = require("./signUp");
 const updateInfo = require("./updateInfo");
 const validate = require("./validate");
 const lastApiCall = require("./lastApiCall");
+const getSubscriptions = require("./getSubscriptions");
+const createSubscription = require("./createSubscription");
+const deleteSubscriptions = require("./deleteSubscriptions");
 
 module.exports = {
-  addCartItem,
+  addCartItem, // TODO deprecate this
   changeEmail,
   changePassword,
   choosePassword,
-  clearCart,
+  clearCart, // TODO deprecate this
   contactUs,
   forgotPassword,
   generateAPIKey,
-  getCart,
+  getCart, // TODO deprecate this
   getGuestToken,
   googleAuth,
   lastApiCall,
-  removeCartItem,
+  removeCartItem, // TODO deprecate this
   retrieveAPIKeys,
   signIn,
   signOut,
   signUp,
   updateInfo,
   validate,
+  getSubscriptions,
+  createSubscription,
+  deleteSubscriptions,
 }

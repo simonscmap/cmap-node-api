@@ -1,0 +1,29 @@
+<table>
+  <tr>
+    <td style="padding: 0 0 10px 0">
+      <p>
+        The following news item has just been posted on simonscmap.com:
+      </p>
+    </td>
+  </tr>
+ <tr>
+    <td style="padding: 10px 0 0 0">
+      <p>
+        {{ headline }}
+      </p>
+      <p>
+        {{#body}}
+          {{#text}}
+            {{{text}}}
+          {{/text}}
+          {{#open}}
+            <{{{open}}}>
+          {{/open}}
+          {{#close}}
+            </{{close}}>
+          {{/close}}
+        {{/body}}
+      </p>
+    </td>
+ </tr>
+</table>

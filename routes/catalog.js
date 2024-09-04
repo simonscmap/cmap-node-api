@@ -12,7 +12,7 @@ router.get('/cruisefullpage', asyncControllerWrapper(catalogController.cruiseFul
 router.get('/cruisesfromdataset', asyncControllerWrapper(catalogController.cruisesFromDataset));
 router.get('/datasetfullpage', asyncControllerWrapper(catalogController.datasetFullPage));
 router.get('/datasetmetadata', asyncControllerWrapper(catalogController.datasetMetadata));
-router.get('/datasets', asyncControllerWrapper(catalogController.datasets));
+router.get('/dataset-names', asyncControllerWrapper(catalogController.datasetShortNamesFullList));
 router.get('/datasetsfromcruise', asyncControllerWrapper(catalogController.datasetsFromCruise));
 router.get('/datasetsummary', asyncControllerWrapper(catalogController.datasetSummary));
 router.get('/datasetvariables', asyncControllerWrapper(catalogController.datasetVariables));

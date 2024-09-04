@@ -38,4 +38,14 @@ const safePath = (path) => (obj) => {
   return maybeValueAtPath;
 }
 
-module.exports = { safePath };
+const safePathOr = (defaultValue) => (pred) => (path) => (obj) => {
+  const result = safePath (path) (obj);
+  if (pred(result)) {
+    return result;
+  } else {
+    return defaultValue;
+  }
+}
+
+
+module.exports = { safePath, safePathOr };

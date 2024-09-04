@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
 
 
   if (!result.rowsAffected || !result.rowsAffected[0]) {
-    log.error("failed to update user info", { rowsAffected: lresult.rowsAffected, userId: user.id })
+    log.error("failed to update user info", { rowsAffected: result.rowsAffected, userId: user.id })
     return res.sendStatus(500);
   }
   res.cookie("UserInfo", JSON.stringify(user.makeSafe()), {

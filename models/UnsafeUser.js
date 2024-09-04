@@ -34,6 +34,8 @@ module.exports = class UnsafeUser {
       Boolean(userInfo.Is_Data_Submission_Admin) ||
       Boolean(userInfo.isDataSubmissionAdmin) ||
       false;
+    this.isNewsSubscribed =
+      Boolean (userInfo.News_Subscribed) || Boolean (userInfo.isNewsSubscribed);
   }
 
   static async getUserByUsername(username) {
@@ -148,6 +150,7 @@ module.exports = class UnsafeUser {
       id: this.id,
       username: this.username,
       isDataSubmissionAdmin: this.isDataSubmissionAdmin,
+      isNewsSubscribed: this.isNewsSubscribed,
     };
 
     return safeUser;
@@ -213,12 +216,16 @@ module.exports = class UnsafeUser {
 
   // Update method for less-sensitive information shown on the front end user profile
   async updateUserProfile() {
-    console.log(this);
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
     let query = `UPDATE ${userTable}
-                 SET FirstName = @firstname, FamilyName = @familyname, Institute = @institute, Department = @department, Country = @country
+                 SET FirstName = @firstname,
+                     FamilyName = @familyname,
+                     Institute = @institute,
+                     Department = @department,
+                     Country = @country,
+                     News_Subscribed = @newsSubscribed
                  WHERE UserID = @id`;
 
     request.input("firstname", sql.NVarChar, this.firstName);
@@ -226,6 +233,7 @@ module.exports = class UnsafeUser {
     request.input("institute", sql.NVarChar, this.institute);
     request.input("department", sql.NVarChar, this.department);
     request.input("country", sql.NVarChar, this.country);
+    request.input("newsSubscribed", sql.Bit, this.isNewsSubscribed);
     // user id is stored as in integer
     request.input("id", sql.VarChar, `${this.id}`);
 
@@ -266,6 +274,7 @@ module.exports = class UnsafeUser {
   }
 
   getJWTPayload() {
+    log.debug ('getJWTPayload', { sub: this.id });
     return {
       iss,
       sub: this.id,

@@ -12,6 +12,11 @@ const dataRetrievalRoutes = require("./routes/dataRetrieval");
 const ApiCallDetails = require("./models/ApiCallDetail");
 const { v4: uuidv4 } = require('uuid');
 
+const { monitor } = require ('./mail-service/checkBouncedMail');
+
+// on startup, check for bounced mail
+monitor ();
+
 const log = createNewLogger().setModule("app.js").addContext(['node_version', process.version ]);
 
 const app = express();

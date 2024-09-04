@@ -164,6 +164,10 @@ SELECT * FROM tblCruise
             WHERE Dataset_ID=${datasetId}
         )
     )
+--
+SELECT * FROM tblNews_Datasets nd
+INNER JOIN tblNews ns ON ID = News_ID
+WHERE Dataset_ID = ${datasetId};
   `;
 };
 
