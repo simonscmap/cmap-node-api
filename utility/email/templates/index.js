@@ -9,6 +9,9 @@ const notifyUserOfReceiptOfNewDataSubmission = require('./notifyUserOfReceiptOfN
 const notifyUserOfReceiptOfUpdatedDataSubmission = require('./notifyUserOfReceiptOfUpdatedDataSubmission');
 const userResetPassword = require('./userResetPassword');
 const signupConfirmEmail = require('./signupConfirmEmail');
+//
+const generalNewsNotification = require('./generalNewsNotification');
+
 
 const templates = {
   signupConfirmEmail,
@@ -22,6 +25,8 @@ const templates = {
   notifyUserAwaitingDOI,
   notifyUserIngestionComplete,
   notifyAdminQC1Complete,
+  // news & dataset notifications
+  generalNewsNotification,
 }
 
 module.exports = templates;

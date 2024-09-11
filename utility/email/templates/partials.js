@@ -16,6 +16,7 @@ let partialsNames = [
   'notifyAdminQC1Complete',
   'userResetPassword',
   'signupConfirmEmail',
+  'generalNewsNotification',
 ];
 
 // read in email templates and export them as strings

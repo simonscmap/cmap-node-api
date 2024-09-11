@@ -17,6 +17,8 @@ const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper"
 let passportMethods = ["headerapikey", "jwt"];
 let passportOptions = { session: false };
 
+
+
 // history
 router.get ("/history",
             passport.authenticate (passportMethods, passportOptions),
@@ -24,6 +26,20 @@ router.get ("/history",
             asyncControllerWrapper (controllers.history)
            );
 
+// project recipients
+
+router.get ("/recipients",
+            passport.authenticate (passportMethods, passportOptions),
+            checkAdminAuth,
+            asyncControllerWrapper (controllers.recipients.controller)
+           );
+
+// send
+router.get ("/preview",
+             passport.authenticate (passportMethods, passportOptions),
+             checkAdminAuth,
+             asyncControllerWrapper (controllers.preview)
+            );
 // send
 router.post ("/send",
              passport.authenticate (passportMethods, passportOptions),

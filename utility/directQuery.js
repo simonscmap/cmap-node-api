@@ -28,7 +28,10 @@ const directQuery = async (queryString, options = {}, logger = moduleLogger) => 
     if (pools[options.poolName]) {
       pool = await pools[options.poolName];
     } else {
-      logger.warn (`could not resolve requested pool, using default`, { options })
+      logger.warn (`could not resolve requested pool, using default`, {
+        options,
+        pools
+      })
       pool = await pools.dataReadOnlyPool;
     }
   } else {

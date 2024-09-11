@@ -11,7 +11,9 @@ module.exports = async (req, res) => {
 
   request.input("userID", sql.Int, req.user.id);
 
-  const query = `SELECT * from tblDataset_Subscribers
+  const query = `SELECT ds.User_ID, ds.Dataset_ID, ds.Dataset_Name, d.Dataset_Long_Name
+                 FROM tblDataset_Subscribers ds
+                 JOIN tblDatasets d ON d.ID = ds.Dataset_ID
                  WHERE User_ID = @userID`;
 
   let response;
