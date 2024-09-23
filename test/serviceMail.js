@@ -62,7 +62,7 @@ test("service mail rejects throw", () => {
   let sendF = Future.attemptP(send);
 
   return new Promise((resolve, reject) => {
-    // expect this to rejectd
+    // expect this to reject
     Future.fork(resolve)(reject)(sendF);
   });
 });

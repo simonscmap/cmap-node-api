@@ -1,7 +1,7 @@
 // General News Notification
 const Mustache = require("mustache");
 const baseNewsTemplate = require("./base-news-template");
-const { generalNewsNotification } = require("./partials");
+const { datasetUpdateNotification } = require("./partials");
 
 const isProduction = process.env.NODE_ENV === "production";
 const domain = isProduction
@@ -13,14 +13,14 @@ const render = ({ headline, body, tags, emailId }) => {
   return Mustache.render(
     baseNewsTemplate,
     {
-      messageTitle: "Simons CMAP News",
+      messageTitle: "Simons CMAP Dataset Update",
       headline,
       body,
       tags,
       emailId,
     },
     {
-      messageBody: generalNewsNotification,
+      messageBody: datasetUpdateNotification,
     }
   );
 };

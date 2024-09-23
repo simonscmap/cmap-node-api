@@ -24,9 +24,6 @@ const toTag = (specialChar) => {
 
 const tail = (arr) => arr.length ? arr[arr.length - 1] : null;
 
-const open = (tag) => tags[tag] ? ({ open: tags[tag] }) : undefined;
-const close = (tag) => tags[tag] ? ({ close: tags[tag] }) : undefined;
-
 // char
 const isMarkup = (c) => special.includes (c);
 
@@ -59,7 +56,6 @@ const prepareLinks = (body) => {
     agg.push (preppedLink);
   }
 
-  console.log ('prepared links', agg);
   return agg;
 }
 
@@ -140,9 +136,7 @@ const preRenderBody = (body, log) => {
     i++;
   } // end while loop
 
-  console.log ('preRenderBody result', aggregator);
-
-  return [false, aggregator]
+  return [false, aggregator];
 };
 
 

@@ -6,6 +6,6 @@ const recipients = require ('./recipients');
 module.exports = {
   history,
   send,
-  preview,
+  preview: preview.controller,
   recipients,
 };

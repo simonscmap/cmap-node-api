@@ -4,7 +4,7 @@ const draft = require('./draft');
 const list = require('./list');
 const preview = require('./preview');
 const publish = require('./publish');
-const update = require('./update');
+const update = require('./update_');
 const updateRanks = require('./updateRanks');
 const unpublish = require('./unpublish');
 

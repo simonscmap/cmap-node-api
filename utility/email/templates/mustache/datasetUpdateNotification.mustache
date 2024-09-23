@@ -1,0 +1,35 @@
+<table>
+  <tr>
+    <td style="padding: 0 0 10px 0">
+      <p>
+        There is an update regarding a dataset you've subscribed to.
+      </p>
+    </td>
+  </tr>
+ <tr>
+    <td style="padding: 10px 0 0 0">
+      <p>
+        {{ headline }}
+      </p>
+      <p>
+        {{#body}}
+          {{#text}}
+            {{{text}}}
+          {{/text}}
+          {{#open}}
+            <{{{open}}}>
+          {{/open}}
+          {{#close}}
+            </{{close}}>
+          {{/close}}
+        {{/body}}
+      </p>
+      <p>
+        {{#tags}}
+          <span>{{Dataset_Name}}</span>
+        {{/tags}}
+      </p>
+
+    </td>
+ </tr>
+</table>

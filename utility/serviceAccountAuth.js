@@ -11,7 +11,11 @@ const generateJWTAuth = () =>
   new google.auth.JWT({
     subject: "no-reply@simonscmap.com",
     keyFile: KEY_FILE_PATH,
-    scopes: ["https://www.googleapis.com/auth/gmail.send"],
+    scopes: [
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ],
   });
 
 const generateGmailClient = (auth) =>

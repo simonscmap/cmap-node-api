@@ -11,6 +11,7 @@ const userResetPassword = require('./userResetPassword');
 const signupConfirmEmail = require('./signupConfirmEmail');
 //
 const generalNewsNotification = require('./generalNewsNotification');
+const datasetUpdateNotification = require ('./datasetUpdateNotification');
 
 
 const templates = {
@@ -27,6 +28,7 @@ const templates = {
   notifyAdminQC1Complete,
   // news & dataset notifications
   generalNewsNotification,
+  datasetUpdateNotification,
 }
 
 module.exports = templates;

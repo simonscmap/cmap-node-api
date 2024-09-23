@@ -17,6 +17,7 @@ let partialsNames = [
   'userResetPassword',
   'signupConfirmEmail',
   'generalNewsNotification',
+  'datasetUpdateNotification',
 ];
 
 // read in email templates and export them as strings

@@ -24,6 +24,8 @@ const removeWhitespaceAndTruncate = (str = '') => {
 const directQuery = async (queryString, options = {}, logger = moduleLogger) => {
 
   let pool;
+
+  // allow caller to specify pool by name
   if (options.poolName) {
     if (pools[options.poolName]) {
       pool = await pools[options.poolName];
@@ -39,6 +41,11 @@ const directQuery = async (queryString, options = {}, logger = moduleLogger) => 
   }
 
   let request = new sql.Request(pool);
+
+  // allow caller to provide a function that sets query input
+  if (typeof options.input === 'function') {
+    options.input (request);
+  }
 
   let { description = '' } = options
 

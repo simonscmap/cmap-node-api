@@ -1,38 +1,25 @@
 const directQuery = require("../../utility/directQuery");
 const initializeLogger = require("../../log-service");
 const { safePath } = require("../../utility/objectUtils");
-const generateKey = require ("./generateKey")
 
 const moduleLogger = initializeLogger("controllers/notifications/recipients");
 // temprorary cache
 
-const cache = new Map ();
-
 // :: { tags, emailId } -> [ { userId, datasetId } ]
-const fetchProjected = async (args) => {
-  const log = moduleLogger;
-
-  const { tagSet } = args;
-
-  if (!Array.isArray(tagSet)) {
+const fetchProjected = async (tags, log = moduleLogger) => {
+  if (!Array.isArray(tags)) {
     return [true];
   }
 
-  const normalizedKey = generateKey (tagSet);
-
-  if (cache.has (normalizedKey)) {
-    // console.log ('cache hit for projected recipients', normalizedKey)
-    // return cache.get (normalizedKey);
-  }
-
-  const dl = tagSet.map (d => `'${d}'`).join (', ');
+  const dl = tags.map (d => `'${d}'`).join (', ');
   //
-  let query = 'SELECT UserID from tblUsers WHERE News_Subscribed=1';
+  let query = 'SELECT UserID, Email from tblUsers WHERE News_Subscribed=1';
 
-  if (tagSet.length) {
+  if (tags.length) {
     query += `
-    SELECT User_ID, Dataset_ID, Dataset_Name
+    SELECT User_ID, Dataset_ID, Dataset_Name, Email
     FROM tblDataset_Subscribers
+    JOIN tblUsers ON User_ID = UserID
     WHERE Dataset_Name IN (${dl});
     `;
   }
@@ -44,24 +31,29 @@ const fetchProjected = async (args) => {
 
   const [err, resp] = await directQuery (query, options, log);
 
-  log.debug ('result from recipient projection', { tags: tagSet, resp });
+  log.debug ('result from recipient projection', { tags, resp });
 
   if (err) {
     return [err, null];
   }
 
-  // TODO reconcile subscribed users with News Subscribers
   const result = safePath (['recordsets']) (resp)
+
+  // Normalize
+  const newsSubscribers = (result[0]).map (r =>
+    ({ userId: r.UserID, email: r.Email }))
+  const subscribed = (result[1] || []).map (r =>
+    ({ userId: r.User_ID, email: r.Email, datasetName: r.Dataset_Name }))
+
   if (result) {
     const payload = {
-      subscribed: result[1] || [],
-      newsSubscribers: result[0],
+      subscribed,
+      newsSubscribers,
     }
-    // cache.set (normalizedKey, payload);
     return [null, payload];
   }
 
-  log.debug ('no recordsets returned', { tagSet, result, resp });
+  log.debug ('no recordsets returned', { tags, result, resp });
   return [true, result];
 };
 
@@ -118,13 +110,18 @@ const controller = async (req, res) => {
   const payload = {};
   const errors = [];
 
+  const removeEmail = ({ userId, datasetName, email }) => ({ userId, datasetName })
+
   if (tagsArg) {
     log.debug ('fetching projection for tags', { tagsArg })
-    const [err, projection] = await fetchProjected ({ tagSet: tagsArg });
+    const [err, projection] = await fetchProjected (tagsArg, log);
     if (err) {
       errors.push (err);
     } else if (projection) {
-      payload.projection = projection;
+      payload.projection = {
+        subscribed: projection.subscribed.map (removeEmail),
+        newsSubscribers: projection.newsSubscribers.map (removeEmail),
+      }
     }
   }
 

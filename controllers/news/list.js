@@ -3,7 +3,8 @@ const pools = require("../../dbHandlers/dbPools");
 const datasetShortNamesFullList = require ('../catalog/datasetShortNamesFullList');
 const initializeLogger = require("../../log-service");
 
-let query = `SELECT TOP (1000) [ID]
+let query = `SELECT TOP (1000)
+       [ID] as id
       ,[headline]
       ,[link]
       ,[label]
@@ -26,7 +27,7 @@ const log = initializeLogger("controllers/news/list");
 const mergeResults = (newsItems, tags, datasetNames) => {
   return newsItems.map ((item) => {
     item.tags = tags
-      .filter ((t) => t.News_ID === item.ID)
+      .filter ((t) => t.News_ID === item.id)
       .map ((t) => {
         const d = datasetNames.find ((n) => n.ID === t.Dataset_ID);
         if (d) {

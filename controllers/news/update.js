@@ -23,6 +23,8 @@ let getDateFromReq = gets (is ($.String)) (["body", "story", "date"]);
 
 let getLabelFromReq = gets (is ($.String)) (["body", "story", "label"]);
 
+let getTagsFromReq = gets (is ($.Array ($.String))) (["tags"]);
+
 // Update News Item, Query Definition
 // Only used for updating the content of a news item
 // Use setRanks for updating rank, and
@@ -84,11 +86,11 @@ let updateQueryDefinition = {
       resolver: () => {
         return S.Right((new Date()).toISOString())
       }
-    }
-    // TODO: get user as well
+    },
   ]
 }
 
+// NOTE: generateController uses userReadAndWritePoll, i.e., rainier for now
 const controller = generateController(updateQueryDefinition);
 
 module.exports = controller;
