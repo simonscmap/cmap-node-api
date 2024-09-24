@@ -51,7 +51,7 @@ module.exports.datasets = async (req, res, next) => {
 
   log.error("deprecated", {
     route: req.originalUrl,
-    controller: "catalog.retrieve",
+    controller: "catalog.datasets",
   });
   queryHandler(req, res, next, "SELECT * FROM tblDatasets", true);
 };
@@ -216,6 +216,8 @@ module.exports.searchCatalog = async (req, res, next) => {
     });
   }
 
+  query += `\nAND ds.Dataset_Name <> 'z33P4nA1Raj'`
+
   if (hasDepth === "yes") {
     query += `\nAND aggs.Depth_Max is not null`;
   }
@@ -320,7 +322,6 @@ module.exports.datasetFullPage = async (req, res, next) => {
   let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
   let { shortname, id } = req.query;
   let pool = await pools.dataReadOnlyPool;
-
 
   let datasetId;
   if (id) {
