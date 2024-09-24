@@ -39,14 +39,14 @@ const taggedCoalesce = Future.coalesce (onTagFailure) (onTagSuccess);
 const bulkGetMail = (listResult) => {
   const messages = messagesOrEmptyArray (listResult);
 
-  console.log ('blkGetMail: messages', listResult)
+  // console.log ('blkGetMail: messages', listResult)
 
   const gmailClient = getGmailClient();
   const jobs = messages
         .map(({ id }) => Future.attemptP (() => gmailClient.users.messages.get ({
           userId: 'me',
           id,
-          format: 'raw',
+          // format: 'raw',
         })))
         .map ((f) => taggedCoalesce (f));
 

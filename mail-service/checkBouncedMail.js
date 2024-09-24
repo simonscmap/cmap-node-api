@@ -59,8 +59,19 @@ const queryGmail = async () => {
 // get intended recipient and an emailId
 const parseMessage = (message) => {
   const { data } = message;
+
   try {
-    const { raw, snippet } = data;
+    const { snippet, payload } = data;
+    const { headers, parts } = payload;
+
+
+
+    console.log (payload, { headers, parts});
+
+    headers.forEach (x => console.log ('header', x))
+    parts.forEach (x => console.log ('part', x));
+
+    return [true];
     const fullText = Buffer.from(raw, 'base64').toString('ascii');
 
     const emailIdRe = /<meta name="emailId".content="(\d+)" \/>/gi;
