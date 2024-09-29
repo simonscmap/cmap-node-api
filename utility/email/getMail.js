@@ -4,8 +4,12 @@ const initializeLogger = require("../../log-service");
 const { getGmailClient } = require("../serviceAccountAuth");
 
 const { safePathOr, safePath } = require("../objectUtils");
+
 const messagesOrEmptyArray = safePathOr ([]) (Array.isArray) (['data', 'messages']);
 
+const messageData = safePathOr ({}) (x => x && x.id) (['data']);
+
+const { map, chain, parallel, attemptP, coalesce, resolve } = Future;
 
 let log = initializeLogger("utility/email/getMail");
 
@@ -28,39 +32,53 @@ const listServiceMail = (args = {}) => {
     // pageToken
     // labelIds
     // includeSpamTrash
-  }));
+  }))
+    .pipe(map (messagesOrEmptyArray)); // get data.messages from response
 };
 
-
-const onTagFailure = (payload) => ({ success: false, ...payload });
-const onTagSuccess = (payload) => ({ success: true, ...payload });
-const taggedCoalesce = Future.coalesce (onTagFailure) (onTagSuccess);
+const onTagFailure = (payload) => ({ success: false, ...messageData (payload) });
+const onTagSuccess = (payload) => ({ success: true, ...messageData (payload) });
+const taggedCoalesce = coalesce (onTagFailure) (onTagSuccess);
 
 const bulkGetMail = (listResult) => {
-  const messages = messagesOrEmptyArray (listResult);
-
-  // console.log ('blkGetMail: messages', listResult)
-
+  log.debug ('fetching bulk mail')
   const gmailClient = getGmailClient();
-  const jobs = messages
-        .map(({ id }) => Future.attemptP (() => gmailClient.users.messages.get ({
-          userId: 'me',
-          id,
-          // format: 'raw',
-        })))
+  const getMessage = ({ id }) =>
+        attemptP (() =>
+          gmailClient.users.messages.get ({
+            userId: 'me',
+            id,
+          }));
+
+  const jobs = listMessages
+        .map(getMessage)
         .map ((f) => taggedCoalesce (f));
 
   return Future.parallel (5) (jobs);
 }
 
-const getServiceMail = (args = {}) => listServiceMail (args)
-      .pipe (Future.chain ((result) => {
-        if (result.status !== 200) {
-          return Future.reject (result)
-        } else {
-          return bulkGetMail (result);
-        }
-      }));
+const getMessageThread = (listMessage) => {
+  const  { threadId } = listMessage;
+  const gmailClient = getGmailClient();
+  return attemptP (() =>
+    gmailClient.users.threads.get ({ userId: 'me', id: threadId }));
+}
+
+const getThreads = (resultOfFetchMessages) =>
+      resolve (resultOfFetchMessages) // put result into a Future
+      .pipe (map ((messages) => messages.map (getMessageThread))) // turn results into array of jobs
+      .pipe (chain (parallel (5))); // execute jobs in parallel
+
+const getServiceMail = (args = {}) =>
+      listServiceMail (args)
+      .pipe (chain (bulkGetMail));
+
+
+const getServiceMailThreads = (args = {}) =>
+      listServiceMail (args)
+        .pipe (chain (getThreads))
+
 
 module.exports.listServiceMail = listServiceMail;
 module.exports.getServiceMail = getServiceMail;
+module.exports.getServiceMailThreads = getServiceMailThreads;

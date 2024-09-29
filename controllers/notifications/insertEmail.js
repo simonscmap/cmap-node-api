@@ -10,7 +10,11 @@ const query = `INSERT INTO tblEmail_Sent
   (@emailId, @newsId, @subject, @body, @date)`;
 
 const insertEmail = async (content, log = moduleLogger) => {
-  log.info ('creating record of notification email', { ...content });
+  log.info ('creating record of notification email', {
+    newsId: content.newsId,
+    nextId: content.nextId,
+    subject: content.subject,
+  });
 
   const options = {
     description: "insert email notification record",

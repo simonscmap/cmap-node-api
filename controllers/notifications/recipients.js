@@ -11,9 +11,11 @@ const fetchProjected = async (tags, log = moduleLogger) => {
     return [true];
   }
 
+  log.debug ('generating recipients from tags', tags);
+
   const dl = tags.map (d => `'${d}'`).join (', ');
   //
-  let query = 'SELECT UserID, Email from tblUsers WHERE News_Subscribed=1';
+  let query = 'SELECT UserID, Email from tblUsers WHERE News_Subscribed=1;';
 
   if (tags.length) {
     query += `
@@ -30,8 +32,6 @@ const fetchProjected = async (tags, log = moduleLogger) => {
   };
 
   const [err, resp] = await directQuery (query, options, log);
-
-  log.debug ('result from recipient projection', { tags, resp });
 
   if (err) {
     return [err, null];
@@ -61,8 +61,21 @@ const fetchProjected = async (tags, log = moduleLogger) => {
 // ::  emailId  => Integer
 const fetchPastActual = async (emailId) => {
   const log = moduleLogger;
+
   const constraint = emailId ? `WHERE Email_ID = ${emailId}` : '';
-  const query = `SELECT * FROM tblEmail_Recipients ${constraint}`;
+
+  const query =
+        `SELECT
+           u.Email,
+           r.User_ID,
+           r.Email_ID,
+           r.Success,
+           r.Attempt,
+           r.Last_Attempt_Date_Time
+         FROM tblEmail_Recipients r
+         JOIN tblUsers u ON u.UserId = r.User_ID
+         ${constraint}`;
+
   const options = {
     description: "get recipients of sent email(s)",
     poolName: 'rainierReadWrite',
@@ -71,24 +84,37 @@ const fetchPastActual = async (emailId) => {
   const [err, resp] = await directQuery (query, options, log)
 
   if (err) {
+    log.trace ('error while querying tblEmail_Recipients')
     return [err, null];
   }
 
   const result = safePath (['recordset']) (resp);
-  const payload = Array.isArray (result) && result.reduce ((acc, curr) => {
+
+  if (!result || !Array.isArray (result)) {
+    return [true];
+  }
+
+  const payload = result.reduce ((acc, curr) => {
+    const recipient = {
+      emailId: curr.Email_ID,
+      userId: curr.User_ID,
+      success: curr.Success,
+      attempt: curr.Attempt,
+      lastAttempt: curr.Last_Attempt_Date_Time,
+      userEmail: curr.Email,
+    };
     if (!curr.Email_ID) {
       return acc;
     }
     if (Array.isArray (acc[curr.Email_ID])) {
-      acc[curr.Email_ID].push (curr.User_ID);
+      acc[curr.Email_ID].push (recipient);
     } else {
-      acc[curr.Email_ID] = [curr.User_ID];
+      acc[curr.Email_ID] = [recipient];
     }
     return acc;
   }, {});
 
   return [null, payload];
-
 };
 
 const controller = async (req, res) => {

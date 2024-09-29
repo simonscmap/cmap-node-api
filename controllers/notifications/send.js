@@ -20,8 +20,7 @@ const getNextEmailId = async (log = moduleLogger) => {
   const query = 'SELECT TOP 1 Email_ID FROM tblEmail_Sent ORDER BY Email_ID DESC';
   const [err, resp] = await directQuery (query, {}, log);
   const result = safePath (['recordset', 0, 'Email_ID' ]) (resp)
-  console.log ('get next email Id result', result);
-  const nextId = result + 1;
+  const nextId = (result || 0) + 1;
   return [err, nextId];
 };
 
@@ -57,13 +56,14 @@ const send = async (req, res) => {
 
   // 1. get recipients
 
-  const [tagsErr, tags] = await getTags (newsId, log);
+  const [tagsErr, tagsInfo] = await getTags (newsId, log);
 
   if (tagsErr) {
     log.error ('error getting tagged datasets', { newsId, error: tagsErr });
     return res.status (500).send ('Error sending notifications')
   }
 
+  const tags = tagsInfo.map (t => t.Dataset_Name);
   const [projectedErr, projected] = await recipients.fetchProjected (tags, log);
 
   if (projectedErr) {
@@ -76,9 +76,6 @@ const send = async (req, res) => {
   // - if a user is both news and dataset subscribed, they will get only the news notification
 
   const { subscribed, newsSubscribers } = projected;
-
-  // TEST TEST TEST
-  newsSubscribers.push ({ userId: 1000, email: 'no-one@testnodomain.com'});
 
   const newsRecipients = newsSubscribers.map (nr => ({ ...nr, type: 'news' }));
   const datasetRecipients = subscribed
@@ -134,6 +131,7 @@ const send = async (req, res) => {
         sendServiceMail ({ recipient, subject, content });
 
   const fullRecipientList = newsRecipients.concat (datasetRecipients);
+  log.debug ('full recipient list', fullRecipientList)
   const sendJobs = fullRecipientList
         .map (recipient =>
           createSendJob (

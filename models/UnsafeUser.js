@@ -274,6 +274,7 @@ module.exports = class UnsafeUser {
   }
 
   getJWTPayload() {
+    log.debug ('getJWTPayload', { sub: this.id });
     return {
       iss,
       sub: this.id,

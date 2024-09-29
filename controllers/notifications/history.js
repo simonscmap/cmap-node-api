@@ -9,18 +9,19 @@ const moduleLogger = initializeLogger("controllers/notifications/history");
 const fetch = async (args) => {
   const log = moduleLogger;
 
-  const constraint = (args && args.emailId)
-        ? `WHERE Email_ID=${args.emailId}`
+  const constraint = (args && args.newsId)
+        ? `WHERE News_ID=${args.newsId}`
         : '';
 
   const query = `
        SELECT sent.Email_ID, News_ID, Subject, Body, Date_Time
        FROM tblEmail_Sent sent
+       ${constraint}
        GROUP BY sent.Email_ID, News_ID, Date_Time, Subject, Body
 `;
 
   const options = {
-    description: "get a full list of short names",
+    description: "get email history",
     poolName: 'rainier',
   };
 
@@ -34,12 +35,14 @@ const fetch = async (args) => {
 
   const [pastErr, pastActual] = await recipients.fetchPastActual ();
 
+  if (pastErr) {
+    log.error ('failed to fetch recipient history', { })
+  }
+
   const payload = sentEmails;
   if (pastActual && Array.isArray (sentEmails)) {
-    sentEmails.forEach (e => {
-      e.recipients = {
-        actual: pastActual[e.Email_ID] || null,
-      };
+    sentEmails.forEach ((email) => {
+      email.recipients = pastActual[email.Email_ID] || [];
     });
   }
 
@@ -52,17 +55,17 @@ const history = async (req, res, next) => {
   log.trace ('resolving notification history');
 
   // args
-  const args = req.body;
+  const args = req.query;
 
   // call
   const [err, result] = await fetch (args);
 
   // response
-  if (err) {
+  if (err || !Array.isArray (result)) {
     return res.status (500).send ('Error retrieving notification history');
   }
 
-  const payload = Array.isArray (result) && result.reduce ((acc, curr) => {
+  const payload = result.reduce ((acc, curr) => {
     const newsId = curr.News_ID;
     if (Array.isArray (acc[newsId])) {
       acc[newsId].push (curr);

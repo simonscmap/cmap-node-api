@@ -13,9 +13,12 @@ const authMethodMapping = require('../config/authMethodMapping');
 const GuestUser = require('../models/GuestUser');
 const pools = require('../dbHandlers/dbPools');
 const guestTokenHashFromRequest = require('../utility/guestTokenHashFromRequest');
+const initializeLogger = require("../log-service");
+
+const log = initializeLogger ('middleware/passport');
 
 const headerApiKeyOpts = { // Configure how passport identifies the API Key
-    header: 'Authorization', 
+    header: 'Authorization',
     prefix: 'Api-Key ',
 }
 
@@ -49,14 +52,14 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
         var { hash, id } = jwt.decode(token);
 
         var pool = await pools.userReadAndWritePool;
-        var checkTokenRequest = await new sql.Request(pool);
+        var checkTokenRequest = new sql.Request(pool);
         checkTokenRequest.input('id', sql.Int, id);
         let checkTokenResult = await checkTokenRequest.query(`SELECT [Hash], [Times_Used] from [tblGuest_Tokens] WHERE ID = @id`);
 
         if(checkTokenResult.recordset[0].Times_Used > 9) return done(null, false);
         if(checkTokenResult.recordset[0].Hash !== guestTokenHashFromRequest(req) || guestTokenHashFromRequest(req) !== hash) return done(null, false);
 
-        let incrementTokenUsesRequest = await new sql.Request(pool);
+        let incrementTokenUsesRequest = new sql.Request(pool);
         incrementTokenUsesRequest.input('id', sql.Int, id);
         incrementTokenUsesRequest.query(`UPDATE tblGuest_Tokens SET [Times_Used] = [Times_Used] + 1 WHERE ID = @id`);
 
@@ -68,25 +71,31 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
     }
 }));
 
+
+const localVerification = async (req, username, password, done) => {
+  try {
+    const userInfo = await UnsafeUser.getUserByUsername(username);
+    const unsafeUser = new UnsafeUser(userInfo);
+    bcrypt.compare (password, unsafeUser.password, function (err, isMatch) {
+      if (isMatch) {
+        log.debug ('local verification matched password', null)
+        req.cmapApiCallDetails.authMethod = authMethodMapping.local;
+        req.cmapApiCallDetails.userID = unsafeUser.id;
+        return done (null, unsafeUser.makeSafe());
+      } else {
+        log.debug ('local verification failed to match password', { error: err });
+        return done (null, false);
+      }
+    })
+  } catch (e) {
+    log.error('error attempting to use local strategy for login', { username, error: e });
+    return done (null, false);
+  }
+};
+const localStrategy = new LocalStrategy (localStrategyOptions, localVerification);
+
 // Protects user signin route. Finds user and checks password
-passport.use(new LocalStrategy(localStrategyOptions,
-    async function(req, username, password, done) {
-        try{
-            let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByUsername(username));
-            bcrypt.compare(password, unsafeUser.password, function (err, isMatch){
-                if(isMatch) {
-                    req.cmapApiCallDetails.authMethod = authMethodMapping.local;
-                    req.cmapApiCallDetails.userID = unsafeUser.id;
-                    return done(null, unsafeUser.makeSafe());
-                }
-                return done(null, false);
-            })
-        } catch (e) {
-            console.error(e)
-            return done(null, false);
-        }
-    }
-  ));
+passport.use(localStrategy);
 
   // Confirms JWT was signed using out secret
 passport.use(new JwtStrategy(
@@ -118,7 +127,7 @@ passport.use(new HeaderApiKeyStrategy(
         } catch (e){
             return done(null, false);
         }
-    }        
+    }
     ))
 
 module.exports = passport;

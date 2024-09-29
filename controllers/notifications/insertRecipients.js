@@ -3,34 +3,44 @@ const initializeLogger = require("../../log-service");
 
 const moduleLogger = initializeLogger("controllers/notifications/insertRecipients");
 
-const success = (userId, emailId) =>
+const success = (userId, emailId, dateTime) =>
       `INSERT INTO tblEmail_Recipients
-       (User_ID, Email_ID, Success)
+       (
+         User_ID,
+         Email_ID,
+         Success,
+         Attempt,
+         Last_Attempt_Date_Time
+       )
        VALUES
        (
          ${userId},
          ${emailId},
-         1
+         1,
+         1,
+         '${dateTime}'
        )`;
 
-const failure = (userId, emailId) =>
+const failure = (userId, emailId, dateTime) =>
       `INSERT INTO tblEmail_Recipients
-       (User_ID, Email_ID, Success)
+       (User_ID, Email_ID, Success, Attempt, Last_Attempt_Date_Time)
        VALUES
        (
          ${userId},
          ${emailId},
-         0
+         0,
+         1,
+         '${dateTime}'
        )`;
 
-const generateQuery = (recipientResults) => {
+const generateQuery = (recipientResults, attemptDateTime) => {
   return recipientResults
     .filter (r => r.userId)
     .map ((result) => {
     if (result.success) {
-      return success (result.userId, result.emailId);
+      return success (result.userId, result.emailId, attemptDateTime);
     } else {
-      return failure (result.userId, result.emailId);
+      return failure (result.userId, result.emailId, attemptDateTime);
     }
   }).join ('; ');
 };
@@ -67,7 +77,6 @@ const getUsersByEmail = async (recipients) => {
 const insertRecipients = async (recipients, log = moduleLogger) => {
   log.info ('creating record of email recipients', { recipients });
 
-
   const [e, recipientsWithId] = await getUsersByEmail (recipients)
 
   const options = {
@@ -75,7 +84,8 @@ const insertRecipients = async (recipients, log = moduleLogger) => {
     poolName: 'rainierReadWrite',
   };
 
-  const query = generateQuery (recipientsWithId);
+  const attemptDateTime = (new Date ()).toISOString();
+  const query = generateQuery (recipientsWithId, attemptDateTime);
 
   const [err, resp] = await directQuery (query, options, log);
 
