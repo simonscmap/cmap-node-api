@@ -1,37 +1,25 @@
 const directQuery = require("../../utility/directQuery");
 const initializeLogger = require("../../log-service");
 
-const moduleLogger = initializeLogger("controllers/notifications/insertRecipients");
+const moduleLogger = initializeLogger("controllers/notifications/updateRecipients");
 
 const success = (userId, emailId, dateTime) =>
-      `INSERT INTO tblEmail_Recipients
-       (
-         User_ID,
-         Email_ID,
-         Success,
-         Attempt,
-         Last_Attempt_Date_Time
-       )
-       VALUES
-       (
-         ${userId},
-         ${emailId},
-         1,
-         1,
-         '${dateTime}'
-       )`;
+      `UPDATE tblEmail_Recipients
+       SET
+        Success = 1,
+        Attempt = Attempt + 1,
+        Last_Attempt_Date_Time = '${dateTime}'
+       WHERE User_ID = ${userId}
+       AND Email_ID = ${emailId}`;
 
 const failure = (userId, emailId, dateTime) =>
-      `INSERT INTO tblEmail_Recipients
-       (User_ID, Email_ID, Success, Attempt, Last_Attempt_Date_Time)
-       VALUES
-       (
-         ${userId},
-         ${emailId},
-         0,
-         1,
-         '${dateTime}'
-       )`;
+      `UPDATE tblEmail_Recipients
+       SET
+        Success = 0,
+        Attempt = Attempt + 1,
+        Last_Attempt_Date_Time = '${dateTime}'
+       WHERE User_ID = ${userId}
+       AND Email_ID = ${emailId}`;
 
 const generateQuery = (recipientResults, attemptDateTime) => {
   return recipientResults
@@ -59,29 +47,31 @@ const getUsersByEmail = async (recipients) => {
     return [true];
   }
   if (resp) {
-    const updatedRecipients = recipients.map ((r) => {
-      const match = resp.recordset.find ((record) => record.Email === r.recipient);
+    const fullRecipientRecords = recipients.map ((r) => {
+      const match = resp.recordset.find ((record) =>
+        record.Email === r.recipient);
       return {
         ...r,
         userId: match ? match.UserId : null,
       }
     });
-    return [false, updatedRecipients];
+    return [false, fullRecipientRecords];
   } else {
     return [true];
   }
 }
 
-
-// :: [ { recipient, success, emailId }] ->
-const insertRecipients = async (recipients, log = moduleLogger) => {
-  log.info ('creating record of email recipients', { recipients });
+// updateRecipients
+// :: [ { recipient, success, emailId }] -> ()
+const updateRecipients = async (recipients, log = moduleLogger) => {
+  log.info ('update records of email recipients', { recipients });
 
   const [e, recipientsWithId] = await getUsersByEmail (recipients)
   if (e) {
-    log.error ('error fetching user records', { recipients, error: e});
-    throw new Error ('failed to fetch user records');
+    log.error ();
+    throw new Error ('could not retrieve recipient records');
   }
+
   const options = {
     description: "insert email notification recipients",
     poolName: 'rainierReadWrite',
@@ -91,16 +81,19 @@ const insertRecipients = async (recipients, log = moduleLogger) => {
   const query = generateQuery (recipientsWithId, attemptDateTime);
 
   const [err, resp] = await directQuery (query, options, log);
-
-  // here we're going to throw
-  // because the consumer of this function is going to wrap it in a promise;
+  // here we're going to throw, because the consumer of this function
+  // is going to wrap it in a promise;
   // a thrown error will trigger the reject path
   if (err) {
-    log.error ('error inserting recipients', err)
-    throw new Error ('error inserting recipients');
+    log.error ('error updating recipients', err)
+    throw new Error ('error updating recipients');
   }
+  log.info ('updated recipients rows affected', {
+    affected: resp.rowsAffected,
+    recipients,
+  })
 
   return recipients;
 }
 
-module.exports = insertRecipients;
+module.exports = updateRecipients;

@@ -7,8 +7,6 @@ const { safePathOr, safePath } = require("../utility/objectUtils");
 
 const log = initializeLogger ('mail-service/checkBouncedMail');
 
-const messagesOrEmptyArray = safePathOr ([]) (Array.isArray) (['data', 'messages']);
-
 // capture group will be index 1 of result
 const captureOrNull = safePathOr (null) ((match) => typeof match === 'string') ([1]);
 
@@ -21,9 +19,14 @@ const getEmailRecords = async (emailIds) => {
   const constraint = emailIds.length
         ? `${emailConstraint} OR ${timeConstraint}`
         : `WHERE ${timeConstraint}`;
-  const query = `SELECT Email_ID, Date_Time, Subject
-                 FROM tblEmail_Sent
-                 ${constraint};`
+  const query = `SELECT es.Email_ID, es.Date_Time, es.Subject, la.Last_Attempt
+       FROM tblEmail_Sent es
+       CROSS APPLY (
+         SELECT TOP 1 Last_Attempt_Date_Time as Last_Attempt
+         FROM tblEmail_Recipients er
+         WHERE er.Email_ID = es.Email_ID
+       ) la
+       ${constraint};`
 
   const options = {
     description: "get emails sent",
@@ -79,12 +82,12 @@ const extractBounceDateTime = (message) => {
   const headers = safePath (['payload', 'headers']) (message);
   if (Array.isArray (headers)) {
     const bounceDate = headers
-          .filter (({ name }) => 'Date')
+          .filter (({ name }) => name === 'Date')
           .map (({ value }) => value);
 
-    const d = dayjs (bounceDate);
-    console.log ('bounceDate', bounceDate, d);
-    return d;
+    if (bounceDate.length) {
+      return dayjs (bounceDate[0]);
+    }
   }
   return null;
 };
@@ -158,19 +161,22 @@ const updateRecipentsWithFailedDelivery = async (updates) => {
   return [false, result.rowsAffected];
 };
 
+
+// MONITOR
+
 // 0. keep track of mail ids to check
 
 const activeIds = new Set();
-
 let queued = false;
 
 const monitor = async (emailIds = []) => {
   log.info ('mail monitor called', { emailIds })
+
   emailIds.forEach ((id) => activeIds.add (id));
 
   // 1. get latest email records, plus active ids
   // (need Date_Time)
-  const [err, result] = await getEmailRecords (Array.from (activeIds));
+  const [err, sentEmailRecords] = await getEmailRecords (Array.from (activeIds));
 
   // console.log ('email records', result);
 
@@ -184,22 +190,33 @@ const monitor = async (emailIds = []) => {
   }
 
   // 2. remove old ids from activeIds, if any
-  const now = new Date();
   const tenMinutesAgo = dayjs ().subtract (10, 'm').toISOString();
 
-  result.forEach ((matchingRecord) => {
-    const { Email_ID, Date_Time } = matchingRecord;
+  sentEmailRecords.forEach ((matchingRecord) => {
+    const { Email_ID, Date_Time, Last_Attempt } = matchingRecord;
     const timeSent = dayjs (Date_Time);
-    if (timeSent.isBefore (tenMinutesAgo)) {
-      log.info ('removing email older than 10 minutes from active ids to check', { emailId: Email_ID });
-      activeIds.delete (Email_ID);
+    const lastAttempt = dayjs(Last_Attempt);
+    if (timeSent.isBefore (tenMinutesAgo) && lastAttempt.isBefore(tenMinutesAgo)) {
+      // if record is neither recent nor one of the ids provided to track, remove it
+      if (!emailIds.includes (Email_ID)) {
+        log.info ('removing email older than 10 minutes from active ids to check', {
+          emailId: Email_ID,
+          timeSent: timeSent.toISOString (),
+          lastAttempt: lastAttempt.toISOString (),
+          now: dayjs().toISOString (),
+        });
+        activeIds.delete (Email_ID);
+      } else {
+        // if the monitor runs again, it won't be called with the same list of ids
+        // and if they are too old, they will be removed next call
+      }
     } else {
       activeIds.add (Email_ID); // ensure results that are recent are actively monitored
     }
   });
 
   if (activeIds.size === 0) {
-    log.info ('no active email ids to monitor')
+    log.info ('no active email ids to monitor');
     queued = false;
     return;
   }
@@ -221,25 +238,54 @@ const monitor = async (emailIds = []) => {
   // 4. parse results, looking for matching email ids
   //    (email will have id embedded in meta tag of html body)
 
+  const parsedMessages = parsedGmailMessages
+        .filter ((record) => record && record.recipient)
+        .map ((record) => ({
+          ...record,
+          // scraped id is a string, need it to be an int to compare to activeIds
+          emailId: parseInt (record.emailId, 10),
+          bounceDateTime: record.bounceDateTime.toISOString(),
+        }))
 
-  const parsedMessages = parsedGmailMessages.filter (([hasError]) => !hasError).map (([, info]) => info);
-  const failedParses =  parsedGmailMessages.filter (([hasError]) => hasError);
-
+  console.log ('Gmail Result')
   console.table (parsedMessages)
 
-  log.info (`${failedParses.length} of ${parsedGmailMessages.length} failed to extract data`, parsedMessages)
+  console.log ('active ids', activeIds)
 
   // 5. if matching emails, update tblEmail_Recipients with succeeded flag = 0
+  // (a) -- match emailid
+  // (b) -- match time
   const matchingBouncedMails = parsedMessages
-        .filter (({ emailId }) => activeIds.has (emailId));
+        .filter (({ emailId }) => activeIds.has (emailId))
+        .map ((bouncedMail) => {
+          const matchingEmailSentRecord = sentEmailRecords.find (({ Email_ID }) => {
+            return Email_ID === bouncedMail.emailId;
+          });
+          if (matchingEmailSentRecord) {
+            return Object.assign (bouncedMail, { lastAttempt: matchingEmailSentRecord.Last_Attempt });
+          } else {
+            return bouncedMail;
+          }
+        });
+
+  console.log ('Matching Bounced Mail')
+  console.table (matchingBouncedMails);
 
   // check time of bounced email against recipient record's last attempt
-  // if bounce is prior to last attempt, do not update
 
-  log.info ('matched emails to activeIds', matchingBouncedMails, activeIds);
+  const newlyBouncedMails = matchingBouncedMails
+        .filter(({ lastAttempt, bounceDateTime }) => {
+          if (dayjs (lastAttempt).isAfter (bounceDateTime)) {
+            return false;
+          } else {
+            return true;
+          }
+        });
 
+  console.log ('Newly Bounced')
+  console.table (newlyBouncedMails)
 
-  const [updateErr, updateResp] = await updateRecipentsWithFailedDelivery (matchingBouncedMails);
+  const [updateErr, updateResp] = await updateRecipentsWithFailedDelivery (newlyBouncedMails);
 
   if (updateErr) {
     // already logged

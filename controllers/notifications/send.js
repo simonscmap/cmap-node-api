@@ -14,7 +14,11 @@ const {
 } = require("./preview");
 const { monitor } = require("../../mail-service/checkBouncedMail");
 
+const { map, chain, coalesce, fork, parallel, attemptP } = Future;
+
 const moduleLogger = initializeLogger("controllers/notifications/send");
+
+// helpers
 
 const getNextEmailId = async (log = moduleLogger) => {
   const query = 'SELECT TOP 1 Email_ID FROM tblEmail_Sent ORDER BY Email_ID DESC';
@@ -25,6 +29,48 @@ const getNextEmailId = async (log = moduleLogger) => {
 };
 
 
+const createSendJob = (recipient, subject, content) =>
+      sendServiceMail ({ recipient, subject, content });
+
+const createSendJobs = (recipientList, subject, content) =>
+      recipientList.map ((recipient) =>
+        createSendJob (
+          recipient.email,
+          subject,
+          content
+        ));
+
+// coalesce prevents one failed job from cancelling the execution of any remaning jobs
+// in the Future.parallel --
+// insteade it returns both success and failure payloads with a "success" property
+// see test/sendMultipleEmails.test.js
+// see https://github.com/fluture-js/Fluture?tab=readme-ov-file#coalesce
+const onTagFailure = (payload) => ({ success: false, ...payload });
+const onTagSuccess = (payload) => ({ success: true, ...payload });
+const taggedCoalesce = coalesce (onTagFailure) (onTagSuccess);
+
+// ProcessedResult :: emailId -> recipientList -> result -> { recipient, success, emailId }
+const processSendResult = (emailId) => (fullRecipientList) => (result) => {
+  const processedResult = Array.isArray (result) && result.map ((r, ix) => {
+    return {
+      recipient: fullRecipientList[ix].email,
+      success: r.success,
+      emailId,
+    };
+  });
+  return processedResult;
+}
+
+// given an array of jobs (futures)
+// create a Future.parallel
+// and process results
+// :: [ SendFuture ] -> Future ([ ProcessedResult ])
+const createSendFuture = (sendJobs, emailId, recipientList) =>
+      parallel (5) (sendJobs.map ((f) => taggedCoalesce (f)))
+      .pipe (map (processSendResult (emailId) (recipientList)));
+
+
+// CONTROLLER
 const send = async (req, res) => {
   const log = moduleLogger.setReqId (req.requestId);
 
@@ -32,9 +78,7 @@ const send = async (req, res) => {
   //    - News_ID, modified_date
 
   const { newsId, modDate, tempId } = req.body;
-
-
-  log.debug('executing send notification', { ...req.body})
+  log.info ('starting send email notifications', { newsId });
 
   if (!newsId || !modDate) {
     log.warn ('request missing args', { args: {...req.body } });
@@ -42,7 +86,6 @@ const send = async (req, res) => {
   }
 
   const [newsErr, newsItem] = await getNewsItem (newsId, log);
-
   if (newsErr) {
     log.warn ('failed to fetch news item', { error: newsErr, newsId });
     return res.status(500).send('Error: could not fetch news item');
@@ -53,11 +96,9 @@ const send = async (req, res) => {
     return res.status(400).send('Error: modified_date does not match, request may be stale');
   }
 
-
   // 1. get recipients
 
   const [tagsErr, tagsInfo] = await getTags (newsId, log);
-
   if (tagsErr) {
     log.error ('error getting tagged datasets', { newsId, error: tagsErr });
     return res.status (500).send ('Error sending notifications')
@@ -71,7 +112,6 @@ const send = async (req, res) => {
     return res.status (500).send ('Error sending notifications');
   }
 
-
   // 2. apportion recipients to receive template
   // - if a user is both news and dataset subscribed, they will get only the news notification
 
@@ -81,7 +121,6 @@ const send = async (req, res) => {
   const datasetRecipients = subscribed
         .filter ((s) => !newsRecipients.find ((nr => nr.userId === s.userId)))
         .map (s => ({ ...s, type: 'dataset' }));
-
 
   // 3. record emails
   // - get last email id and increment
@@ -96,7 +135,7 @@ const send = async (req, res) => {
 
   const { headline, body } = newsItem;
   const newsEmailId = nextId;
-  const datasetEmailId = nextId + 1;
+  // const datasetEmailId = nextId + 1;
 
   // -- insert #1 | "News" | nextId: newsEmailId
   const newsEmailContent = renderGeneralNews (headline, body, tags, newsEmailId);
@@ -108,70 +147,48 @@ const send = async (req, res) => {
   });
 
   // -- insert #2 | "Dataset" | nextId: datasetEmailId
-  const datasetEmailContent = renderDatasetUpdate (headline, body, tags, datasetEmailId);
-  const [datasetEmailErr, datasetEmailSuccess] = await insertEmail ({
-    nextId: datasetEmailId,
-    newsId,
-    subject: newsItem.headline,
-    body: datasetEmailContent,
-  });
+  // const datasetEmailContent = renderDatasetUpdate (headline, body, tags, datasetEmailId);
+  // const [datasetEmailErr, datasetEmailSuccess] = await insertEmail ({
+  //   nextId: datasetEmailId,
+  //   newsId,
+  //   subject: newsItem.headline,
+  //   body: datasetEmailContent,
+  // });
 
-  if (newsEmailErr || datasetEmailErr) {
+  if (newsEmailErr) {
     log.error ('error inserting email record', {
       newsEmailErr,
-      datasetEmailErr,
-      insertIds: [ nextId, nextId + 1 ]
+      nextId
     });
     return res.sendStatus (500);
   }
 
   // 4. send email
-
-  const createSendJob = (recipient, subject, content) =>
-        sendServiceMail ({ recipient, subject, content });
-
   const fullRecipientList = newsRecipients.concat (datasetRecipients);
-  log.debug ('full recipient list', fullRecipientList)
-  const sendJobs = fullRecipientList
-        .map (recipient =>
-          createSendJob (
-            recipient.email,
-            headline,
-            (recipient.type === 'news' ? newsEmailContent : datasetEmailContent)
-          ));
+  const sendJobs = createSendJobs (fullRecipientList, headline, newsEmailContent);
 
-  const onTagFailure = (payload) => ({ success: false, ...payload });
-  const onTagSuccess = (payload) => ({ success: true, ...payload });
-  const taggedCoalesce = Future.coalesce (onTagFailure) (onTagSuccess);
-
-  // send each email, and flag whether it was successfully sent
-  Future.parallel (5) (sendJobs.map ((f) => taggedCoalesce (f)))
-    .pipe (Future.map ((result) => {
-      const processedResult = Array.isArray (result) && result.map ((r, ix) => {
-        return {
-          recipient: fullRecipientList[ix].email,
-          success: r.success,
-          emailId: (fullRecipientList[ix].type === 'news') ? nextId : nextId + 1,
-        };
-      });
-      return processedResult;
+  // send each email
+  // flag whether it was successfully sent
+  createSendFuture (sendJobs, newsEmailId, fullRecipientList)
+    .pipe (chain ((processedResult) => {
+      // 5. on SUCCESS record email(s) in tblEmail_Recipients
+      return attemptP (() => insertRecipients (processedResult, log));
     }))
-    .pipe (Future.chain ((processedResult) => {
-      // 5 on SUCCESS record email(s) in tblEmail_Recipients
-      // - User_ID, Email_ID, Success
-      return Future.attemptP (() => insertRecipients (processedResult, log));
+    .pipe (map ((result) => {
+      // 6. trigger monitor
+      setTimeout (monitor, 100, [newsEmailId]);
+      return result;
     }))
-    .pipe (Future.fork ((error) => {
+    .pipe (fork ((error) => {
       log.error ('parallel send notification failed', { newsId, error });
       res.status (500).json ({ message: 'Unexected error sending notification emails' });
-      setTimeout (monitor, 100, [newsEmailId, datasetEmailId]);
     }) ((result) => {
       log.info ('sent notification emails', { newsId, result });
       res.json (result);
-      // set timeout call checkBounceMail
-      setTimeout (monitor, 100, [newsEmailId, datasetEmailId]);
     }));
 }
 
 
-module.exports = send;
+module.exports.controller = send;
+module.exports.createSendFuture = createSendFuture;
+module.exports.createSendJobs = createSendJobs;

@@ -48,4 +48,12 @@ router.post ("/send",
              asyncControllerWrapper (controllers.send)
             );
 
+// send
+router.post ("/resend",
+             passport.authenticate (passportMethods, passportOptions),
+             checkAdminAuth,
+             ensureContentType (contentTypes.json),
+             asyncControllerWrapper (controllers.reSend)
+            );
+
 module.exports = router;

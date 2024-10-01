@@ -71,9 +71,13 @@ const logLevel = {
 function log(level, tags, context, message, isError, data) {
   // 0. exit if over the log threshhold
 
-  if (isProduction && level > 3 || logThreshhold < level) {
+  if (isProduction && level > 3) {
     return;
   }
+  if (isDevelopment && logThreshhold < level) {
+    return;
+  }
+
 
   // 1. ensure that log will have full context
 
@@ -234,6 +238,7 @@ function createNewLogger(moduleName, extraContext = {}) {
       logger.level = logLevel[level];
       logger.message = content;
       logger.data = additionalData;
+
       log(
         logLevel[level],
         logger.tags,

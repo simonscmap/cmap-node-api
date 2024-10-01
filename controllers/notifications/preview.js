@@ -35,7 +35,7 @@ const renderDatasetUpdate = renderNotification (datasetUpdateNotification);
  */
 const preview = async (req, res) => {
   const log = moduleLogger.setReqId (req.requestId);
-  log.debug ('genereating notification preview');
+  log.debug ('generating notification preview');
 
   const newsId = req.query.newsId;
   if (!newsId) {
@@ -59,11 +59,11 @@ const preview = async (req, res) => {
       subject: headline,
       content: renderGeneralNews (headline, body, tags, 'preview', log),
     },
-    {
-      newsId,
-      subject: headline,
-      content: renderDatasetUpdate (headline, body, tags, 'preview', log),
-    }
+    // {
+    //   newsId,
+    //   subject: headline,
+    //   content: renderDatasetUpdate (headline, body, tags, 'preview', log),
+    // }
   ];
 
   return res.json (previews);
