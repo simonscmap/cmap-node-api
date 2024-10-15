@@ -165,7 +165,7 @@ const send = async (req, res) => {
       newsEmailErr,
       nextId
     });
-    return res.status (500).send ('error creating email record');
+    return res.status (500).send (newsEmailErr.message);
   }
 
   // 4. send email

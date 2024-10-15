@@ -167,7 +167,8 @@ SELECT * FROM tblCruise
 --
 SELECT * FROM tblNews_Datasets nd
 INNER JOIN tblNews ns ON ID = News_ID
-WHERE Dataset_ID = ${datasetId};
+WHERE Dataset_ID = ${datasetId}
+AND view_status = 3;
   `;
 };
 
