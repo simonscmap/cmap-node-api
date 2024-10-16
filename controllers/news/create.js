@@ -10,9 +10,16 @@ const log = initializeLogger("controllers/news/create");
    Peculiarities:
 
    - the client specifies the ID (which is not auto-incremented)
-   - view_status will be automatically set to 'preview' for create items;
+   - view_status will be automatically set to 'draft' for create items;
      thus creating a news story will never publish it, that must be a
      separate action
+
+     - view_status:
+     0 HIDDEN (not returned from the api)
+     1 DRAFT
+     2 PREVIEW
+     3 PUBLISHED
+
 
  */
 
