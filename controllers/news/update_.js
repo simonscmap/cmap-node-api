@@ -1,8 +1,11 @@
+/* This is the re-written update controller
+   replacing the initial queryDefinition based implementation
+ */
 const sql = require("mssql");
 const pools = require("../../dbHandlers/dbPools");
 const getTags = require("../notifications/getTags")
 const initializeLogger = require("../../log-service");
-const { safePath, safePathOr } = require("../../utility/objectUtils");
+const { safePathOr } = require("../../utility/objectUtils");
 
 const log = initializeLogger("controllers/news/update");
 

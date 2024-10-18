@@ -1,3 +1,7 @@
+/* this is the original update controller but it is no longer used
+   in favor of a rewrite that handles dataset tagging
+ */
+
 const sql = require("mssql");
 const S = require("../../utility/sanctuary");
 const $ = require("sanctuary-def");
