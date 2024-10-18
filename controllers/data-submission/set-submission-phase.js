@@ -7,6 +7,7 @@ const Future = require("fluture");
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
 } = require("../../utility/constants");
+const { subscribeUserToDataset } = require('../user/createSubscription')
 
 const log = logInit("set-submission-phase");
 
@@ -48,7 +49,7 @@ let getQuery = (phaseId) => {
 // Automatically sends relevant email to user
 const setSubmissionPhase = async (req, res) => {
   let pool = await userReadAndWritePool;
-  let request = await new sql.Request(pool);
+  let request = new sql.Request(pool);
 
   // (1) Update Phase in Database
 
@@ -94,6 +95,10 @@ const setSubmissionPhase = async (req, res) => {
         datasetName,
         addressee: userName,
       });
+
+      // subscribe user to ingested dataset
+      // result will be logged
+      await subscribeUserToDataset (req.user.id, datasetName, log);
     }
 
     let mailArgs = {

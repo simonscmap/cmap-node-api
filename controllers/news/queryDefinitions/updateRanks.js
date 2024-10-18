@@ -2,6 +2,7 @@ const S = require("../../../utility/sanctuary");
 const $ = require("sanctuary-def");
 const sql = require("mssql");
 const { findArgByName } = require("../../lib");
+const { safePath } = require('../../../utility/objectUtils');
 
 let {
   concat,
@@ -13,6 +14,7 @@ let {
   isRight,
   joinWith,
   Left,
+  Right,
   lift2,
   map,
   maybeToEither,
@@ -34,7 +36,7 @@ let {
    WHERE ID in (2, 3, 5)
  */
 
-let rankToCaseStatement = ({ ID, rank }) => `WHEN ID = ${ID} THEN ${rank}`;
+let rankToCaseStatement = ({ id, rank }) => `WHEN ID = ${id} THEN ${rank}`;
 
 let getCaseStatement = pipe([
   map(map(rankToCaseStatement)), // map the Array inside the Maybe
@@ -43,21 +45,25 @@ let getCaseStatement = pipe([
 ]);
 
 let getCommaSeparatedIds = pipe ([
-  map (map (prop('ID'))),
+  map (map (prop('id'))),
   map (map (x => `${x}`)),
   map (joinWith(', ')),
   fromMaybe('')
 ]);
 
 let reconcileArgsWithExistingRanks = (requestedRanks) => (existingRanks) => {
+  console.log ('existing ranks', existingRanks);
+  console.log ('requested ranks', requestedRanks);
   // get ids from existing ranks
-  let currentIds = map (({ ID }) => ID) (existingRanks)
+  // let currentIds = map (({ ID }) => ID) (existingRanks)
+  const currentIds = existingRanks.map (({ ID }) => ID);
   // get ids from requested ranks
-  let requestedIds = map (({ ID }) => ID) (requestedRanks);
+  const requestedIds = map (({ id }) => id) (requestedRanks);
+  console.log ('requestidIds', requestedIds);
   // make a list of ids that are missing, and set rank to null
   let remainingIds = filter ((cId) => none ((rId) => rId === cId) (requestedIds)) (currentIds)
   // re-form objects with ranks to be nulled
-  let nulledIds = map ((ID) => ({ ID, rank: null })) (remainingIds)
+  let nulledIds = map ((id) => ({ id, rank: null })) (remainingIds)
   // return merged lists
   return concat (requestedRanks) (nulledIds)
 }
@@ -84,28 +90,6 @@ let template = (parsedArgs) => {
   return result;
 };
 
-let rejectEmptyArrays = (x) => {
-  if (isRight (x)) {
-    let ranks = fromRight ([]) (x);
-    if (ranks.length === 0) {
-      return Left("ranks array cannot be empty"); // TODO should return 418
-    }
-  }
-  return x;
-}
-
-let rejectNonUniqueRanks = (x) => {
-  if (isRight (x)) {
-    let ranks = fromRight ([]) (x);
-    let rankValues = ranks.map(({ rank }) => rank );
-    let uniqueRanks = new Set(rankValues);
-    if (rankValues.length !== uniqueRanks.size) {
-      return Left("ranks must be unique"); // TODO should return 400
-    }
-  }
-  return x;
-}
-
 let updateRankedItemsQueryDefinition = {
   name: 'Update Ranked News Items',
   template: template,
@@ -113,14 +97,20 @@ let updateRankedItemsQueryDefinition = {
     {
       vName: 'ranks',
       defaultTo: [],
-      resolver:  pipe ([
-        gets (is ($.Array ($.StrMap ($.Integer)))) (["body", "ranks"]),
-        maybeToEither ("ranks are required"),
-        // if Right ([]) is an empty array, make Left ("error msg")
-        rejectEmptyArrays,
-        // if Right ([]) contains duplicates, make Left ("error msg")
-        rejectNonUniqueRanks,
-      ])
+      resolver:  (req) => {
+        const targetRanks = safePath (['body','ranks']) (req);
+        if (!Array.isArray (targetRanks)) {
+          return Left ('expected ranks to be an array');
+        } else {
+          const allValues = targetRanks.map(({ rank }) => rank );
+          const uniqueValues = new Set(allValues);
+          if (allValues.length !== uniqueValues.size) {
+            return Left("ranks must be unique"); // TODO should return 400
+          }
+          console.log ('targetRanks', targetRanks);
+          return Right (targetRanks);
+        }
+      }
     },
     {
       vName: 'currentlyRankedItems',

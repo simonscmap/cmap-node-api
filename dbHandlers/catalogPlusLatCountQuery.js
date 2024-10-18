@@ -28,6 +28,7 @@ const catalogPlusLatCountQuery = `
     CAST(JSON_VALUE(JSON_stats,'$."'+[Short_Name]+'".min') AS float) AS [Variable_Min],
     CAST(JSON_VALUE(JSON_stats,'$."'+[Short_Name]+'".max') AS float) AS [Variable_Max],
     RTRIM(LTRIM(Comment)) AS [Comment],
+    RTRIM(LTRIM(Dataset_Name)) AS [Short_Name],
     RTRIM(LTRIM(Dataset_Long_Name)) AS [Dataset_Name],
     RTRIM(LTRIM([Data_Source])) AS [Data_Source],
     RTRIM(LTRIM(Distributor)) AS [Distributor],

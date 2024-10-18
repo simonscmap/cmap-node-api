@@ -124,7 +124,7 @@ router.get (
 router.post (
   "/subscriptions",
   passport.authenticate("jwt", { session: false }),
-  asyncControllerWrapper(userController.createSubscription)
+  asyncControllerWrapper(userController.createSubscription.controller)
 );
 
 router.delete (
