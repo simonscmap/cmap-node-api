@@ -189,7 +189,6 @@ const queryModification = async (req, res, next) => {
 // Stored procedure call endpoint
 // NOTE: this only serves the subset of stored procedures that power the chart visualizations
 const storedProcedure = async (req, res, next) => {
-  console.log ('calling stored procedure controller');
   let log = moduleLogger.setReqId(req.requestId);
   let argSet = req.query;
 
@@ -215,6 +214,9 @@ const storedProcedure = async (req, res, next) => {
     if (error) {
       return next(message);
     } else {
+      if (argSet.sqlify) {
+        return res.json ({ argSet, query: spExecutionQuery });
+      }
       await queryHandler(req, res, next, q);
       return next();
     }
