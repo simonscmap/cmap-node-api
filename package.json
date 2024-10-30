@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.18.0",
+  "version": "1.18.1-rc.2",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
@@ -55,7 +55,7 @@
     "mustache": "^4.2.0",
     "ndjson": "^1.5.0",
     "node-cache": "^5.1.2",
-    "node-sql-parser": "^5.0.0",
+    "node-sql-parser": "^5.3.5",
     "passport": "^0.4.1",
     "passport-custom": "^1.1.1",
     "passport-headerapikey": "^1.2.1",

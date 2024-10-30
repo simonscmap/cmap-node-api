@@ -1,6 +1,10 @@
 const { internalRouter } = require ('../../utility/router/internal-router');
+const initializeLogger = require("../../log-service");
+
 const Monthly_Climatology = 'Monthly Climatology';
 const { v4: uuidv4 } = require('uuid');
+
+const moduleLogger = initializeLogger ('reconstructDatasetRowCount');
 
 // gitTime returns miliseconds from the Unix Epoch
 const getUnixTimestamp = (dateLike) => (new Date(dateLike)).getTime();
@@ -40,7 +44,7 @@ const getLonConstraint = (dataset) => {
 }
 const getDepthConstraint = (dataset) => {
   let depthMin = parseFloat(dataset.Depth_Min);
-   if (isNaN (depthMin)) {
+  if (isNaN (depthMin)) {
     return '';
   }
   return `depth between ${depthMin} and ${depthMin + 1}`;
@@ -49,8 +53,11 @@ const getTimeConstraint = (dataset) => {
   if (dataset.Temporal_Resolution === Monthly_Climatology) {
     return `month = ${dataset.Time_Min}`;
   }
-  let dateMin = (new Date(dataset.Time_Min)).toISOString().slice(0,10);
-  return `time between '${dateMin}' AND '${dateMin}'`;
+  const dateMin = (new Date(dataset.Time_Min)).toISOString().slice(0,10);
+
+  let dateMax = new Date(dataset.Time_Min);
+  dateMax.setDate(dateMax.getDate() + 1);
+  return `time >= '${dateMin}' AND time < '${dateMax.toISOString().slice(0,10)}'`;
 }
 
 const joinConstraints = (arr) => {
@@ -58,33 +65,33 @@ const joinConstraints = (arr) => {
   return `where ${constraints.join(' AND ')}`;
 }
 
-const fetchDims = async (tableName, dataset) => {
+const fetchDims = async (tableName, dataset, log = moduleLogger) => {
   let latConstraint = getLatConstraint (dataset);
   let lonConstraint = getLonConstraint (dataset);
   let depthConstraint = getDepthConstraint (dataset);
   let timeConstraint = getTimeConstraint (dataset);
   let id = (uuidv4()).slice(0,5);
 
-  let queryTime = `select  top 2 distinct time, 'id${id}' as id from ${tableName}
+  let queryTime = `select DISTINCT TOP 2 time, 'id${id}' as id from ${tableName}
                    ${joinConstraints([latConstraint, lonConstraint, depthConstraint])}
                    order by time desc`;
 
-  let queryLat = `select top 2 distinct lat, 'id${id}' as id from ${tableName}
+  let queryLat = `select DISTINCT TOP 2 lat, 'id${id}' as id from ${tableName}
                    ${joinConstraints([timeConstraint, lonConstraint, depthConstraint])}
                   order by lat desc`;
 
-  let queryLon = `select top 2 distinct lon, 'id${id}' as id from ${tableName}
+  let queryLon = `select DISTINCT TOP 2 lon, 'id${id}' as id from ${tableName}
                   ${joinConstraints([timeConstraint, latConstraint, depthConstraint])}
                   order by lon desc`;
 
   let [timeError, timeResult] = await internalRouter (queryTime);
-  console.log ('time result', timeResult);
+  log.debug ('time result', { timeResult, timeError });
 
   let [latError, latResult] = await internalRouter (queryLat);
-  console.log ('latResult', latResult);
+  log.debug ('latResult', { latResult, latError });
 
   let [lonError, lonResult] = await internalRouter (queryLon);
-  console.log('lonResult', lonResult);
+  log.debug ('lonResult', { lonResult, lonError });
 
   if (timeError || latError || lonError) {
     return [timeError || latError || lonError];
@@ -102,9 +109,9 @@ const fetchDims = async (tableName, dataset) => {
 // generateRowCount
 // :: Dataset -> Table Name -> [ Error?, Datapoints, Deltas ]
 // Datapoints ::
-const generateRowCount = async (dataset, tableName, depths) => {
+const generateRowCount = async (dataset, tableName, depths, log = moduleLogger) => {
   // get two consecutive, distinct values for each dimension (except depth)
-  let [error, result] = await fetchDims (tableName, dataset);
+  let [error, result] = await fetchDims (tableName, dataset, log);
   if (error) {
     return [error];
   }
@@ -142,7 +149,7 @@ const generateRowCount = async (dataset, tableName, depths) => {
         getUnixTimestamp (dataset.Time_Min),
         deltas.time
       );
-      console.log('result', c);
+      // console.log('result', c);
     } else if (key === 'lat') {
       c = getCount (dataset.Lat_Max, dataset.Lat_Min, deltas.lat);
     } else if (key === 'lon') {
@@ -158,6 +165,7 @@ const generateRowCount = async (dataset, tableName, depths) => {
   Object.assign(counts, { depth: (depths.length > 0 ? depths.length : 1) });
 
   // calculate datapoints in the dataset by multiplying each dimension
+  moduleLogger.info ('reducing datapoints', Object.entries(counts));
   let datapoints = Math.abs(Object.entries(counts).reduce ((acc, curr) => {
     let [_, v] = curr;
     return acc * v;

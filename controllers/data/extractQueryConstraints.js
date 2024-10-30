@@ -1,4 +1,7 @@
 const { queryToAST } = require('../../utility/router/pure');
+const initializeLogger = require("../../log-service");
+
+const moduleLogger = initializeLogger ('extractQueryConstraints');
 
 // string constants used in AST
 // Node Types
@@ -86,7 +89,7 @@ const getValue = (node) => {
   if (nodeType === 'number' || nodeType === 'string') {
     return value;
   }
-  console.warn ('unexpected value type', nodeType);
+  moduleLogger.warn ('unexpected value type', { nodeType, node });
   return null;
 }
 
@@ -208,7 +211,7 @@ function extractQueryConstraints (queryString = '') {
     delete constraints.month;
   }
 
-  // console.log ('CONSTRAINTS', constraints);
+  moduleLogger.debug ('CONSTRAINTS', constraints);
 
   return constraints;
 }

@@ -13,6 +13,8 @@ const { extractQueryConstraints } = require('../controllers/data/extractQueryCon
 const { calculateSize } = require('../controllers/data/calculateQuerySize');
 const getDataset = require('../controllers/catalog/fetchDataset');
 
+const moduleLogger = createLogger ('checkQuerySize');
+
 // Helper Functions
 const makeResponders = ({ modifiedQuery, analysis, constraints }) => {
   let baseResponseObj = {
@@ -36,7 +38,7 @@ const makeProjection = (size, provenance) => ({ size, provenance });
 // getRowCountProjection
 // :: TableName -> Constraints -> Query -> Logger -> [ Error?, Projection ]
 // returns the row count projection for a select query that visits 1 table
-const getRowCountProjection = async (tablename, constraints, query, logger) => {
+const getRowCountProjection = async (tablename, constraints, query, log = moduleLogger) => {
   // get dataset
   let [fetchError, dataset] = await getDataset({ tablename });
   if (fetchError) {
@@ -50,6 +52,8 @@ const getRowCountProjection = async (tablename, constraints, query, logger) => {
     return [null, makeProjection(-datasetTotalRowCount, 'table stats')];
   }
 
+  log.debug ('getRowCountProjection')
+
   // (c) dataset is gridded, make calculation
   if (isGriddedData(dataset)) {
     // get depths
@@ -61,13 +65,17 @@ const getRowCountProjection = async (tablename, constraints, query, logger) => {
 
     // get dataset row count, if not provided
     if (!datasetTotalRowCount) {
-      let [error, reconstructedRowCount, deltas] = await reconstructDatasetRowCount (dataset, tablename, depths);
+      let [
+        error,
+        reconstructedRowCount,
+        deltas
+      ] = await reconstructDatasetRowCount (dataset, tablename, depths, log);
       if (error) {
         return [error];
       } else {
         dataset.Row_Count = reconstructedRowCount;
         if (!constraints) {
-          // console.log ('constraints', constraints);
+
         } else {
           constraints.deltas = deltas;
         }
@@ -75,13 +83,13 @@ const getRowCountProjection = async (tablename, constraints, query, logger) => {
     }
 
     // calculate size of query
-    let [size, messages ] = calculateSize (constraints, dataset, depths);
+    let [size, messages, datasetSummary] = calculateSize (constraints, dataset, depths, log);
     return [null, makeProjection(size, 'calculation'), messages];
   }
 
   // (d) dataset is irregular
   // query a count of matching rows
-  let [queryError, count] = await getRowCountForQuery (tablename, constraints, dataset, logger.getReqId());
+  let [queryError, count] = await getRowCountForQuery (tablename, constraints, dataset, log.getReqId());
   if (queryError) {
     return [queryError]
   } else {
@@ -124,6 +132,7 @@ const checkQuerySize = async (args, logger) => {
 
   // (2) multiple tables were identified
   if (matchingDatasetTables.length > 1) {
+    log.info ('allowing query that visits multiple tables', { matchingDatasetTables });
     return allow (null, ['query visits multiple tables; no size projection available']);
   }
 
@@ -176,7 +185,11 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
   log.info ('result', { ...result.query, ...result.projection, allow: result.allow })
 
   if (Array.isArray(result.messages)) {
-    result.messages.forEach ((message) => log.warn (message, null ))
+    result.messages.forEach ((message) => {
+      if (message) {
+        log.warn (message, null);
+      }
+    });
   }
 
   return res.json (result);

@@ -50,8 +50,8 @@ let logFormatFromArgv = pipe([
   fromMaybe ("object") // default to the most inclusive threshold
 ]);
 
-let logThreshhold = logThresholdFromArgv (process.argv);
-let logFormat = logFormatFromArgv (process.argv);
+const logThreshhold = logThresholdFromArgv (process.argv);
+const logFormat = logFormatFromArgv (process.argv);
 
 const tagInfo = {
   versions: {

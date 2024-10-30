@@ -29,11 +29,14 @@ const makeConnection = async (client, retry, log) => {
 
 // queryCluster :: Query String -> Request Id -> [ Error?, Result ]
 const queryCluster = async (query = "", requestId) => {
+  const originalQuery = query;
   query = tsqlToHiveTransforms(query);
 
   let log = moduleLogger
     .setReqId (requestId)
     .addContext(['query', query ]);
+
+  log.debug ('hive sql transform', { originalQuery, transformedQuery: query });
 
   const client = new DBSQLClient();
 
@@ -75,6 +78,7 @@ const queryCluster = async (query = "", requestId) => {
     log.error("error querrying cluster", { error: e });
     return [e];
   }
+  log.debug ('cluster query result', result);
 
   return [null, result];
 };
