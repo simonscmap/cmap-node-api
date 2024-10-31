@@ -31,7 +31,7 @@ router.get(
 
 router.get (
   '/check-query-size',
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  // passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
   // apply query modifiers
   wrap(queryModification),
 
@@ -45,7 +45,7 @@ router.get (
 // Stored procedure route
 router.get(
   "/sp",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  // passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
   asyncControllerWrapper(dataController.storedProcedure)
 );
 
