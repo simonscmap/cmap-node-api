@@ -7,6 +7,8 @@ const logInit = require("../../log-service");
 
 const moduleLogger = logInit("controllers/catalog/recs");
 
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+
 // given a list of table names, fetch full page data for each
 const fetchAndProcessDatasetsByTable = async (tableNames = []) => {
   const fetchJobs = tableNames.map(fetchDataset);
@@ -86,7 +88,7 @@ const fetchPopularDatasetsFromValidationAPI = async () => {
 const fetchPopularDatasetsWithCache = async () =>
   await cacheAsync ('POPULAR_DATASETS',
                     fetchPopularDatasetsFromValidationAPI,
-                    { ttl: 60 * 60 });
+                    { ttl: ONE_DAY_IN_SECONDS });
 
 module.exports.popularDatasets = async (req, res, next) => {
   const responseData = await fetchPopularDatasetsWithCache ();
