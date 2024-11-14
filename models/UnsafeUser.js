@@ -49,10 +49,15 @@ module.exports = class UnsafeUser {
         `SELECT TOP 1 * FROM ${userTable} WHERE username = @username`
       );
     } catch (e) {
-      console.log(e);
+      log.error ('error attempting to get user by username', { error: e, username });
     }
 
-    return result.recordset.length ? new this(result.recordset[0]) : false;
+    if (result.recordset.length) {
+      return new this(result.recordset[0]);
+    } else {
+      log.info ('user lookup by username returned no match', { username });
+      return false;
+    }
   }
 
   // getUserByID is not used
@@ -84,7 +89,7 @@ module.exports = class UnsafeUser {
       log.info ('sucessfully looked up user with email', { email });
       return new this(result.recordset[0]);
     } else {
-      log.info ('failed to lookup user by email', { email });
+      log.info ('user lookup by email returned no match', { email });
       return false;
     }
   }
@@ -98,8 +103,12 @@ module.exports = class UnsafeUser {
       `SELECT TOP 1 *,${apiKeyTable}.ID as Api_Key_ID FROM ${userTable} JOIN ${apiKeyTable} on ${apiKeyTable}.User_ID = ${userTable}.UserID WHERE Api_Key = @key`
     );
 
-    //Throw not found error if no results
-    if (!result.recordset.length) throw new Error("API Key not found");
+    // Throw not found error if no results
+    if (!result.recordset.length) {
+      log.info ('user lookup by api key returned no match', { key });
+      throw new Error("API Key not found");
+    }
+    log.info ('user lookup by api key succeeded', { key });
     return new this(result.recordset[0]);
   }
 
@@ -207,7 +216,7 @@ module.exports = class UnsafeUser {
     try {
       await request.query(query);
     } catch (e) {
-      log.error ('failed to attach googleId to user', { userId: this.id, error: e });
+      log.error ('attempt to attach googleId to user failed with error', { userId: this.id, error: e });
       return [e];
     }
     log.info ('attached googleId to user', { userId: this.id });
@@ -237,7 +246,13 @@ module.exports = class UnsafeUser {
     // user id is stored as in integer
     request.input("id", sql.VarChar, `${this.id}`);
 
-    return await request.query(query);
+    try {
+      await request.query(query);
+    } catch (e) {
+      log.error ('error while attempting to update user', { error: e, userId: this.id })
+    }
+    log.info ('successfully updated user', { userId: this.id });
+    return;
   }
 
   // Password update
@@ -254,14 +269,15 @@ module.exports = class UnsafeUser {
     request.input("id", sql.Int, this.id);
 
     try {
-      return await request.query(query);
+      await request.query(query);
     } catch (e) {
       log.error ('error attempting to update user password', { userId: this.id });
     }
+    log.info ('successfully updated user password', { userId: this.id });
+    return;
   }
 
   async updateEmail() {
-    // Updates password based on email
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
@@ -270,7 +286,13 @@ module.exports = class UnsafeUser {
     request.input("email", sql.NVarChar, this.email);
     request.input("id", sql.Int, this.id);
 
-    return await request.query(query);
+    try {
+      await request.query(query);
+    } catch (e) {
+      log.error ('error attempting to update user email', { userId: this.id, error: e });
+    }
+    log.info ('successfully updated user email', { userId: this.id, email: this.email });
+    return;
   }
 
   getJWTPayload() {
