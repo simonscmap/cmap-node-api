@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
   // TODO unhandled failure case
   log.info("initiating password reset", { providedEmail: req.body.email });
 
-  let user = new UnsafeUser(await UnsafeUser.getUserByEmail(req.body.email));
+  let user = await UnsafeUser.getUserByEmail(req.body.email);
 
   if (!user || !user.email) {
     log.error(

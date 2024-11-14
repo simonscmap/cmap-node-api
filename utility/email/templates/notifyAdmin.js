@@ -1,7 +1,7 @@
-// User Reset Password
+// Notify Admin
 const Mustache = require("mustache");
 const baseTemplate = require("./base-template");
-const { signupConfirmEmail } = require("./partials");
+const { notifyAdmin } = require("./partials");
 
 const isProduction = process.env.NODE_ENV === "production";
 const isStaging = process.env.NODE_ENV === "staging"
@@ -11,19 +11,23 @@ const domain = isProduction
              ? "https://simonscmap.dev"
              : "http://localhost:8080";
 
-const render = ({ jwt, addressee }) => {
+// This template constitutes the notification sent to CMAP Admin when
+// a user has commented on their data submission
+
+
+const render = ({ title, messageText }) => {
   // mustache.render :: template -> data -> partials -> render
-  const choosePasswordURL = `${domain}/choosepassword/${jwt}`;
   return Mustache.render(
     baseTemplate,
     {
-      messageType: "Action",
-      messageTitle: "Choose Account Password",
-      addressee,
-      url: choosePasswordURL,
+      messageType: 'Admin Message',
+      messageTitle: title,
+      messageText,
+      addressee: "CMAP Admin",
+      domain,
     },
     {
-      messageBody: signupConfirmEmail,
+      messageBody: notifyAdmin,
     }
   );
 };

@@ -10,6 +10,7 @@ let partialsNames = [
   'notifyAdminOfDataSubmission',
   'notifyAdminOfUserComment',
   'notifyUserOfAdminComment',
+  'notifyAdmin',
   'notifyAdminOfUserContact',
   'notifyUserAwaitingDOI',
   'notifyUserIngestionComplete',

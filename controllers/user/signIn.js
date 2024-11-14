@@ -4,7 +4,7 @@ const jwtConfig = require("../../config/jwtConfig");
 const UnsafeUser = require("../../models/UnsafeUser");
 
 const initializeLogger = require("../../log-service");
-const log = initializeLogger("controllers/user");
+const moduleLogger = initializeLogger("controllers/user");
 
 const standardCookieOptions = {
   // secure: true,
@@ -16,11 +16,15 @@ const jwtCookieOptions = {
 };
 
 // Sends JWT http-only cookie
+// NOTE: prior middleware handles the password match; by the time this controller
+// runs, the user has been identified and authenticated
 module.exports = async (req, res) => {
+  const log = moduleLogger.setReqId (req.requestId);
   log.debug ('signing in user');
-  // If requests authenticates we sent a cookie with basic user info, and
-  // and httpOnly cookie with the JWT.
-  let user = new UnsafeUser(req.user);
+
+  // passport middleware has authenticated the user
+  // we send a cookie with basic user info, and httpOnly cookie with the JWT
+  const user = new UnsafeUser(req.user);
 
   // TODO stringify can throw, but that case is not handled here
   res.cookie("UserInfo", JSON.stringify(new UnsafeUser(req.user).makeSafe()), {
@@ -40,7 +44,7 @@ module.exports = async (req, res) => {
 
   res.cookie("jwt", jwtPayload, jwtOptions);
 
-  log.debug ('login response', null)
+  log.info ('user has been logged in, responding with token', { userId: user.id });
 
   return res.json(true);
 };

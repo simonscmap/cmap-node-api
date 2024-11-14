@@ -6,6 +6,7 @@ const JwtStrategy = require('passport-jwt').Strategy;
 const HeaderApiKeyStrategy = require('passport-headerapikey').HeaderAPIKeyStrategy;
 const LocalStrategy = require('passport-local').Strategy;
 const CustomStrategy = require('passport-custom').Strategy;
+const notifyAdmin = require('../utility/email/notifyAdmin');
 
 const secret = require('../config/jwtConfig').secret;
 const UnsafeUser = require('../models/UnsafeUser');
@@ -15,7 +16,7 @@ const pools = require('../dbHandlers/dbPools');
 const guestTokenHashFromRequest = require('../utility/guestTokenHashFromRequest');
 const initializeLogger = require("../log-service");
 
-const log = initializeLogger ('middleware/passport');
+const moduleLogger = initializeLogger ('middleware/passport');
 
 const headerApiKeyOpts = { // Configure how passport identifies the API Key
     header: 'Authorization',
@@ -73,25 +74,50 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
 
 
 const localVerification = async (req, username, password, done) => {
+  const log = moduleLogger.setReqId(req.requestId);
+  log.info ('attempting password login', { providedUsername: username });
   try {
-    const userInfo = await UnsafeUser.getUserByUsername(username);
-    const unsafeUser = new UnsafeUser(userInfo);
-    bcrypt.compare (password, unsafeUser.password, function (err, isMatch) {
+    // getUserByUsername returns a new UnsafeUser
+    let user = await UnsafeUser.getUserByUsername(username, log);
+
+    if (!user) {
+      // if no system username matches the login-provided username,
+      // try it as the email address
+      user = await UnsafeUser.getUserByEmail (username, log);
+      if (user) {
+        log.info ("user used email as username", { username, id: user.id });
+      }
+    }
+
+
+    if (!user) {
+      log.info ('cancelling login: no user with provided username found', { providedUsername: username });
+      const text = `There was an attempt to login to the website that failed because the provided username "${username}" was not found in our system. A lookup for a user with the email "${username}" was also attempted without success.`;
+      notifyAdmin ('Bad Username Login Attempt', text);
+      return done (null, false);
+    }
+
+    bcrypt.compare (password, user.password, function (err, isMatch) {
       if (isMatch) {
-        log.debug ('local verification matched password', null)
+        log.info ('password matched', { username, id: user.id });
         req.cmapApiCallDetails.authMethod = authMethodMapping.local;
-        req.cmapApiCallDetails.userID = unsafeUser.id;
-        return done (null, unsafeUser.makeSafe());
+        req.cmapApiCallDetails.userID = user.id;
+        return done (null, user.makeSafe());
       } else {
-        log.debug ('local verification failed to match password', { error: err });
+        log.debug ('password did not match', { error: err, username, id: user.id });
+        const text = `There was an attempt to login to the website with the username "${username}" that failed because the password was incorrect.`;
+      notifyAdmin ('Bad Password Login Attempt', text);
         return done (null, false);
       }
     })
   } catch (e) {
     log.error('error attempting to use local strategy for login', { username, error: e });
+    const text = `An attempt to login to the website with the username "${username}" failed due to an unexpected error: ${e.message}.`;
+      notifyAdmin ('Error in Login Attempt', text);
     return done (null, false);
   }
 };
+
 const localStrategy = new LocalStrategy (localStrategyOptions, localVerification);
 
 // Protects user signin route. Finds user and checks password
@@ -99,35 +125,36 @@ passport.use(localStrategy);
 
   // Confirms JWT was signed using out secret
 passport.use(new JwtStrategy(
-    jwtExtractorOpts,
-    async function(req, jwtPayload, done){
-        req.cmapApiCallDetails.authMethod = authMethodMapping.jwt;
-
-        try {
-            let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByID(jwtPayload.sub));
-            req.cmapApiCallDetails.userID = unsafeUser.id;
-            return done(null, unsafeUser);
-        } catch {
-            return done(null, false)
-        }
+  jwtExtractorOpts,
+  async function(req, jwtPayload, done) {
+    req.cmapApiCallDetails.authMethod = authMethodMapping.jwt;
+    const log = moduleLogger.setReqId (req.requestId);
+    try {
+      let unsafeUser = await UnsafeUser.getUserByID(jwtPayload.sub, log);
+      req.cmapApiCallDetails.userID = unsafeUser.id;
+      return done(null, unsafeUser);
+    } catch {
+      return done(null, false)
     }
-))
+  }
+));
 
 // Confirms API key belonds to registered user
 passport.use(new HeaderApiKeyStrategy(
-    headerApiKeyOpts,
-    true,
-    async function(apiKey, done, req){
-        try {
-            let unsafeUser = new UnsafeUser(await UnsafeUser.getUserByApiKey(apiKey));
-            req.cmapApiCallDetails.authMethod = authMethodMapping.apiKey;
-            req.cmapApiCallDetails.userID = unsafeUser.id;
-            req.cmapApiCallDetails.apiKeyID = unsafeUser.apiKeyID;
-            return done(null, unsafeUser.makeSafe());
-        } catch (e){
-            return done(null, false);
-        }
+  headerApiKeyOpts,
+  true,
+  async function(apiKey, done, req) {
+    const log = moduleLogger.setReqId (req.requestId);
+    let unsafeUser = await UnsafeUser.getUserByApiKey(apiKey, log);
+    if (unsafeUser) {
+      req.cmapApiCallDetails.authMethod = authMethodMapping.apiKey;
+      req.cmapApiCallDetails.userID = unsafeUser.id;
+      req.cmapApiCallDetails.apiKeyID = unsafeUser.apiKeyID;
+      return done(null, unsafeUser.makeSafe());
+    } else {
+      return done(null, false);
     }
-    ))
+  }
+));
 
 module.exports = passport;
