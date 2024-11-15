@@ -8,6 +8,8 @@ const log = initializeLogger('email/notifyAdmin');
 
 const recipients = [
   'mallinwa@uw.edu',
+  'mdehghan@uw.edu',
+  'simonscmap@uw.edu',
 ];
 
 const sendNotification = (title, messageText) => {
