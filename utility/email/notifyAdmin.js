@@ -6,6 +6,9 @@ const initializeLogger = require("../../log-service");
 
 const log = initializeLogger('email/notifyAdmin');
 
+const isProduction = process.env.NODE_ENV === "production";
+const isStaging = process.env.NODE_ENV === "staging"
+
 const recipients = [
   'mallinwa@uw.edu',
   'mdehghan@uw.edu',
@@ -13,6 +16,11 @@ const recipients = [
 ];
 
 const sendNotification = (title, messageText) => {
+  if (!isStaging && !isProduction) {
+    log.debug ("prevent send notify mail in local env", { title, messageText });
+    return;
+  }
+
   const content = templates.notifyAdmin({ title, messageText });
 
   const args = {

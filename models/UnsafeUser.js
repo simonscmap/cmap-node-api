@@ -113,6 +113,7 @@ module.exports = class UnsafeUser {
   }
 
   static async getUserByGoogleID(id) {
+    log.debug ("attempting to get user by google id", { id });
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
@@ -120,9 +121,8 @@ module.exports = class UnsafeUser {
 
     let result;
     try {
-      result = await request.query(
-        `SELECT * FROM ${userTable} WHERE GoogleID = @id`
-      );
+      result = await request.query(`SELECT * FROM ${userTable} WHERE GoogleID = @id`);
+      log.debug ("get user by google id result", { id, ...result });
     } catch (e) {
       log.error ('error looking up user by googleId', { googleId: id });
     }
@@ -180,10 +180,9 @@ module.exports = class UnsafeUser {
     return true;
   }
 
-  // TODO unhandled failure cases
   async saveAsNew() {
     // Validates and saves user to db.
-
+    log.info ("saving new user", { email: this.email });
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     let hashedPassword =
@@ -202,7 +201,15 @@ module.exports = class UnsafeUser {
     request.input("country", sql.NVarChar, this.country);
     request.input("googleid", sql.VarChar, this.googleID);
 
-    return await request.query(query);
+    let result;
+    try {
+      result = await request.query(query);
+    } catch (e) {
+      log.error ("error saving new user", { error: e, email: this.email });
+      return null;
+    }
+    log.info ("saved new user", { email: this.email });
+    return result;
   }
 
   // Use to associate a google ID with an existing account for first time google sign-on
