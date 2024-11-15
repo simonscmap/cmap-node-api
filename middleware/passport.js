@@ -6,6 +6,7 @@ const JwtStrategy = require('passport-jwt').Strategy;
 const HeaderApiKeyStrategy = require('passport-headerapikey').HeaderAPIKeyStrategy;
 const LocalStrategy = require('passport-local').Strategy;
 const CustomStrategy = require('passport-custom').Strategy;
+const notifyAdmin = require('../utility/email/notifyAdmin');
 
 const secret = require('../config/jwtConfig').secret;
 const UnsafeUser = require('../models/UnsafeUser');
@@ -73,25 +74,38 @@ passport.use('guest', new CustomStrategy(async(req, done) => {
 
 
 const localVerification = async (req, username, password, done) => {
+  log.info ('attempting password login', { providedUsername: username });
   try {
     const userInfo = await UnsafeUser.getUserByUsername(username);
+    if (!userInfo) {
+      log.info ('cancelling login: no user with provided username found', { providedUsername: username });
+      const text = `There was an attempt to login to the website that failed because the provided username "${username}" was not found in our system.`;
+      notifyAdmin ('Bad Username Login Attempt', text);
+      return done (null, false);
+    }
+
     const unsafeUser = new UnsafeUser(userInfo);
     bcrypt.compare (password, unsafeUser.password, function (err, isMatch) {
       if (isMatch) {
-        log.debug ('local verification matched password', null)
+        log.info ('password matched', { username });
         req.cmapApiCallDetails.authMethod = authMethodMapping.local;
         req.cmapApiCallDetails.userID = unsafeUser.id;
         return done (null, unsafeUser.makeSafe());
       } else {
-        log.debug ('local verification failed to match password', { error: err });
+        log.debug ('password did not match', { error: err, username });
+        const text = `There was an attempt to login to the website with the username "${username}" that failed because the password was incorrect.`;
+      notifyAdmin ('Bad Password Login Attempt', text);
         return done (null, false);
       }
     })
   } catch (e) {
     log.error('error attempting to use local strategy for login', { username, error: e });
+    const text = `An attempt to login to the website with the username "${username}" failed due to an unexpected error: ${e.message}.`;
+      notifyAdmin ('Error in Login Attempt', text);
     return done (null, false);
   }
 };
+
 const localStrategy = new LocalStrategy (localStrategyOptions, localVerification);
 
 // Protects user signin route. Finds user and checks password

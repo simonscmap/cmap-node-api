@@ -131,8 +131,10 @@ module.exports = class UnsafeUser {
       log.info ('no user found with given google id', { googleId: id })
       return false;
     }
+    const record = result && result.recordset && result.recordset[0];
+    const Email = record && record.Email;
 
-    log.info ('user succesfully found with given google id', { googleId: id});
+    log.info ('user succesfully found with given google id', { googleId: id, email: Email });
     return new this(result.recordset[0]);
   }
 
@@ -246,13 +248,14 @@ module.exports = class UnsafeUser {
     // user id is stored as in integer
     request.input("id", sql.VarChar, `${this.id}`);
 
+    let result;
     try {
-      await request.query(query);
+      result = await request.query(query);
     } catch (e) {
       log.error ('error while attempting to update user', { error: e, userId: this.id })
     }
     log.info ('successfully updated user', { userId: this.id });
-    return;
+    return result;
   }
 
   // Password update
@@ -268,13 +271,18 @@ module.exports = class UnsafeUser {
     request.input("password", sql.NVarChar, hashedPassword);
     request.input("id", sql.Int, this.id);
 
+    let result;
     try {
-      await request.query(query);
+      result = await request.query(query);
     } catch (e) {
       log.error ('error attempting to update user password', { userId: this.id });
     }
-    log.info ('successfully updated user password', { userId: this.id });
-    return;
+    if (result && result.rowsAffected && result.rowsAffected[0]) {
+      log.info ('successfully updated user password', { userId: this.id });
+    } else {
+      log.error ("failed to update password", { userId: this.id });
+    }
+    return result;
   }
 
   async updateEmail() {
@@ -296,7 +304,6 @@ module.exports = class UnsafeUser {
   }
 
   getJWTPayload() {
-    log.debug ('getJWTPayload', { sub: this.id });
     return {
       iss,
       sub: this.id,

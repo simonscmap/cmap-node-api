@@ -40,7 +40,7 @@ module.exports = async (req, res) => {
 
   res.cookie("jwt", jwtPayload, jwtOptions);
 
-  log.debug ('login response', null)
+  log.info ('user has been logged in, responding with token', { userId: user.id });
 
   return res.json(true);
 };

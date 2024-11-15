@@ -8,7 +8,7 @@ const log = initializeLogger("controllers/user/choosePassword");
 module.exports = async (req, res) => {
   let payload;
   try {
-    payload = await jwt.verify(req.body.token, jwtConfig.secret);
+    payload = jwt.verify(req.body.token, jwtConfig.secret);
   } catch (e) {
     log.error("error verifying jwt");
     return res.sendStatus(400);
@@ -20,6 +20,7 @@ module.exports = async (req, res) => {
   let result = await user.updatePassword();
 
   if (result.rowsAffected && result.rowsAffected[0] > 0) {
+    log.info ("successfully updated user password", { userId: user.id });
     return res.sendStatus(200);
   } else {
     log.error("error updating password: failed rows affected check", { userId: user.id })

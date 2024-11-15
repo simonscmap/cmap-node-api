@@ -1,3 +1,4 @@
+const notifyAdmin = require('./notifyAdmin');
 const notifyAdminOfUserComment = require('./notifyAdminOfUserComment')
 const notifyAdminOfUserContact = require('./notifyAdminOfUserContact')
 const notifyUserOfAdminComment = require('./notifyUserOfAdminComment')
@@ -19,6 +20,7 @@ const templates = {
   userResetPassword,
   notifyUserOfReceiptOfUpdatedDataSubmission,
   notifyUserOfReceiptOfNewDataSubmission,
+  notifyAdmin,
   notifyAdminOfDataSubmission,
   notifyAdminOfUserComment,
   notifyAdminOfUserContact,
