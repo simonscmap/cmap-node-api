@@ -2,14 +2,17 @@ const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 
 const jwtConfig = require("../../config/jwtConfig");
+const environment = require("../../config/environment");
 const UnsafeUser = require("../../models/UnsafeUser");
 const initializeLogger = require("../../log-service");
 const notifyAdmin = require("../../utility/email/notifyAdmin");
 
 const moduleLogger = initializeLogger("controllers/user/googleAuth");
 
-const cmapClientID =
-  "739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com";
+const cmapClientIDDevelopment = '739716651449-t0mh6vdfgk4f1p73s3qn0rsaag04mn03.apps.googleusercontent.com';
+const cmapClientID = "739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com";
+
+const clientId = environment.isDevelopment ? cmapClientIDDevelopment : cmapClientID;
 
 const standardCookieOptions = {
   // secure: true,
@@ -65,19 +68,19 @@ module.exports = async (req, res, next) => {
   console.log (req.body);
   const log = moduleLogger.setReqId (req.requestId);
 
-  const { userIDToken, originator, register } = req.body;
+  const { credential, originator, register } = req.body;
 
   log.info ('attempting to log in user via google oauth2', { originator, register });
 
   // 1. verify oAuth token
 
-  const client = new OAuth2Client(cmapClientID);
+  const client = new OAuth2Client(clientId);
 
   let ticket;
   try {
     ticket = await client.verifyIdToken({
-      idToken: userIDToken,
-      audience: cmapClientID,
+      idToken: credential,
+      audience: clientId,
     });
   } catch (e) {
     log.error ('error calling google client verifyIdToken', { error: e });
@@ -94,8 +97,8 @@ module.exports = async (req, res, next) => {
     family_name: lastName,
   } = ticket.payload;
 
-  if (aud !== cmapClientID) {
-    log.error("google auth token does not match cmap client id", { aud });
+  if (aud !== clientId) {
+    log.error("google auth token does not match cmap client id", { aud, clientId });
     notifyAdmin ('Error Verifying OAuth Response', `There was an error while attempting to log in a user via google OAuth2: the API response did not match the CMAP Google Client ID. The originator of the login request was '${originator}'.`);
     return res.sendStatus(500);
   }
