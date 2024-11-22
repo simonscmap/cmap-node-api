@@ -10,9 +10,11 @@ const notifyAdmin = require("../../utility/email/notifyAdmin");
 const moduleLogger = initializeLogger("controllers/user/googleAuth");
 
 const cmapClientIDDevelopment = '739716651449-t0mh6vdfgk4f1p73s3qn0rsaag04mn03.apps.googleusercontent.com';
-const cmapClientID = "739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com";
+const cmapClientID = '739716651449-7rbvsac1okk8mkd4g1mti8tnhdk1m3a8.apps.googleusercontent.com'
+// const cmapClientID = "739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com";
 
-const clientId = environment.isDevelopment ? cmapClientIDDevelopment : cmapClientID;
+const clientId = cmapClientID;
+// const clientId = environment.isDevelopment ? cmapClientIDDevelopment : cmapClientID;
 
 const standardCookieOptions = {
   // secure: true,
