@@ -70,7 +70,7 @@ module.exports = async (req, res, next) => {
   console.log (req.body);
   const log = moduleLogger.setReqId (req.requestId);
 
-  const { credential, originator, register } = req.body;
+  const { userIDToken: credential, originator, register } = req.body;
 
   log.info ('attempting to log in user via google oauth2', { originator, register });
 
