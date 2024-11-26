@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.16.5-hotfix.4",
+  "version": "1.16.5-hotfix.5",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
