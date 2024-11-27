@@ -2,19 +2,16 @@ const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 
 const jwtConfig = require("../../config/jwtConfig");
-const environment = require("../../config/environment");
 const UnsafeUser = require("../../models/UnsafeUser");
 const initializeLogger = require("../../log-service");
 const notifyAdmin = require("../../utility/email/notifyAdmin");
 
 const moduleLogger = initializeLogger("controllers/user/googleAuth");
 
-const cmapClientIDDevelopment = '739716651449-t0mh6vdfgk4f1p73s3qn0rsaag04mn03.apps.googleusercontent.com';
+// const cmapClientIDDevelopment = '739716651449-t0mh6vdfgk4f1p73s3qn0rsaag04mn03.apps.googleusercontent.com';
 const cmapClientID = '739716651449-7rbvsac1okk8mkd4g1mti8tnhdk1m3a8.apps.googleusercontent.com'
-// const cmapClientID = "739716651449-7d1e8iijue6srr9l5mi2iogp982sqoa0.apps.googleusercontent.com";
 
 const clientId = cmapClientID;
-// const clientId = environment.isDevelopment ? cmapClientIDDevelopment : cmapClientID;
 
 const standardCookieOptions = {
   // secure: true,
@@ -49,7 +46,7 @@ const registerGoogleUser = async (userInfo, log = moduleLogger) => {
   const user = new UnsafeUser(userInfo);
   let result;
   try {
-    result = await user.saveAsNew();
+    result = await user.saveAsNew(log);
   } catch (e) {
     log.error ("error attempting to save new user with google account", { email: userInfo.email })
     return [e];
@@ -67,7 +64,6 @@ const registerGoogleUser = async (userInfo, log = moduleLogger) => {
 // - sign in user with associated google id
 // - if no user with id, try to find user with same google email and attach id to user
 module.exports = async (req, res, next) => {
-  console.log (req.body);
   const log = moduleLogger.setReqId (req.requestId);
 
   const { userIDToken: credential, originator, register } = req.body;
@@ -111,7 +107,7 @@ module.exports = async (req, res, next) => {
 
   let googleIDUser;
   try {
-    googleIDUser = await UnsafeUser.getUserByGoogleID(googleID);
+    googleIDUser = await UnsafeUser.getUserByGoogleID(googleID, log);
   } catch (e) {
     log.error("error attempting to get user by google id", { error: e });
     // send admin email?
@@ -132,7 +128,7 @@ module.exports = async (req, res, next) => {
 
   let existingUser;
   try {
-    existingUser = await UnsafeUser.getUserByEmail(email);
+    existingUser = await UnsafeUser.getUserByEmail(email, log);
   } catch (e) {
     log.error("error attempting to get user by google email", { error: e, email });
     return res.sendStatus(500);
@@ -142,7 +138,7 @@ module.exports = async (req, res, next) => {
     // found user with same google email, but no google id; attempt to attach google id to user
     let user = new UnsafeUser({ ...existingUser, googleID });
 
-    const [attachErr] = await user.attachGoogleIDToExistingUser();
+    const [attachErr] = await user.attachGoogleIDToExistingUser(log);
 
     if (attachErr) {
       notifyAdmin ('Error Attaching Google Account', `There was an error while attempting to log in a user via google OAuth2: A user with the same email was identified but the operation failed. The originator of the login request was '${originator}'.`);
@@ -156,7 +152,8 @@ module.exports = async (req, res, next) => {
   }
 
   // 4. login has failed; if "register" flag is true, register user
-  log.debug ("checking if user should be registered", { register: req.body.register });
+  log.info ("checking if user should be registered", { register: req.body.register });
+
   if (req.body.register === true) {
     const userInfo = {
       googleID,
@@ -172,21 +169,20 @@ module.exports = async (req, res, next) => {
       res.json ({ register: true });
       return next();
     } else {
-      console.log (err, user);
+      log.error ('error attaching credentials to user', { email: user.email })
     }
   } else {
-    log.debug ('register flag not set', req.body)
+    log.info ('register flag not set', null);
   }
 
 
   // 5. no successful login or regstration; return error
 
-  log.info ('no user exists with google cilent provided email', { googleEmail: email });
+  log.info ('no user exists with google cilent provided email, and register option was not selected', { googleEmail: email });
   if (originator === 'login form') {
     // only notify if it was not an automatic login
     notifyAdmin ('Unsuccessful Login with Google', `An attempt to log a user in via their Google Account was unsuccessful. The originator of the login request was '${originator}'. The email was '${email}'.`);
   }
   res.status(401).send ('No such user');
   return next ();
-
 }

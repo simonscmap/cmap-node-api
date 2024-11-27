@@ -7,7 +7,7 @@ const userTable = "tblUsers";
 const apiKeyTable = "tblApi_Keys";
 const iss = "Simons CMAP";
 
-const log = logService ("models/UnsafeUser");
+const moduleLogger = logService ("models/UnsafeUser");
 
 // This is the general user class.
 // Instances can include a password in some routes, hence "unsafe".
@@ -38,22 +38,29 @@ module.exports = class UnsafeUser {
       Boolean (userInfo.News_Subscribed) || Boolean (userInfo.isNewsSubscribed);
   }
 
-  static async getUserByUsername(username) {
+  static async getUserByUsername(username, log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     request.input("username", sql.NVarChar, username);
-    request.on("error", (err) => console.log(err));
 
+    let result;
     try {
-      var result = await request.query(
+      result = await request.query(
         `SELECT TOP 1 * FROM ${userTable} WHERE username = @username`
       );
     } catch (e) {
       log.error ('error attempting to get user by username', { error: e, username });
+      return false;
     }
 
-    if (result.recordset.length) {
-      return new this(result.recordset[0]);
+    const userRecord = result && result.recordset && result.recordset.length && result.recordset[0];
+
+    if (userRecord) {
+      log.info ('success lookuing up user by username', {
+        username,
+        id: userRecord.UserID
+      });
+      return new this(userRecord);
     } else {
       log.info ('user lookup by username returned no match', { username });
       return false;
@@ -61,18 +68,31 @@ module.exports = class UnsafeUser {
   }
 
   // getUserByID is not used
-  static async getUserByID(id) {
+  static async getUserByID(id, log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     request.input("id", sql.Int, id);
-    request.on("error", (err) => console.log(err));
-    let result = await request.query(
-      `SELECT TOP 1 * FROM ${userTable} WHERE UserId = @id`
-    );
-    return result.recordset.length ? new this(result.recordset[0]) : false;
+
+    let result;
+    try {
+      result = await request.query(`SELECT TOP 1 * FROM ${userTable} WHERE UserId = @id`);
+    } catch (e) {
+      log.error ("error looking up user by id", { id });
+      return false;
+    }
+
+    const userRecord = result && result.recordset && result.recordset.length && result.recordset[0];
+
+    if (userRecord) {
+      log.info ("success looking up user by id", { id });
+      return new this(userRecord);
+    } else {
+      log.warn ("no user record found with id", { id });
+      return false;
+    }
   }
 
-  static async getUserByEmail(email) {
+  static async getUserByEmail(email, log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     request.input("email", sql.NVarChar, email);
@@ -83,36 +103,47 @@ module.exports = class UnsafeUser {
         `SELECT TOP 1 * FROM ${userTable} WHERE email = @email`
       );
     } catch (e) {
-      log.error ();
+      log.error ('error attempting to lookup user by email', { error: e, providedEmail: email });
+      return false;
     }
-    if (result && result.recordset && result.recordset.length) {
-      log.info ('sucessfully looked up user with email', { email });
-      return new this(result.recordset[0]);
+
+    const userRecord = result && result.recordset && result.recordset.length && result.recordset[0];
+
+    if (userRecord) {
+      log.info ('sucessfully looked up user with email', { email, id: userRecord.UserID });
+      return new this(userRecord);
     } else {
-      log.info ('user lookup by email returned no match', { email });
+      log.info ('user lookup by email returned no match', { providedEmail: email });
       return false;
     }
   }
 
-  static async getUserByApiKey(key) {
+  static async getUserByApiKey(key, log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     request.input("key", sql.NVarChar, key);
-    request.on("error", (err) => console.log(err));
-    let result = await request.query(
-      `SELECT TOP 1 *,${apiKeyTable}.ID as Api_Key_ID FROM ${userTable} JOIN ${apiKeyTable} on ${apiKeyTable}.User_ID = ${userTable}.UserID WHERE Api_Key = @key`
-    );
 
-    // Throw not found error if no results
-    if (!result.recordset.length) {
-      log.info ('user lookup by api key returned no match', { key });
-      throw new Error("API Key not found");
+    let query = `SELECT TOP 1 *,${apiKeyTable}.ID as Api_Key_ID FROM ${userTable} JOIN ${apiKeyTable} on ${apiKeyTable}.User_ID = ${userTable}.UserID WHERE Api_Key = @key`;
+    let result;
+    try {
+      result = await request.query(query);
+    } catch (e) {
+      log.error ("error looking up user by api key", { key });
+      return false;
     }
-    log.info ('user lookup by api key succeeded', { key });
-    return new this(result.recordset[0]);
+
+    const userRecord = result && result.recordset && result.recordset.length && result.recordset[0];
+
+    if (!userRecord) {
+      log.info ('user lookup by api key returned no match', { key });
+      return false;
+    } else {
+      log.info ('user lookup by api key succeeded', { key, id: userRecord.UserID });
+      return new this(userRecord);
+    }
   }
 
-  static async getUserByGoogleID(id) {
+  static async getUserByGoogleID(id, log = moduleLogger) {
     log.debug ("attempting to get user by google id", { id });
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
@@ -131,6 +162,7 @@ module.exports = class UnsafeUser {
       log.info ('no user found with given google id', { googleId: id })
       return false;
     }
+
     const record = result && result.recordset && result.recordset[0];
     const Email = record && record.Email;
 
@@ -138,7 +170,7 @@ module.exports = class UnsafeUser {
     return new this(result.recordset[0]);
   }
 
-  static async getApiKeysByUserID(id) {
+  static async getApiKeysByUserID(id, log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
     request.input("user_id", sql.Int, id);
@@ -167,6 +199,8 @@ module.exports = class UnsafeUser {
     return safeUser;
   }
 
+  // checks availability of username and email
+  // returns FALSE if user is found, otherwise TRUE
   async validateUsernameAndEmail() {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
@@ -180,7 +214,7 @@ module.exports = class UnsafeUser {
     return true;
   }
 
-  async saveAsNew() {
+  async saveAsNew(log = moduleLogger) {
     // Validates and saves user to db.
     log.info ("saving new user", { email: this.email });
     let pool = await pools.userReadAndWritePool;
@@ -213,7 +247,7 @@ module.exports = class UnsafeUser {
   }
 
   // Use to associate a google ID with an existing account for first time google sign-on
-  async attachGoogleIDToExistingUser() {
+  async attachGoogleIDToExistingUser(log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
@@ -233,7 +267,7 @@ module.exports = class UnsafeUser {
   }
 
   // Update method for less-sensitive information shown on the front end user profile
-  async updateUserProfile() {
+  async updateUserProfile(log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
@@ -266,7 +300,7 @@ module.exports = class UnsafeUser {
   }
 
   // Password update
-  async updatePassword() {
+  async updatePassword(log = moduleLogger) {
     // Updates password based on email
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
@@ -292,7 +326,7 @@ module.exports = class UnsafeUser {
     return result;
   }
 
-  async updateEmail() {
+  async updateEmail(log = moduleLogger) {
     let pool = await pools.userReadAndWritePool;
     let request = new sql.Request(pool);
 
