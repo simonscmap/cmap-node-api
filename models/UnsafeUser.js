@@ -128,7 +128,7 @@ module.exports = class UnsafeUser {
     try {
       result = await request.query(query);
     } catch (e) {
-      log.error ("error looking up user by api key", { key });
+      log.error ("error looking up user by api key", { key, error: e });
       return false;
     }
 

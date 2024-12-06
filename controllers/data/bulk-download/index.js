@@ -24,7 +24,6 @@ const bulkDownloadController = async (req, res, next) => {
     return next ('missing argument');
   }
 
-  console.log('shortNames', req.body.shortNames);
   let shortNames;
   try {
     shortNames = JSON.parse(req.body.shortNames);
