@@ -1,21 +1,15 @@
-const fetch = require('isomorphic-fetch');
-const { Dropbox, checkAndRefreshAccessToken } = require('dropbox');
+const dbx = require ('../../utility/DropboxVault');
 const { getDatasetId } = require('../../queries/datasetId');
 const directQuery = require('../../utility/directQuery');
 const { safePath, safePathOr } = require('../../utility/objectUtils');
-const safePromise = require('../../utility/safePromise');
 const initLog = require("../../log-service");
 
 const moduleLogger = initLog ("controllers/dropbox");
 
+
+
 // NOTE: this module is for accessing files in the vault, not the submissions app
-// these require different dropbox access tokens
-const dropbox = new Dropbox ({
-  accessToken: process.env.DROPBOX_VAULT_TOKEN,
-  fetch: fetch
-});
-
-
+// these require different dropbox credentials
 const safePathOrEmpty = safePathOr ([]) ((val) => Array.isArray (val) && val.length > 0);
 
 const ensureTrailingSlash = (path = '') => {
@@ -41,10 +35,7 @@ const getShareLinkController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
 
   // 0.
-
-
-
-
+  const dropbox = dbx;
 
   // 1.
   const shortName = req.params.shortName;
@@ -146,7 +137,6 @@ const getShareLinkController = async (req, res, next) => {
   }
 
   let link = safePath (['result', 'links', 0, 'url']) (listSharedLinksResp);
-  let folderId = safePath (['result', 'links', 0, 'id']) (listSharedLinksResp);
 
   if (link) {
     log.info ('retrieved existing dropbox share link', { path: folderPath, url: link });
@@ -169,7 +159,6 @@ const getShareLinkController = async (req, res, next) => {
     }
 
     const newShareLink = safePath (['result', 'url']) (shareLinkResp);
-    folderId = safePath (['result', 'id']) (shareLinkResp);
 
     if (!newShareLink) {
       log.error ('no new share link returned', { path: folderPath, resp: shareLinkResp });
@@ -181,14 +170,7 @@ const getShareLinkController = async (req, res, next) => {
   }
 
 
-  // let metadata;
-
-  // try {
-  //   metadata = await dropbox.sharingGetFolderMetadata({ shared_folder_id: folderId });
-  // } catch (e) {
-  //   log.error ('dropbox error: sharingGetFolderMetadata', e.error);
-  //   return res.sendStatus (500);
-  // }
+  // TODO fetch metadata
 
   // 5. return
   const payload = {
