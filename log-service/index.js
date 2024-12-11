@@ -80,7 +80,10 @@ const throttledResourceUsageLog = throttle (DEBUG_USAGE_THROTTLE_MS, (args) => {
     ...args,
     level: 3,
     error: false,
-    data: process.resourceUsage(),
+    data: {
+      ...process.resourceUsage(),
+      ...process.memoryUsage(),
+    },
   };
 
   if (isProduction) {
