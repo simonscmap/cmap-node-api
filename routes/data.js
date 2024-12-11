@@ -103,4 +103,9 @@ router.get(
   asyncControllerWrapper(dataController.namedDataController)
 );
 
+router.get (
+  '/share/:shortName',
+  asyncControllerWrapper(dataController.getShareLinkController)
+);
+
 module.exports = router;

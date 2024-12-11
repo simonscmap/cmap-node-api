@@ -99,7 +99,7 @@ const checkLongName = async (longName, userId, targetSubmissionId) => {
 }
 
 
-const checkShortName = async (shortName, userId, targetSubmissionId) => {
+const checkShortName = async (shortName, userId, targetSubmissionId, originalShortName) => {
   if (!shortName) {
     return ['No short name provided'];
   }
@@ -141,7 +141,6 @@ const checkShortName = async (shortName, userId, targetSubmissionId) => {
     } else {
       log.error("error getting folder ls", { ...e, userId });
       log.error("dropbox response", lsResp)
-      console.log (lsResp);
       checkShortNameError = 'Error checking short name against existing data submissions';
     }
   }
@@ -176,14 +175,14 @@ const checkShortName = async (shortName, userId, targetSubmissionId) => {
     const existingSubmissionId = safePath(['recordset', '0', 'ID'])(conflictResp);
     const existingSubmissionSubmitterId = safePath(['recordset', '0', 'Submitter_ID'])(conflictResp);
 
-    const info = { userId, targetSubmissionId, shortName, existingSubmissionId, existingSubmissionSubmitterId };
+    const info = { userId, targetSubmissionId, shortName, existingSubmissionId, existingSubmissionSubmitterId, originalShortName };
     const tag = 'short name check';
     // does the submission belong to current user?
 
     // if no target submission, this is being checked as "new", and is therefore in conflict
     if (!targetSubmissionId) {
       shortNameUpdateConflict = true;
-      log.debug(
+      log.info(
         `${tag}: a record with this short name already exists, but no target submission was provided`,
         info);
     } else if (targetSubmissionId === existingSubmissionId) {
@@ -193,16 +192,21 @@ const checkShortName = async (shortName, userId, targetSubmissionId) => {
         log.debug(
           `${tag}: the existing record matches the target submission, but the user is not the owner`,
           info);
+      } else if (shortName !== originalShortName && shortName.toLowerCase() === originalShortName.toLowerCase()) {
+        // if target matcheds, but the original short name and the submitted short name differ only by case, that is prohibited
+        // due to dropbox limitations and downstream complications
+        shortNameUpdateConflict = true;
+        log.info ('requested short name change only modifies case, and is prohibited', { info })
       } else {
         shortNameUpdateConflict = false;
-        log.debug(
+        log.info(
           `${tag}: the existing record matches the target submission, and the user is the owner`,
           info);
       }
     } else if (targetSubmissionId !== existingSubmissionId) {
       // if it it is not the same as the existing submission id, it is in conflict
       shortNameUpdateConflict = true;
-      log.debug(
+      log.info(
         `${tag}: a record with this short name already exists, but belongs to a submission different from the target submission`,
         info);
     }
@@ -212,6 +216,8 @@ const checkShortName = async (shortName, userId, targetSubmissionId) => {
 }
 
 
+
+// Controller
 const checkSubmissionName = async (req, res) => {
   const { id: userId } = (req.user || {});
   const { shortName, longName, submissionId: targetSubmissionId } = req.body;
@@ -220,12 +226,13 @@ const checkSubmissionName = async (req, res) => {
   let shortNameIsAlreadyInUse = false;
   let longNameIsAlreadyInUse = false;
   let folderExists = true;
+
   // additional info
   let errors = [];
   let shortNameUpdateConflict;
   let longNameUpdateConflict;
 
-
+  // check args
   if (!shortName) {
     errors.push('No short name provided');
   }
@@ -235,6 +242,17 @@ const checkSubmissionName = async (req, res) => {
 
   if (errors.length) {
     return res.status(400).send (errors.join ('; '));
+  }
+
+  // 1. get original names
+  let originalNames = {};
+  if (targetSubmissionId) {
+    const [err, result] = await getOriginalNames (targetSubmissionId);
+    if (err) {
+      errors.push (err);
+    } else {
+      originalNames = result;
+    }
   }
 
   // 2. check long name
@@ -248,25 +266,16 @@ const checkSubmissionName = async (req, res) => {
     }
   }
 
+  // 3. check short name
   if (shortName) {
     // error should be a string
-    const [error, result] = await checkShortName (shortName, userId, targetSubmissionId);
+    const [error, result] = await checkShortName (shortName, userId, targetSubmissionId, originalNames.originalShortName);
     if (error) {
       return res.status(500).send (error);
     } else {
       shortNameIsAlreadyInUse = result.shortNameIsAlreadyInUse;
       shortNameUpdateConflict = result.shortNameUpdateConflict;
       folderExists = result.folderExists;
-    }
-  }
-
-  let originalNames = {};
-  if (targetSubmissionId) {
-    const [err, result] = await getOriginalNames (targetSubmissionId);
-    if (err) {
-      errors.push (err);
-    } else {
-      originalNames = result;
     }
   }
 
@@ -283,7 +292,6 @@ const checkSubmissionName = async (req, res) => {
     longName,
     ...originalNames,
   }
-
 
   log.info ("result of checkName", { ...payload, userId });
 

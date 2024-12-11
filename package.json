@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.17.0",
+  "version": "1.17.1-rc.0",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
@@ -64,6 +64,7 @@
     "pm2": "^4.5.6",
     "sanctuary": "^3.1.0",
     "sanctuary-def": "^0.22.0",
+    "throttle-debounce": "^5.0.2",
     "uuid": "^9.0.0",
     "xlsx": "^0.18.5"
   }

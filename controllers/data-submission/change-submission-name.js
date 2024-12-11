@@ -36,7 +36,6 @@ const listFolderContents = async (path) => {
 };
 
 const createTempFolder = async (nameOnRecord) => {
-  log.trace ('invoking createTempFolder', { arg: nameOnRecord });
   const uuid = (uuidv4()).slice(0,5);
   if (!nameOnRecord) {
     return [new Error('No existing file name provided')];
@@ -44,6 +43,7 @@ const createTempFolder = async (nameOnRecord) => {
   let error;
   let folderName = `/${nameOnRecord}_tmp_${uuid}`;
   let result;
+  log.info ('creating temporary folder', { stem: nameOnRecord, newFolder: folderName });
   try {
     // call dropbox api
     result = await dropbox.filesCreateFolderV2({
@@ -93,7 +93,7 @@ const copyFiles = async ({ prevPath, newPath }) => {
     log.debug ('file copy job id', { jobId });
   }
 
-  const runWithh5Retries = expBackoffWithMaxCallDepth (5, true);
+  const runWithh5Retries = expBackoffWithMaxCallDepth (10, true);
 
   const checkFn = () => dropbox.filesCopyBatchCheckV2({ async_job_id: jobId });
   const checkPred = (r) => 'complete' === safePath (['result','.tag']) (r);
@@ -102,14 +102,14 @@ const copyFiles = async ({ prevPath, newPath }) => {
   log.info ('copy files verified', metadata);
 
   if (checkErr) {
-    return [true];
+    return [checkErr];
   } else {
     return [false, { entries, jobId, checkResult }];
   }
 };
 
 const renameFolder = async ({ prevPath, newPath }) => {
-  log.trace ('invoking renameFolder', { prevPath, newPath });
+  log.debug ('invoking renameFolder', { prevPath, newPath });
   const arg = {
     from_path: prevPath,
     to_path: newPath,
@@ -120,7 +120,7 @@ const renameFolder = async ({ prevPath, newPath }) => {
     result = await dropbox.filesMoveV2(arg);
     log.info ('successfully renamed folder', { ...arg, result });
   } catch (e) {
-    log.error ('error renaming folder', arg);
+    log.error ('error renaming folder', { ...arg, error: e });
     error = e;
   }
   return [error, result];

@@ -1,3 +1,4 @@
+const { throttle } = require("throttle-debounce");
 const { versions } = require("./get-versions");
 const { id: workerId } = require("./get-worker");
 const {
@@ -17,6 +18,11 @@ const isProduction =
   process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+
+const DEBUG_USAGE = process.env.DEBUG_USAGE === 'enable';
+const DEBUG_USAGE_THROTTLE_MS = parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
+      ? parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
+      : 100;
 
 let chalk;
 if (isDevelopment) {
@@ -68,6 +74,83 @@ const logLevel = {
   fatal: 0,
 };
 
+
+const throttledResourceUsageLog = throttle (DEBUG_USAGE_THROTTLE_MS, (args) => {
+  const payload = {
+    ...args,
+    level: 3,
+    error: false,
+    data: {
+      ...process.resourceUsage(),
+      ...process.memoryUsage(),
+    },
+  };
+
+  if (isProduction) {
+    writeLogInProduction (payload)
+  } else {
+    writeLogInDevelopment (payload);
+  }
+});
+
+function writeLogInProduction (payload) {
+  payload.time = Date.now();
+
+  // write log to stdout
+  if (isProduction || logFormat === "json") {
+    console.log(JSON.stringify(payload));
+    return;
+  }
+}
+
+function writeLogInDevelopment (payload) {
+  const shouldLog = filterLogsForDevelopment (payload);
+  if (!shouldLog) {
+    return;
+  }
+  const level = payload.level;
+
+  const levelHeader = Object.entries(logLevel)
+        .filter(([, val]) => val === level)
+        .flat()
+        .shift()
+        .toUpperCase()
+
+  const { module, ...ctx } = payload.context;
+  let header;
+  switch (levelHeader) {
+  case 'ERROR':
+    header = chalk`\n{red ${level}} - {red.bold ${levelHeader}} in {blueBright ${module}}`;
+    break;
+  case 'WARN':
+    header = chalk`\n{magenta ${level}} - {magenta ${levelHeader}} in {blueBright ${module}}`;
+    break;
+  case 'INFO':
+    header = chalk`\n{green ${level}} - {green ${levelHeader}} in {blueBright ${module}}`;
+    break;
+  case 'DEBUG':
+    header = chalk`\n{yellow ${level}} - {yellow ${levelHeader}} in {blueBright ${module}}`;
+    break;
+  default:
+    // trace
+    header = chalk`\n{blackBright ${level} - ${levelHeader} in} {blueBright ${module}}`;
+  }
+
+  let abbreviatedPayload = {
+    message: payload.message,
+  }
+  if (Object.keys(ctx).length) {
+    abbreviatedPayload.context = ctx;
+  }
+  if (payload.data) {
+    abbreviatedPayload.data = payload.data;
+  }
+
+  // log
+  console.log(header);
+  console.log(abbreviatedPayload);
+}
+
 function log(level, tags, context, message, isError, data) {
   // 0. exit if over the log threshhold
 
@@ -78,9 +161,7 @@ function log(level, tags, context, message, isError, data) {
     return;
   }
 
-
   // 1. ensure that log will have full context
-
   if (typeof level !== "number") {
     console.error('missing arg "level" in logger:');
     console.log(level);
@@ -112,12 +193,6 @@ function log(level, tags, context, message, isError, data) {
     message,
   };
 
-  // only log time and tags in production
-  if (isProduction) {
-    payload.time = Date.now();
-    payload.tags = tags;
-  }
-
   if (context) {
     payload.context = context;
   }
@@ -130,58 +205,35 @@ function log(level, tags, context, message, isError, data) {
     payload.data = data;
   }
 
-  // 4. write log to stdout
-  if (isProduction || logFormat === "json") {
-    console.log(JSON.stringify(payload));
+  // 4. PRODUCTION write log to stdout
+  if (isProduction) {
+    payload.tags = tags;
+    writeLogInProduction (payload);
+    if (DEBUG_USAGE) {
+      throttledResourceUsageLog ({
+        message: 'resource usage',
+        context: {
+          ...payload.context,
+          originalMessage: payload.message,
+        }
+      });
+    }
     return;
   }
 
-  // DEVELOPMENT LOGGING
+  // 4. DEVELOPMENT write log
   if (isDevelopment) {
-    const shouldLog = filterLogsForDevelopment (payload);
-    if (!shouldLog) {
-      return;
+    writeLogInDevelopment (payload);
+    if (DEBUG_USAGE) {
+      throttledResourceUsageLog ({
+        message: 'resource usage',
+        context: {
+          ...payload.context,
+          originalMessage: payload.message,
+        }
+      });
     }
-
-    let levelHeader = Object.entries(logLevel)
-                            .filter(([, val]) => val === level)
-                            .flat()
-                            .shift()
-                            .toUpperCase()
-
-    let { module, ...ctx } = payload.context;
-    let header;
-    switch (levelHeader) {
-      case 'ERROR':
-        header = chalk`\n{red ${level}} - {red.bold ${levelHeader}} in {blueBright ${module}}`;
-        break;
-      case 'WARN':
-        header = chalk`\n{magenta ${level}} - {magenta ${levelHeader}} in {blueBright ${module}}`;
-        break;
-      case 'INFO':
-        header = chalk`\n{green ${level}} - {green ${levelHeader}} in {blueBright ${module}}`;
-        break;
-      case 'DEBUG':
-        header = chalk`\n{yellow ${level}} - {yellow ${levelHeader}} in {blueBright ${module}}`;
-        break;
-      default:
-       // trace
-       header = chalk`\n{blackBright ${level} - ${levelHeader} in} {blueBright ${module}}`;
-    }
-
-    let abbreviatedPayload = {
-      message: payload.message,
-    }
-    if (Object.keys(ctx).length) {
-      abbreviatedPayload.context = ctx;
-    }
-    if (payload.data) {
-      abbreviatedPayload.data = payload.data;
-    }
-
-    // log
-    console.log(header);
-    console.log(abbreviatedPayload);
+    return;
   }
 }
 

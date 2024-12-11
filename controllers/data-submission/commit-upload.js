@@ -14,7 +14,7 @@ const {
 } = require('./change-submission-name');
 
 const initializeLogger = require("../../log-service");
-let log = initializeLogger("controllers/data-submission/commit-upload");
+let moduleLogger = initializeLogger("controllers/data-submission/commit-upload");
 
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
@@ -22,7 +22,8 @@ const {
 
 // Commit upload session (completing upload)
 const commitUpload = async (req, res) => {
-  const { id: userId } = req.user;
+  const { id: userId, reqId } = req.user;
+  const log = moduleLogger.setReqId (reqId);
   let pool = await userReadAndWritePool;
 
   const {
@@ -149,6 +150,7 @@ const commitUpload = async (req, res) => {
   // 1 (b) submission is "update" but shortName is different than name in tblData_Submissions
   let nameChange = false;
   if (submissionType === 'update' && fileNameRoot !== shortName) {
+    log.info ('submision is update with name change', { fileNameRoot, newShortName: shortName });
     nameChange = true;
   }
 
@@ -264,6 +266,7 @@ const commitUpload = async (req, res) => {
       newPath: tmpFolder,
     };
     const [cpErr, cpResult] = await copyFiles(arg);
+    console.log (cpErr && epErr.error);
 
     if (cpErr) {
       log.error ('error copying files to temp folder', { ...arg, error: cpErr });

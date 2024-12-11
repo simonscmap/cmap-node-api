@@ -51,7 +51,7 @@ const executeQueryOnPrem = async (req, res, next, query, candidateList = []) => 
 
   log.debug ("making request", { poolName });
 
-  let request = await new sql.Request (pool);
+  let request = new sql.Request (pool);
 
   // stream the response
   // https://www.npmjs.com/package/mssql#streaming
