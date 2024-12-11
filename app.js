@@ -20,6 +20,12 @@ monitor ();
 
 const log = createNewLogger().setModule("app.js").addContext(['node_version', process.version ]);
 
+log.info ('starting app', {
+  DEBUG_USAGE: process.env.DEBUG_USAGE,
+  DEBUG_USAGE_THROTTLE_MS: process.env.DEBUG_USAGE_THROTTLE_MS,
+  CLUSTER_CHUNK_MAX_ROWS: process.env.CLUSTER_CHUNK_MAX_ROWS,
+});
+
 const app = express();
 const port = process.env.PORT || 8080;
 
