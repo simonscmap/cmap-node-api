@@ -33,7 +33,7 @@ const fetchDatasetList = async (log = moduleLogger) => {
     pool = await pools.dataReadOnlyPool;
   } catch (e) {
     log.error("attempt to connect to pool failed", { error: e });
-    return [true, []];
+    return [true, new Map()];
   }
 
   let request = new sql.Request(pool);
@@ -44,7 +44,7 @@ const fetchDatasetList = async (log = moduleLogger) => {
     log.trace("success fetching list of dataset ids");
   } catch (e) {
     log.error("error fetching list of datasets", { error: e });
-    return [true, []];
+    return [true, new Map()];
   }
 
   if (result && result.recordset && result.recordset.length) {
@@ -57,7 +57,7 @@ const fetchDatasetList = async (log = moduleLogger) => {
     log.error("error fetching list of datasets: no recordset returned ", {
       result,
     });
-    return [true, []];
+    return [true, new Map()];
   }
 };
 
