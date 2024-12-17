@@ -6,11 +6,9 @@ const { getDatasetId } = require('../../queries/datasetId');
 const directQuery = require('../../utility/directQuery');
 const { safePath, safePathOr } = require('../../utility/objectUtils');
 const initLog = require("../../log-service");
-const safePromise = require ('../../utility/safePromise');
+const getVaultFolderMetadata = require('./getVaultInfo');
 
 const moduleLogger = initLog ("controllers/dropbox");
-
-
 
 const safePathOrEmpty = safePathOr ([]) ((val) => Array.isArray (val) && val.length > 0);
 
@@ -24,60 +22,6 @@ const ensureTrailingSlash = (path = '') => {
   }
 }
 
-const getFolderContents = async (path, aggregator = [], cursor, log = moduleLogger) => {
-  // https://dropbox.github.io/dropbox-sdk-js/Dropbox.html#filesListFolder__anchor
-  const arg = cursor
-        ? { cursor }
-        : {
-          path,
-          recursive: false,
-          include_media_info: false,
-          include_deleted: false,
-          include_non_downloadable_files: false,
-        };
-
-  const method = cursor ? dbx.filesListFolderContinue : dbx.filesListFolder;
-
-  // safePromise :: (promiseReturningFn, context) -> (args) -> [Err, Response]
-  const [err, resp] = await safePromise (method, dbx) (arg);
-
-  const getResult = safePath (['result']);
-  const result = getResult (resp);
-
-  if (err || !result) {
-    return [err || new Error ('no result')];
-  }
-
-  if (result.has_more) {
-    log.info ('dbx.filesListFolder has more: recursing', { path });
-    return await getFolderContents (path, result.entries, result.cursor, log);
-  } else {
-  }
-  const fullEntriesList = aggregator.concat (result.entries);
-  log.info ('dbx.filesListFolder complete', { path, fileCount: fullEntriesList.length });
-  return [null, fullEntriesList];
-}
-
-// parseByteSize :: Int -> [Int, String]
-// return number in best denomination, and that denomination as string
-// ref: https://stackoverflow.com/questions/15900485/correct-way-to-convert-size-in-bytes-to-kb-mb-gb-in-javascript
-function parseByteSize (bytes) {
-  if (!+bytes) {
-    return [0, 'Bytes'];
-  }
-
-  const k = 1024
-  const sizes = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k)); // denomination
-  const x = parseFloat((bytes / Math.pow(k, i))); // convert bytes to denomination
-
-  return [x, sizes[i]];
-}
-
-
-
-
 // vaultController: return a share link to the correct folder given a shortName
 
 // 1. get dataset id from short name
@@ -87,7 +31,7 @@ function parseByteSize (bytes) {
 // 5. get metadata
 // 6. return payload
 
-const getShareLinkController = async (req, res, next) => {
+const getShareLinkController = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
 
   // 0.
@@ -125,7 +69,7 @@ const getShareLinkController = async (req, res, next) => {
 
   // 3.
   log.info ('retrieved valut info', result);
-  const vaultPath = ensureTrailingSlash (result.Vault_Path);;
+  const vaultPath = ensureTrailingSlash (result.Vault_Path);
   const repPath = `/vault/${vaultPath}rep`;
   const nrtPath = `/vault/${vaultPath}nrt`;
   const rawPath = `/vault/${vaultPath}raw`;
@@ -226,21 +170,10 @@ const getShareLinkController = async (req, res, next) => {
   }
 
   // 5. metadata
-
-  // - get folder contents
-  const [lsfErr, entriesList] = await getFolderContents(folderPath, [], null, log);
-  if (lsfErr) {
-    return res.status(500).send('error getting metadata');
+  const [mdErr, metadata] = await getVaultFolderMetadata (folderPath, log);
+  if (mdErr) {
+    res.status(500).send('error retrieving metadata');
   }
-
-  // - get metadata for each item
-  const aggregateSize = entriesList.reduce ((agg, curr) => {
-    return agg + curr.size;
-  }, 0);
-  const [size, denomination] = parseByteSize (aggregateSize);
-  const sizeString = `${size.toFixed(2)} ${denomination}`;
-  // - aggregate
-
 
   // 6. return
   const payload = {
@@ -250,8 +183,8 @@ const getShareLinkController = async (req, res, next) => {
     folderName,
     shareLink: link,
     metadata: {
-      totalSize: sizeString,
-      fileCount: entriesList.length,
+      totalSize: metadata.sizeString,
+      fileCount: metadata.count,
     }
   };
 
