@@ -102,7 +102,7 @@ const copyFiles = async ({ prevPath, newPath }) => {
   log.info ('copy files verified', metadata);
 
   if (checkErr) {
-    return [true];
+    return [checkErr];
   } else {
     return [false, { entries, jobId, checkResult }];
   }
