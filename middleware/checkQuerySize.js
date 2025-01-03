@@ -61,7 +61,11 @@ const getRowCountProjection = async (tablename, constraints, query, logger) => {
 
     // get dataset row count, if not provided
     if (!datasetTotalRowCount) {
-      let [error, reconstructedRowCount, deltas] = await reconstructDatasetRowCount (dataset, tablename, depths);
+      let [
+        error,
+        reconstructedRowCount,
+        deltas
+      ] = await reconstructDatasetRowCount (dataset, tablename, depths, logger);
       if (error) {
         return [error];
       } else {
@@ -176,7 +180,11 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
   log.info ('result', { ...result.query, ...result.projection, allow: result.allow })
 
   if (Array.isArray(result.messages)) {
-    result.messages.forEach ((message) => log.warn (message, null ))
+    result.messages.forEach ((message) => {
+      if (message) {
+        log.warn (message, null);
+      }
+    });
   }
 
   return res.json (result);

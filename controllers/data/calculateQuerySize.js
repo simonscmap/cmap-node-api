@@ -1,4 +1,9 @@
+const logInit = require("../../log-service");
+
+const moduleLogger = logInit ('calculateQuerySize');
+
 // Calculate query size for gridded dataset
+const isNaN = Number.isNaN;
 
 // Temporal Resolution value for monthly climatology
 const Monthly_Climatology = 'Monthly Climatology';
@@ -25,14 +30,17 @@ const getRatio = (a1, a2, b1, b2, tag = '') => {
   }
   let maxSpan = a2 - a1;
   let subSpan = b2 - b1;
-  if (maxSpan <= 0 || subSpan < 0 || subSpan > maxSpan) {
+  if (maxSpan <= 0 || subSpan < 0 || subSpan > maxSpan || isNaN(subSpan) || isNaN(maxSpan)) {
+    moduleLogger.warn ('unable to calculate ratio', { tag, a1, a2, b1, b2})
     return [`Unable to calculate "${tag}" ratio between ${maxSpan} and ${subSpan}`, 1]
   }
+  moduleLogger.debug ('getRatio result', { tag, maxSpan, subSpan, ratio: subSpan / maxSpan });
   return [null, subSpan / maxSpan]
 }
 
 const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   if (isMonthlyClimatology) {
+    console.log ('getDateRatio: MONTHLY CLIMATOLOGY t1 t2', t1, t2)
     // t1 and t2 are integers representing months
     return [null, (t2 - t1 + 1) / 12];
   }
@@ -45,12 +53,15 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   let t1Unix = getUnixTimestamp (t1);
   let t2Unix =  getUnixTimestamp (t2);
 
+  moduleLogger.trace ('getDateRatio', { tMinUnix, tMaxUnix, t1Unix, t2Unix });
+
 
   // if the times are the same, check the specificity of the time string
   // select * from tbl where time between '2012-09-15' and '2012-09-15' will match any times
   // during the day of the 15th, namely between '2012-09-15' and '2012-09-15T23:59:59Z'
   if (t1 === t2 && isDateWithoutTimeStamp(t2)) {
-    let t2EndOfDay = `${t2}T23:59:59Z`;
+    let t2EndOfDay = `${(new Date(t2).toISOString().slice(0,10))}T23:59:59Z`;
+    moduleLogger.trace ('MODIFYING t2EndOfDay', { t2, t2EndOfDay });
     t2Unix = getUnixTimestamp (t2EndOfDay);
   }
 
@@ -60,6 +71,7 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   if (isNaN (tMinUnix) || isNaN (tMaxUnix || isNaN (t1Unix) || isNaN (t2Unix))) {
     return [`Unable to calculate time ratio between (${Time_Min}, ${Time_Max}) and (${t1}, ${t2})`, 1];
   }
+
 
   return getRatio (tMinUnix, tMaxUnix, t1Unix, t2Unix, 'time');
 };
