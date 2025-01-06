@@ -47,29 +47,52 @@ passport.use('browserOnly', new CustomStrategy(async(req, done) => {
 
 // identifies a valid guest token with uses remaining
 passport.use('guest', new CustomStrategy(async(req, done) => {
-    try{
-        var token = req.cookies.guestToken;
-        jwt.verify(token, secret); // throws an error on failure
-        var { hash, id } = jwt.decode(token);
+  const log = moduleLogger.setReqId(req.requestId);
+  log.info ('using guest strategy');
 
-        var pool = await pools.userReadAndWritePool;
-        var checkTokenRequest = new sql.Request(pool);
-        checkTokenRequest.input('id', sql.Int, id);
-        let checkTokenResult = await checkTokenRequest.query(`SELECT [Hash], [Times_Used] from [tblGuest_Tokens] WHERE ID = @id`);
+  try {
+    // get token from cookie
+    const token = req.cookies.guestToken;
+    jwt.verify(token, secret); // throws an error on failure
+    const { hash, id } = jwt.decode(token);
 
-        if(checkTokenResult.recordset[0].Times_Used > 9) return done(null, false);
-        if(checkTokenResult.recordset[0].Hash !== guestTokenHashFromRequest(req) || guestTokenHashFromRequest(req) !== hash) return done(null, false);
+    // request token record
+    const pool = await pools.userReadAndWritePool;
+    const checkTokenRequest = new sql.Request(pool);
+    checkTokenRequest.input('id', sql.Int, id);
+    const checkTokenResult = await checkTokenRequest.query(`SELECT [Hash], [Times_Used] from [tblGuest_Tokens] WHERE ID = @id`);
 
-        let incrementTokenUsesRequest = new sql.Request(pool);
-        incrementTokenUsesRequest.input('id', sql.Int, id);
-        incrementTokenUsesRequest.query(`UPDATE tblGuest_Tokens SET [Times_Used] = [Times_Used] + 1 WHERE ID = @id`);
+    const tokenRecord = checkTokenResult
+          && Array.isArray (checkTokenResult.recordset)
+          && checkTokenResult.recordset[0];
 
-        return done(null, new GuestUser());
+    if (!tokenRecord) {
+      log.error ('guest token record not found', { token, recordResult: checkTokenResult });
+      return done(null, false);
     }
 
-    catch(e) {
-        return done(null, false);
+    if (tokenRecord.Times_Used > 9) {
+      log.info ('guest token consumed', { tokenRecord });
+      return done(null, false);
     }
+
+    if (tokenRecord.Hash !== guestTokenHashFromRequest(req) || guestTokenHashFromRequest(req) !== hash) {
+      log.info ('guest token hash did not match', { tokenRecord });
+      return done(null, false);
+    }
+
+    let incrementTokenUsesRequest = new sql.Request(pool);
+    incrementTokenUsesRequest.input('id', sql.Int, id);
+    incrementTokenUsesRequest.query(`UPDATE tblGuest_Tokens SET [Times_Used] = [Times_Used] + 1 WHERE ID = @id`);
+
+    log.debug ('incremented guest token', { tokenRecord });
+    return done(null, new GuestUser());
+  }
+
+  catch(e) {
+    log.error ('error executing guest authentication strategy', { error: e });
+    return done(null, false);
+  }
 }));
 
 

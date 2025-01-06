@@ -38,9 +38,9 @@ const getRatio = (a1, a2, b1, b2, tag = '') => {
   return [null, subSpan / maxSpan]
 }
 
-const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
+const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology, timeDelta) => {
   if (isMonthlyClimatology) {
-    console.log ('getDateRatio: MONTHLY CLIMATOLOGY t1 t2', t1, t2)
+    moduleLogger.debug ('getDateRatio: MONTHLY CLIMATOLOGY t1 t2', t1, t2)
     // t1 and t2 are integers representing months
     return [null, (t2 - t1 + 1) / 12];
   }
@@ -61,7 +61,7 @@ const getDateRatio = (Time_Min, Time_Max, t1, t2, isMonthlyClimatology) => {
   // during the day of the 15th, namely between '2012-09-15' and '2012-09-15T23:59:59Z'
   if (t1 === t2 && isDateWithoutTimeStamp(t2)) {
     let t2EndOfDay = `${(new Date(t2).toISOString().slice(0,10))}T23:59:59Z`;
-    moduleLogger.trace ('MODIFYING t2EndOfDay', { t2, t2EndOfDay });
+    moduleLogger.debug ('MODIFYING t2EndOfDay', { t2, t2EndOfDay });
     t2Unix = getUnixTimestamp (t2EndOfDay);
   }
 
@@ -158,15 +158,23 @@ const calculateFactors = (constraints, dataset, depths) => {
 };
 
 
-function calculateSize (constraints, dataset, depths) {
+function calculateSize (constraints, dataset, depths, log = moduleLogger) {
   if (constraints === null) {
     return [dataset.Row_Count, ['No constraints were provided']];
   }
 
-  let [messages, ...factors] = calculateFactors(constraints, dataset, depths);
+  let [messages, ...factors] = calculateFactors(constraints, dataset, depths, log);
   let [date, lat, lon, depth] = factors;
   let result = Math.ceil(dataset.Row_Count * date * lat * lon * depth);
 
+  log.debug ('calculating size with the following factors', {
+    datasetRowCount: dataset.Row_Count,
+    timeFactor: date,
+    latFactor: lat,
+    lonFactor: lon,
+    depthFactor: depth,
+    result,
+  });
 
   messages.push(`result: ${result} (factors: row count: ${dataset.Row_Count}, date ${date}, lat ${lat}, lon ${lon}, depth ${depth})`);
 

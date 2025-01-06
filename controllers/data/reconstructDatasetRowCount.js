@@ -44,7 +44,7 @@ const getLonConstraint = (dataset) => {
 }
 const getDepthConstraint = (dataset) => {
   let depthMin = parseFloat(dataset.Depth_Min);
-   if (isNaN (depthMin)) {
+  if (isNaN (depthMin)) {
     return '';
   }
   return `depth between ${depthMin} and ${depthMin + 1}`;
@@ -53,8 +53,11 @@ const getTimeConstraint = (dataset) => {
   if (dataset.Temporal_Resolution === Monthly_Climatology) {
     return `month = ${dataset.Time_Min}`;
   }
-  let dateMin = (new Date(dataset.Time_Min)).toISOString().slice(0,10);
-  return `time between '${dateMin}' AND '${dateMin}'`;
+  const dateMin = (new Date(dataset.Time_Min)).toISOString().slice(0,10);
+
+  let dateMax = new Date(dataset.Time_Min);
+  dateMax.setDate(dateMax.getDate() + 1);
+  return `time >= '${dateMin}' AND time < '${dateMax.toISOString().slice(0,10)}'`;
 }
 
 const joinConstraints = (arr) => {
@@ -162,6 +165,7 @@ const generateRowCount = async (dataset, tableName, depths, log = moduleLogger) 
   Object.assign(counts, { depth: (depths.length > 0 ? depths.length : 1) });
 
   // calculate datapoints in the dataset by multiplying each dimension
+  moduleLogger.info ('reducing datapoints', Object.entries(counts));
   let datapoints = Math.abs(Object.entries(counts).reduce ((acc, curr) => {
     let [_, v] = curr;
     return acc * v;

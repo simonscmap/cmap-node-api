@@ -78,6 +78,7 @@ const queryCluster = async (query = "", requestId) => {
     log.error("error querrying cluster", { error: e });
     return [e];
   }
+  log.debug ('cluster query result', result);
 
   return [null, result];
 };
