@@ -108,6 +108,10 @@ function writeLogInDevelopment (payload) {
   if (!shouldLog) {
     return;
   }
+  if (logFormat === 'json') {
+    console.log(JSON.stringify(payload));
+    return;
+  }
   const level = payload.level;
 
   const levelHeader = Object.entries(logLevel)

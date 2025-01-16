@@ -10,7 +10,6 @@ const isProduction = process.env.NODE_ENV === "production";
 const isStaging = process.env.NODE_ENV === "staging"
 
 const recipients = [
-  'mallinwa@uw.edu',
   'mdehghan@uw.edu',
   'simonscmap@uw.edu',
 ];

@@ -266,7 +266,7 @@ const commitUpload = async (req, res) => {
       newPath: tmpFolder,
     };
     const [cpErr, cpResult] = await copyFiles(arg);
-    console.log (cpErr && epErr.error);
+    console.log (cpErr && cpErr.error);
 
     if (cpErr) {
       log.error ('error copying files to temp folder', { ...arg, error: cpErr });

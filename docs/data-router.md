@@ -12,14 +12,14 @@ Additional functionality has been added to complement the routing feature: (1) s
 
 ## Phases of the Query Route as Middleware
 
-The steps to implement data routing (and complementary features) on the `api/data/query` route have been separated into 5 pieces of middleware.
+The steps to implement data routing (and complementary features) on the `api/data/query` route have been separated and sequenced by middleware:
 
-| Step | Description | Function |
-| --- | --- | --- |
-| 1 | modifications are made to the query | [/controllers/data/index.js::queryModification](/controllers/data/index.js) |
-| 2 | the modified query is analyzed | [/middleware/queryAnalysis.js](/middleware/queryAnalysis.js) |
-| 3 | candidate servers are calculated | [/utility/router/routerMiddleware.js](/utility/router/routerMiddleware.js) |
-| 4 | the query is executed | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
+| Step | Description                         | Function                                                                         |
+|------|-------------------------------------|----------------------------------------------------------------------------------|
+| 1    | modifications are made to the query | [/controllers/data/index.js::queryModification](/controllers/data/index.js)      |
+| 2    | the modified query is analyzed      | [/middleware/queryAnalysis.js](/middleware/queryAnalysis.js)                     |
+| 3    | candidate servers are calculated    | [/utility/router/routerMiddleware.js](/utility/router/routerMiddleware.js)       |
+| 4    | the query is executed               | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
 
 1. The incoming query is checked to see if it is executing a registered stored procedure, and if so that sproc is called with a flag that causes it to return an executable query string (which can be analyzed in a later step to determine which server to execute it on). The "select *" expansion function is then applied, and the final modified query is placed on the request obejct and passed to the next middleware function.
 
@@ -33,8 +33,7 @@ The steps to implement data routing (and complementary features) on the `api/dat
 
 The `api/data/query` route uses the middleware approach to clarify the different steps of handling an incoming query. Specifically, it uses `routeQueryFromMiddleware` function, which assumes that the query has been analyzed and candidate servers already identified.
 
-Other routes employ the `queryHandler` function, which implements the data routing features described above, given a query string.
-
+Other routes may instead employ the `queryHandler` function, which implements the data routing features described above, given a query string.
 
 ## Tracing the path of the request through the router
 
@@ -178,7 +177,3 @@ Three cases are split into three different tests in order to ensure the expected
 1. case where a only a single server is a candidate
 2. case where multiple candidates are available
 3. case where no common candidates are available
-
-## Manual Testing
-
-A set of curl commands have been recorded to assist with manual testing in `/test/sql/manual-tests-distributed-router.org`

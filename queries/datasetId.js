@@ -92,6 +92,7 @@ const getDatasetId = async (shortname, log = moduleLogger) => {
 
 module.exports.getDatasetId = getDatasetId;
 
+// TODO
 const getServerLocalDatasetId = (serverName) =>
       async (shortName, log = moduleLogger) => {
         // 1. get correct pool for server

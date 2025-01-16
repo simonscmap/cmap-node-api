@@ -10,6 +10,7 @@ const cruiseCatalogQuery = require("../../dbHandlers/cruiseCatalogQuery");
 const { makeDatasetFullPageQuery } = require("../../queries/datasetFullPageQuery")
 const { makeVariableUMQuery } = require("../../queries/variableUM");
 const { getDatasetId } = require("../../queries/datasetId");
+const getExcludedDatasets = require("../../queries/excludedDatasets")
 const catalogPlusLatCountQuery = require("../../dbHandlers/catalogPlusLatCountQuery");
 const recApis = require('./recs');
 const datasetUSPVariableCatalog = require('./datasetUSPVariableCatalog');
@@ -163,9 +164,10 @@ module.exports.keywords = async (req, res, next) => {
 
 // Web app /catalog search endpoint
 module.exports.searchCatalog = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  const log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
+  const excludedDatasets = await getExcludedDatasets ();
+  const pool = await pools.dataReadOnlyPool;
+  const request = new sql.Request(pool);
 
   let {
     keywords,
@@ -295,9 +297,17 @@ module.exports.searchCatalog = async (req, res, next) => {
   // query += "\nORDER BY Dataset_Release_Date DESC";
   query += "\nORDER BY Dataset_ID DESC";
 
-  let result = await request.query(query);
+  let result;
 
-  let catalogSearchResponse = result.recordset;
+  try {
+    result = await request.query(query);
+  } catch (e) {
+    res.status(500).json({ error: 'an error occurred executing the query'});
+    return next();
+  }
+
+  const catalogSearchResponse = result.recordset.filter ((record) => !excludedDatasets.includes(record.Short_Name));
+
   catalogSearchResponse.forEach((e) => {
     e.Sensors = [...new Set(e.Sensors.split(","))];
   });
@@ -459,7 +469,7 @@ module.exports.datasetVariableUM = async (req, res, next) => {
 
 // export full page metadata for bulk query
 const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
- let log = moduleLogger.setReqId (reqId);
+  let log = moduleLogger.setReqId (reqId);i
   let pool = await pools.dataReadOnlyPool;
 
   let datasetId = await getDatasetId (shortName, log);
@@ -473,7 +483,7 @@ const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
 
   let datasetResult;
   try {
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     datasetResult = await request.query(datasetQuery);
   } catch (e) {
     log.error('error making full page query', { error: e });
@@ -593,7 +603,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
 
   let datasetResult;
   try {
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     datasetResult = await request.query(datasetQuery);
   } catch (e) {
     log.error('error making full page query', { error: e });
@@ -632,7 +642,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   let variablesQuery = `EXEC uspVariableCatalog ${datasetId}`;
   let variablesResult;
   try {
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     variablesResult = await request.query(variablesQuery);
   } catch (e) {
     log.error('error making variable catalog query', { error: e })
@@ -644,7 +654,7 @@ module.exports.datasetMetadata = async (req, res, next) => {
   let vumQuery = makeVariableUMQuery (shortname);
   let vumResult;
   try {
-    let request = await new sql.Request(pool);
+    let request = new sql.Request(pool);
     vumResult = await request.query(vumQuery);
   } catch (e) {
     log.error('error making variable UM query', { error: e })
@@ -1005,11 +1015,11 @@ module.exports.memberVariables = async (req, res, next) => {
 
 // Variable search used by viz plots page
 module.exports.variableSearch = async (req, res, next) => {
-  let log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
-  let pool = await pools.dataReadOnlyPool;
-  let request = await new sql.Request(pool);
+  const log = moduleLogger.setReqId (req.requestId).addContext(['query', req.query]);
+  const pool = await pools.dataReadOnlyPool;
+  const request = await new sql.Request(pool);
 
-  let {
+  const {
     searchTerms,
     hasDepth,
     timeStart,

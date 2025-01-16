@@ -1,3 +1,5 @@
+// This module generates a route controller that will execute a provided query definition.
+// It is used in a limited number of routes that service simple /news apis
 const sql = require("mssql");
 const pools = require("../dbHandlers/dbPools");
 const initializeLogger = require("../log-service");
