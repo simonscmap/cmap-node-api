@@ -10,7 +10,7 @@ Here are a few details about the news schema that are of interest:
 
 The `id` field does not auto-increment. This must be managed via the api/client.
 
-The `rank` field, which is provided in order to allow for an admin to override a default (reverse-chron) ordering of news items, is not automatically adjusted, and must be managed via the api/client.
+The `rank` field, which is provided in order to allow for an admin to override a default (reverse-chron) ordering of news items, is not automatically adjusted, and must be managed via the api.
 
 The `view_status` field, an `INT`, is designed as an enum to specify the following states for a news item:
 

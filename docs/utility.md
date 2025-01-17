@@ -1,38 +1,92 @@
 # Utility
 
-Notes on certain contents of this directory.
+Notes on the contents of the `/utility` directory.
 
-# email
+---
 
-The email directory contains functions and templates for sending emails to admins and users alike.
+## `download/`
 
-Read especially the documentation in the email/templates directory.
+## `email/`
 
-## Google Service Account Key File
-
-There should be a key file in this directory, but it should never be committed to source control. It can be moved so long as the reference to its path is updated in the module(s) where a google api client is generated with this authorization strategy, for example in `serviceAccountAuth.js`.
-
-## How To
+The email directory contains functions and templates for sending emails to admins and users alike. See the documentation on creating templates [email-templating](/docs/email-templating.md).
 
 To send an email, use the `sendServiceMail` function exported in `email/sendMail.js`. This function automatically uses the correct authentication.
 
-# constants
+## `query/`
 
-An ideal location to store constant values.
+## `queryHandler/`
 
-# nodeCache
+Contains modules that define requests to on prem servers and the cluster, along with some relevant library functions.
+- `getPool.js` exports a function that resolves a pool by name, with reasonable defaults; used by the router to resolve pool connection to desired target
+-
 
-A wrapper around an in-memory cache. Consider the cache defaults carefully.
 
-# queryHandler
-
-A critical function, through which every custom query is routed. Applies round robin, and distributed data router.
-
-# queryToDatabaseTarget
+## `router/`
 
 The distributed data router. Parses incoming queries, detemines which tables are visited, determines which databases contain those tables, and provides a list of viable database targets to the caller.
 
-See additional notes in [/utility/distributed-datasets.md](/utility/distributed-datasets.md).
+- `queryToDatabaseTarget.js`
+
+See technical notes on the router [data-router.md](/docs/data-router.md).
+
+
+---
+
+## `cacheAsync.js`
+
+Generalizes the ability to cache the result of async functions (almost always requests to the database).
+
+## `constants.js`
+
+An ideal location to store constant values.
+
+## `CustomTransformStream.js`
+
+## `dateUtils.js`
+
+## `debugTimer.js`
+
+## `directQuery.js`
+
+## `Dropbox.js`
+
+## `DrobpobVault.js`
+
+## `emailAuth.js`
+
+## `exponentialBackoff.js`
+
+## `googleServiceAccountKeyFile.json`
+
+This file should exist, but it should never be committed to source control.
+
+It can be moved so long as the reference to its path is updated in the module(s) where a google api client is generated with this authorization strategy, for example in `serviceAccountAuth.js`.
+
+## `guestTokenHashFromRequest.js`
+
+## `nodeCache.js`
+
+Exports a wrapper around an in-memory cache. When adding cache keys, consider the cache defaults carefully.
+
+Used by `cacheAsync.js`, which generalizes caching request responses.
+
+## `oAuth.js`
+
+## `objectUtils.js`
+
+## `prepareOnPremQuery.js`
+
+## `preWarmCacheAsync.js`
+
+## `readJSON.js`
+
+## `safePromise.js`
+
+## `sanctuary.js`
+
+## `serviceAccountAuth.js`
+
+## `sqlSegments.js`
 
 # sanctuary
 
