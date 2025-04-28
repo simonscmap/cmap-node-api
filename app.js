@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -10,17 +11,19 @@ const webApp = require("./routes/webApp");
 const apiRouter = require("./routes/api");
 const dataRetrievalRoutes = require("./routes/dataRetrieval");
 const ApiCallDetails = require("./models/ApiCallDetail");
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
 
-const { monitor } = require ('./mail-service/checkBouncedMail');
-const env = require('./config/environment');
+const { monitor } = require("./mail-service/checkBouncedMail");
+const env = require("./config/environment");
 
 // on startup, check for bounced mail
-monitor ();
+monitor();
 
-const log = createNewLogger().setModule("app.js").addContext(['node_version', process.version ]);
+const log = createNewLogger()
+  .setModule("app.js")
+  .addContext(["node_version", process.version]);
 
-log.info ('starting app', {
+log.info("starting app", {
   DEBUG_USAGE: process.env.DEBUG_USAGE,
   DEBUG_USAGE_THROTTLE_MS: process.env.DEBUG_USAGE_THROTTLE_MS,
   CLUSTER_CHUNK_MAX_ROWS: process.env.CLUSTER_CHUNK_MAX_ROWS,
@@ -46,7 +49,7 @@ app.use(useragent.express());
 app.use((req, res, next) => {
   let reqId = uuidv4();
   req.requestId = reqId;
-  res.set('X-CMAP-Request-Id', reqId);
+  res.set("X-CMAP-Request-Id", reqId);
   next();
 });
 
@@ -61,7 +64,7 @@ app.use((req, res, next) => {
 app.use(
   "/dataretrieval",
   passport.authenticate(["headerapikey", "jwt"], { session: false }),
-  dataRetrievalRoutes
+  dataRetrievalRoutes,
 );
 
 // API
@@ -73,7 +76,7 @@ app.use(webApp);
 // Usage metrics logging
 app.use((req, res, next) => {
   // this will execute if neither the api nor webApp have already saved call details
-  req.cmapApiCallDetails.save(res, { caller: 'app'});
+  req.cmapApiCallDetails.save(res, { caller: "app" });
   next();
 });
 
