@@ -38,3 +38,4 @@ config/UNSAFE_jwtConfig.js
 /credentials.json
 /token.json
 /utility/googleServiceAccountKeyFile.json
+.env
