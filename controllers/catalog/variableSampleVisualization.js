@@ -19,7 +19,7 @@ const sparseDataQueryFromPayload = (parameters, metadata) => {
 
   let depthOrderPart = metadata.Has_Depth ? ', depth' : '';
 
-  const SPARSE_DATA_QUERY_MAX_SIZE = 100000;
+  const SPARSE_DATA_QUERY_MAX_SIZE = 10000;
   let query = `SELECT TOP ${SPARSE_DATA_QUERY_MAX_SIZE} time, lat, lon, ${otherFields} FROM ${parameters.tableName} WHERE ${fields} IS NOT NULL ORDER BY time desc, lat, lon${depthOrderPart}`;
 
   return {
