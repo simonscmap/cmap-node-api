@@ -20,6 +20,8 @@ public/safari-pinned-tab.svg
 public/service-worker.js
 public/images/
 
+public/web-app-version-tag.json
+
 *.zip
 shell.nix
 *.DS_Store
