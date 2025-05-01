@@ -204,11 +204,6 @@ const getShareLinkController = async (req, res) => {
       return res.sendStatus(500);
     }
 
-    log.info('created new dropbox share link', {
-      path: folderPath,
-      url: newShareLink,
-    });
-
     link = forceDropboxFolderDownload(newShareLink);
   }
 
