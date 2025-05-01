@@ -7,6 +7,7 @@ const directQuery = require('../../utility/directQuery');
 const { safePath, safePathOr } = require('../../utility/objectUtils');
 const initLog = require('../../log-service');
 const getVaultFolderMetadata = require('./getVaultInfo');
+const { URL } = require('url');
 
 const moduleLogger = initLog('controllers/dropbox');
 
@@ -23,6 +24,11 @@ const ensureTrailingSlash = (path = '') => {
     return path;
   }
 };
+function forceDropboxFolderDownload(dropboxLink) {
+  const url = new URL(dropboxLink);
+  url.searchParams.set('dl', '1');
+  return url.toString();
+}
 
 // vaultController: return a share link to the correct folder given a shortName
 
@@ -163,6 +169,7 @@ const getShareLinkController = async (req, res) => {
   let link = safePath(['result', 'links', 0, 'url'])(listSharedLinksResp);
 
   if (link) {
+    link = forceDropboxFolderDownload(link);
     log.info('retrieved existing dropbox share link', {
       path: folderPath,
       url: link,
@@ -202,7 +209,7 @@ const getShareLinkController = async (req, res) => {
       url: newShareLink,
     });
 
-    link = newShareLink;
+    link = forceDropboxFolderDownload(newShareLink);
   }
 
   // 5. metadata
