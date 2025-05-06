@@ -18,9 +18,11 @@ const sparseDataQueryFromPayload = (parameters, metadata) => {
     .join(', ');
 
   let depthOrderPart = metadata.Has_Depth ? ', depth' : '';
-
-  const SPARSE_DATA_QUERY_MAX_SIZE = 100000;
-  let query = `SELECT TOP ${SPARSE_DATA_QUERY_MAX_SIZE} time, lat, lon, ${otherFields} FROM ${parameters.tableName} WHERE ${fields} IS NOT NULL ORDER BY time desc, lat, lon${depthOrderPart}`;
+  // WARNING: This constant is duplicated in the frontend (cmap-react/src/enums/sparseDataQueryMaxSize.js)
+  // as SPARSE_DATA_QUERY_MAX_SIZE. This backend value (10000) is more restrictive and will be the effective limit
+  // regardless of the frontend's value (100000).
+  const BACKEND_SPARSE_DATA_QUERY_MAX_SIZE = 10000;
+  let query = `SELECT TOP ${BACKEND_SPARSE_DATA_QUERY_MAX_SIZE} time, lat, lon, ${otherFields} FROM ${parameters.tableName} WHERE ${fields} IS NOT NULL ORDER BY time desc, lat, lon${depthOrderPart}`;
 
   return {
     queryString: query,
