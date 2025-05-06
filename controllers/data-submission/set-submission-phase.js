@@ -1,17 +1,17 @@
-const sql = require("mssql");
-const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const { sendServiceMail } = require("../../utility/email/sendMail");
-const logInit = require("../../log-service");
-const templates = require("../../utility/email/templates");
-const Future = require("fluture");
+const sql = require('mssql');
+const { userReadAndWritePool } = require('../../dbHandlers/dbPools');
+const { sendServiceMail } = require('../../utility/email/sendMail');
+const logInit = require('../../log-service');
+const templates = require('../../utility/email/templates');
+const Future = require('fluture');
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
-} = require("../../utility/constants");
-const { subscribeUserToDataset } = require('../user/createSubscription')
+} = require('../../utility/constants');
+const { subscribeUserToDataset } = require('../user/createSubscription');
 
-const log = logInit("set-submission-phase");
+const log = logInit('set-submission-phase');
 
-const emailSubjectRoot = "CMAP Data Submission -";
+const emailSubjectRoot = 'CMAP Data Submission -';
 
 let getPhaseSpecificQueryPart = (phaseId) => {
   switch (phaseId) {
@@ -20,11 +20,11 @@ let getPhaseSpecificQueryPart = (phaseId) => {
     case 5:
       return `, DOI_Accepted_Date_Time = GETDATE()`;
     case 6:
-      return ", Ingestion_Date_Time = GETDATE()";
+      return ', Ingestion_Date_Time = GETDATE()';
     case 7:
       return `, QC1_Completion_Date_Time = GETDATE(), QC1_Completed_By = @userID`;
     default:
-      return "";
+      return '';
   }
 };
 
@@ -55,9 +55,9 @@ const setSubmissionPhase = async (req, res) => {
 
   let { phaseID, submissionID } = req.body;
 
-  request.input("phaseID", sql.Int, phaseID);
-  request.input("submissionID", sql.Int, submissionID);
-  request.input("userID", sql.Int, req.user.id);
+  request.input('phaseID', sql.Int, phaseID);
+  request.input('submissionID', sql.Int, submissionID);
+  request.input('userID', sql.Int, req.user.id);
 
   let query = getQuery(phaseID);
 
@@ -66,7 +66,7 @@ const setSubmissionPhase = async (req, res) => {
   try {
     result = await request.query(query);
   } catch (e) {
-    log.error("failed to update phase id", { error: e, reqBody: req.body });
+    log.error('failed to update phase id', { error: e, reqBody: req.body });
     return res.sendStatus(500);
   }
 
@@ -98,7 +98,7 @@ const setSubmissionPhase = async (req, res) => {
 
       // subscribe user to ingested dataset
       // result will be logged
-      await subscribeUserToDataset (req.user.id, datasetName, log);
+      await subscribeUserToDataset(req.user.id, datasetName, log);
     }
 
     let mailArgs = {
@@ -107,23 +107,23 @@ const setSubmissionPhase = async (req, res) => {
       content: userNotificationContent,
     };
 
-    let sendMailFuture = sendServiceMail (mailArgs);
+    let sendMailFuture = sendServiceMail(mailArgs);
 
     let reject = (e) => {
-      log.error("failed to notify user of phase change", {
+      log.error('failed to notify user of phase change', {
         recipient: mailArgs.recipient,
         error: e,
       });
     };
 
     let resolve = () => {
-      log.info("email sent", {
+      log.info('email sent', {
         recipient: mailArgs.recipient,
         subject: mailArgs.subject,
       });
     };
 
-    Future.fork (reject) (resolve) (sendMailFuture);
+    Future.fork(reject)(resolve)(sendMailFuture);
   }
 
   // (3) Notify Admin if Phase is 7
@@ -131,32 +131,32 @@ const setSubmissionPhase = async (req, res) => {
   if (phaseID === 7) {
     let content = templates.notifyAdminQC1Complete({
       datasetName,
-      userName
+      userName,
     });
 
     let mailArgs = {
       recipient: CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
       subject: `${datasetName} Ready for QC2`,
       content,
-    }
+    };
 
-    let sendMailFuture = sendServiceMail (mailArgs);
+    let sendMailFuture = sendServiceMail(mailArgs);
 
     let reject = (e) => {
-      log.error("failed to notify admin of QC1 Complete", {
+      log.error('failed to notify admin of QC1 Complete', {
         recipient: mailArgs.recipient,
         error: e,
       });
     };
 
     let resolve = () => {
-      log.info("email sent", {
+      log.info('email sent', {
         recipient: mailArgs.recipient,
         subject: mailArgs.subject,
       });
     };
 
-    Future.fork (reject) (resolve) (sendMailFuture);
+    Future.fork(reject)(resolve)(sendMailFuture);
   }
 };
 

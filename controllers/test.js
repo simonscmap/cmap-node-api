@@ -5,10 +5,10 @@
 // the controller reads a template name as a parameter and tries to send an email
 // with the body.mockData (which varies with the template)
 const { userComment, adminComment } = require('../utility/email/templates');
-const logWrapper = require("../log-service");
+const logWrapper = require('../log-service');
 const sendMail = require('../utility/email/sendMail');
 
-let log = logWrapper("test-controller");
+let log = logWrapper('test-controller');
 
 const testEmailHandler = async (req, res) => {
   let templates = { userComment, adminComment };
@@ -17,7 +17,7 @@ const testEmailHandler = async (req, res) => {
 
   let data = {
     ...mockData,
-  }
+  };
 
   if (req.user) {
     data.userName = req.user.firstName;
@@ -27,11 +27,13 @@ const testEmailHandler = async (req, res) => {
 
   if (templates[templateName]) {
     let content = templates[templateName](data);
-    await recipients.forEach(async (recipient) => sendMail(recipient, "Test Email", content));
+    await recipients.forEach(async (recipient) =>
+      sendMail(recipient, 'Test Email', content),
+    );
     res.sendStatus(200);
   } else {
     res.sendStatus(400);
-    log.error('no template found', {recipients, templateName, mockData});
+    log.error('no template found', { recipients, templateName, mockData });
   }
 };
 

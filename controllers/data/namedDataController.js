@@ -1,8 +1,8 @@
-const initializeLogger = require("../../log-service");
-const moduleLogger = initializeLogger("controllers/namedData");
-const sparqQuery = require("../../utility/queryHandler/sparqQuery");
-const preWarmCacheAsync = require("../../utility/preWarmCacheAsync");
-const cacheAsync = require("../../utility/cacheAsync");
+const initializeLogger = require('../../log-service');
+const moduleLogger = initializeLogger('controllers/namedData');
+const sparqQuery = require('../../utility/queryHandler/sparqQuery');
+const preWarmCacheAsync = require('../../utility/preWarmCacheAsync');
+const cacheAsync = require('../../utility/cacheAsync');
 
 const oneMonthInSeconds = 60 * 60 * 24 * 30;
 
@@ -38,8 +38,8 @@ const fetchSSTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery (query);
-  moduleLogger.debug ('sst query time', { duration: Date.now() - startQuery });
+  const [e, result] = await sparqQuery(query);
+  moduleLogger.debug('sst query time', { duration: Date.now() - startQuery });
 
   if (e) {
     return [true];
@@ -47,29 +47,31 @@ const fetchSSTAnomalyData = async () => {
 
   // Process data
   const startTransform = Date.now();
-  const lines = transformDataToTraceLines (result, 'sst_res');
-  moduleLogger.debug ('sst trx time', { duration: Date.now() - startTransform });
+  const lines = transformDataToTraceLines(result, 'sst_res');
+  moduleLogger.debug('sst trx time', { duration: Date.now() - startTransform });
 
   return [false, lines];
-}
+};
 
 const sstCacheKey = 'SST_ANOM_PROCESSED';
 const sstCacheOptions = { ttl: oneMonthInSeconds };
 // preWarmCacheAsync (sstCacheKey, fetchSSTAnomalyData, sstCacheOptions);
 
 const sstAnomalyPlotData = async (req, res, next) => {
-  moduleLogger.trace ('executing named route: sst anomaly data', null);
-  const result = await cacheAsync (sstCacheKey, fetchSSTAnomalyData, sstCacheOptions);
+  moduleLogger.trace('executing named route: sst anomaly data', null);
+  const result = await cacheAsync(
+    sstCacheKey,
+    fetchSSTAnomalyData,
+    sstCacheOptions,
+  );
   if (!result) {
     res.status(500).send();
-    return next ();
+    return next();
   }
 
-  res.json (result);
-  next ();
-}
-
-
+  res.json(result);
+  next();
+};
 
 /* AVG SST */
 const fetchAvgSSTAnomalyData = async () => {
@@ -79,9 +81,9 @@ const fetchAvgSSTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery (query);
+  const [e, result] = await sparqQuery(query);
 
-  moduleLogger.debug ('sst query time', { duration: Date.now() - startQuery });
+  moduleLogger.debug('sst query time', { duration: Date.now() - startQuery });
 
   if (e) {
     return [true];
@@ -89,30 +91,33 @@ const fetchAvgSSTAnomalyData = async () => {
 
   // Process data
   const startTransform = Date.now();
-  const lines = transformDataToTraceLines (result, 'sst_res');
-  moduleLogger.debug ('avg sst trx time', { duration: Date.now() - startTransform });
+  const lines = transformDataToTraceLines(result, 'sst_res');
+  moduleLogger.debug('avg sst trx time', {
+    duration: Date.now() - startTransform,
+  });
 
   return [false, lines];
-}
+};
 
 const avgSSTCacheKey = 'AVG_SST_ANOM_PROCESSED';
 const avgSSTCacheOptions = { ttl: oneMonthInSeconds };
-preWarmCacheAsync (avgSSTCacheKey, fetchAvgSSTAnomalyData, avgSSTCacheOptions);
+preWarmCacheAsync(avgSSTCacheKey, fetchAvgSSTAnomalyData, avgSSTCacheOptions);
 
 const avgSSTAnomalyPlotData = async (req, res, next) => {
-  moduleLogger.trace ('executing named route: avg sst anomaly data', null);
-  const result = await cacheAsync (avgSSTCacheKey, fetchAvgSSTAnomalyData, avgSSTCacheOptions);
+  moduleLogger.trace('executing named route: avg sst anomaly data', null);
+  const result = await cacheAsync(
+    avgSSTCacheKey,
+    fetchAvgSSTAnomalyData,
+    avgSSTCacheOptions,
+  );
   if (!result) {
     res.status(500).send();
-    return next ();
+    return next();
   }
 
-  res.json (result);
-  next ();
-}
-
-
-
+  res.json(result);
+  next();
+};
 
 /* ADT */
 const fetchADTAnomalyData = async () => {
@@ -122,8 +127,8 @@ const fetchADTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery (query);
-  moduleLogger.debug ('adt query time', { duration: Date.now() - startQuery });
+  const [e, result] = await sparqQuery(query);
+  moduleLogger.debug('adt query time', { duration: Date.now() - startQuery });
 
   if (e) {
     return [true];
@@ -131,27 +136,29 @@ const fetchADTAnomalyData = async () => {
 
   // Process data
   const startTransform = Date.now();
-  const lines = transformDataToTraceLines (result, 'adt_res');
-  moduleLogger.debug ('adt trx time', { duration: Date.now() - startTransform });
+  const lines = transformDataToTraceLines(result, 'adt_res');
+  moduleLogger.debug('adt trx time', { duration: Date.now() - startTransform });
 
   return [false, lines];
-}
+};
 const adtCacheKey = 'ADT_ANOM_PROCESSED';
 const adtCacheOptions = { ttl: oneMonthInSeconds };
 // preWarmCacheAsync (adtCacheKey, fetchADTAnomalyData, adtCacheOptions);
 
 const adtAnomalyPlotData = async (req, res, next) => {
-  moduleLogger.trace ('executing named route: adt anomaly data', null);
-  const result = await cacheAsync (adtCacheKey, fetchADTAnomalyData, adtCacheOptions);
+  moduleLogger.trace('executing named route: adt anomaly data', null);
+  const result = await cacheAsync(
+    adtCacheKey,
+    fetchADTAnomalyData,
+    adtCacheOptions,
+  );
   if (!result) {
     res.status(500).send();
-    return next ();
+    return next();
   }
-  res.json (result);
-  next ();
-}
-
-
+  res.json(result);
+  next();
+};
 
 /* AVG ADT */
 const fetchAvgADTAnomalyData = async () => {
@@ -161,8 +168,8 @@ const fetchAvgADTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery (query);
-  moduleLogger.debug ('adt query time', { duration: Date.now() - startQuery });
+  const [e, result] = await sparqQuery(query);
+  moduleLogger.debug('adt query time', { duration: Date.now() - startQuery });
 
   if (e) {
     return [true];
@@ -170,50 +177,52 @@ const fetchAvgADTAnomalyData = async () => {
 
   // Process data
   const startTransform = Date.now();
-  const lines = transformDataToTraceLines (result, 'adt_res');
-  moduleLogger.debug ('avg adt trx time', { duration: Date.now() - startTransform });
+  const lines = transformDataToTraceLines(result, 'adt_res');
+  moduleLogger.debug('avg adt trx time', {
+    duration: Date.now() - startTransform,
+  });
 
   return [false, lines];
-}
+};
 const avgAdtCacheKey = 'AVG_ADT_ANOM_PROCESSED';
 const avgAdtCacheOptions = { ttl: oneMonthInSeconds };
-preWarmCacheAsync (avgAdtCacheKey, fetchAvgADTAnomalyData, avgAdtCacheOptions);
+preWarmCacheAsync(avgAdtCacheKey, fetchAvgADTAnomalyData, avgAdtCacheOptions);
 
 const avgAdtAnomalyPlotData = async (req, res, next) => {
-  moduleLogger.trace ('executing named route: avg adt anomaly data', null);
-  const result = await cacheAsync (avgAdtCacheKey, fetchAvgADTAnomalyData, avgAdtCacheOptions);
+  moduleLogger.trace('executing named route: avg adt anomaly data', null);
+  const result = await cacheAsync(
+    avgAdtCacheKey,
+    fetchAvgADTAnomalyData,
+    avgAdtCacheOptions,
+  );
   if (!result) {
     res.status(500).send();
-    return next ();
+    return next();
   }
-  res.json (result);
-  next ();
-}
-
-
-
+  res.json(result);
+  next();
+};
 
 const namedData = async (req, res, next) => {
   const name = req.params.name;
   switch (name) {
     case 'sst':
-      await sstAnomalyPlotData (req, res, next);
+      await sstAnomalyPlotData(req, res, next);
       break;
     case 'avg-sst':
-      await avgSSTAnomalyPlotData (req, res, next);
+      await avgSSTAnomalyPlotData(req, res, next);
       break;
     case 'adt':
-      await adtAnomalyPlotData (req, res, next);
+      await adtAnomalyPlotData(req, res, next);
       break;
     case 'avg-adt':
-      await avgAdtAnomalyPlotData (req, res, next);
+      await avgAdtAnomalyPlotData(req, res, next);
       break;
     default:
-      moduleLogger.warn ('no name param on /api/data/named route');
+      moduleLogger.warn('no name param on /api/data/named route');
       break;
   }
-  next ();
+  next();
 };
-
 
 module.exports = namedData;

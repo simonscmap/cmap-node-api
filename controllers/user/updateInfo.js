@@ -1,6 +1,6 @@
-const UnsafeUser = require("../../models/UnsafeUser");
-const initializeLogger = require("../../log-service");
-const log = initializeLogger("controllers/user/udpateInfo");
+const UnsafeUser = require('../../models/UnsafeUser');
+const initializeLogger = require('../../log-service');
+const log = initializeLogger('controllers/user/udpateInfo');
 
 const standardCookieOptions = {
   // secure: true,
@@ -14,16 +14,18 @@ module.exports = async (req, res) => {
   try {
     result = await user.updateUserProfile();
   } catch (e) {
-    log.error("error updating profile", { error: e });
+    log.error('error updating profile', { error: e });
     return res.sendStatus(500);
   }
-
 
   if (!result.rowsAffected || !result.rowsAffected[0]) {
-    log.error("failed to update user info", { rowsAffected: result.rowsAffected, userId: user.id })
+    log.error('failed to update user info', {
+      rowsAffected: result.rowsAffected,
+      userId: user.id,
+    });
     return res.sendStatus(500);
   }
-  res.cookie("UserInfo", JSON.stringify(user.makeSafe()), {
+  res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {
     ...standardCookieOptions,
     expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
   });

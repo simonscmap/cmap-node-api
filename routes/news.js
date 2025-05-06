@@ -1,81 +1,81 @@
-const router = require("express").Router();
-const newsController = require("../controllers/news/");
-const passport = require("../middleware/passport");
-const checkAdminAuth = require("../middleware/checkAdminAuth");
+const router = require('express').Router();
+const newsController = require('../controllers/news/');
+const passport = require('../middleware/passport');
+const checkAdminAuth = require('../middleware/checkAdminAuth');
 
 const {
   contentTypes,
   ensureContentType,
-} = require("../middleware/ensureContentType");
-const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
+} = require('../middleware/ensureContentType');
+const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 
-let passportMethods = ["headerapikey", "jwt"];
+let passportMethods = ['headerapikey', 'jwt'];
 let passportOptions = { session: false };
 
-router.get("/list", asyncControllerWrapper(newsController.list));
+router.get('/list', asyncControllerWrapper(newsController.list));
 
 router.post(
-  "/category",
+  '/category',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.category)
+  asyncControllerWrapper(newsController.category),
 );
 
 router.post(
-  "/create",
+  '/create',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.create)
+  asyncControllerWrapper(newsController.create),
 );
 
 router.post(
-  "/publish",
+  '/publish',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.publish)
+  asyncControllerWrapper(newsController.publish),
 );
 
 router.post(
-  "/preview",
+  '/preview',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.preview)
+  asyncControllerWrapper(newsController.preview),
 );
 
 router.post(
-  "/draft",
+  '/draft',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.draft)
+  asyncControllerWrapper(newsController.draft),
 );
 
 router.post(
-  "/unpublish",
+  '/unpublish',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.unpublish)
+  asyncControllerWrapper(newsController.unpublish),
 );
 
 router.post(
-  "/update",
+  '/update',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.update)
+  asyncControllerWrapper(newsController.update),
 );
 
 router.post(
-  "/updateRanks",
+  '/updateRanks',
   passport.authenticate(passportMethods, passportOptions),
   checkAdminAuth,
   ensureContentType(contentTypes.json),
-  asyncControllerWrapper(newsController.updateRanks)
+  asyncControllerWrapper(newsController.updateRanks),
 );
 
 module.exports = router;

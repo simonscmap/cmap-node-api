@@ -1,10 +1,10 @@
-const sql = require("mssql");
-const { dropbox } = require("../../utility/Dropbox");
-const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const { sendServiceMail } = require("../../utility/email/sendMail");
-const Future = require("fluture");
-const templates = require("../../utility/email/templates");
-const { safePath } = require("../../utility/objectUtils");
+const sql = require('mssql');
+const { dropbox } = require('../../utility/Dropbox');
+const { userReadAndWritePool } = require('../../dbHandlers/dbPools');
+const { sendServiceMail } = require('../../utility/email/sendMail');
+const Future = require('fluture');
+const templates = require('../../utility/email/templates');
+const { safePath } = require('../../utility/objectUtils');
 const { checkLongName, checkShortName } = require('./check-name');
 const {
   createTempFolder,
@@ -13,72 +13,78 @@ const {
   deleteFolder,
 } = require('./change-submission-name');
 
-const initializeLogger = require("../../log-service");
-let moduleLogger = initializeLogger("controllers/data-submission/commit-upload");
+const initializeLogger = require('../../log-service');
+let moduleLogger = initializeLogger(
+  'controllers/data-submission/commit-upload',
+);
 
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
-} = require("../../utility/constants");
+} = require('../../utility/constants');
 
 // Commit upload session (completing upload)
 const commitUpload = async (req, res) => {
   const { id: userId, reqId } = req.user;
-  const log = moduleLogger.setReqId (reqId);
+  const log = moduleLogger.setReqId(reqId);
   let pool = await userReadAndWritePool;
 
-  const {
-    submissionType,
-    dataSource,
-    datasetLongName,
-  } = req.body;
+  const { submissionType, dataSource, datasetLongName } = req.body;
 
   let {
     submissionId, // id of submission to update
     shortName,
     sessionIds,
-    offsets
+    offsets,
   } = req.body;
 
   // based on whether we are uploading 1 file or 2, the formdata for offsets and sessionids
   // may be single values, or an array of values; for now we normalize them into an array
-  if (Array.isArray (offsets)) {
-    offsets = offsets.map (o => parseInt (o, 10));
+  if (Array.isArray(offsets)) {
+    offsets = offsets.map((o) => parseInt(o, 10));
   } else {
     offsets = [parseInt(offsets, 10)];
   }
 
-  if (!Array.isArray (sessionIds)) {
-    sessionIds = [sessionIds]
+  if (!Array.isArray(sessionIds)) {
+    sessionIds = [sessionIds];
   }
 
   // submissionID is submitted as a string and needs to be converted to int
-  submissionId = parseInt (submissionId, 10);
+  submissionId = parseInt(submissionId, 10);
 
   const currentTime = Date.now();
 
-  log.info ('beginning dataset upload commit transaction', {
+  log.info('beginning dataset upload commit transaction', {
     currentTime,
     submissionType,
     submissionId, // id of submission to update
     shortNameFromWorkbook: shortName,
     sessionIds,
-    offsets
+    offsets,
   });
 
   // Basic Argument Checks
 
   if (!shortName) {
-    log.info ('Bad request: insufficient args to commit upload: no shortName', { shortName });
+    log.info('Bad request: insufficient args to commit upload: no shortName', {
+      shortName,
+    });
     res.status(400).send('Bad request: missing shortName');
     return;
   }
 
-  if (submissionType === 'new' && (sessionIds.length !== 2 || offsets.length !== 2)) {
-    log.error ('argument mismatch; expected new data submission to have 2 sessions & 2 file length', {
-      submissionType,
-      sessionIds,
-      offsets,
-    });
+  if (
+    submissionType === 'new' &&
+    (sessionIds.length !== 2 || offsets.length !== 2)
+  ) {
+    log.error(
+      'argument mismatch; expected new data submission to have 2 sessions & 2 file length',
+      {
+        submissionType,
+        sessionIds,
+        offsets,
+      },
+    );
     res.status(400).send('Bad request: argument mismatch');
     return;
   }
@@ -86,15 +92,24 @@ const commitUpload = async (req, res) => {
   // 0. Check uniqueness of long name
 
   let longNameConflict = false;
-  const [lnError, result] = await checkLongName (datasetLongName, userId, submissionId);
+  const [lnError, result] = await checkLongName(
+    datasetLongName,
+    userId,
+    submissionId,
+  );
   if (lnError) {
-    return res.status(500).send ('Error while checking long name');
+    return res.status(500).send('Error while checking long name');
   } else {
-    longNameConflict = result.longNameUpdateConflict || result.longNameIsAlreadyInUse;
+    longNameConflict =
+      result.longNameUpdateConflict || result.longNameIsAlreadyInUse;
   }
 
   if (longNameConflict) {
-    res.status (409).send (`Conflict: Dataset long name "${datasetLongName}" is already in use.`);
+    res
+      .status(409)
+      .send(
+        `Conflict: Dataset long name "${datasetLongName}" is already in use.`,
+      );
     return;
   }
 
@@ -120,15 +135,20 @@ const commitUpload = async (req, res) => {
       try {
         result = await getFilenameRequest.query(query);
       } catch (e) {
-        log.error ('Error retrieving filename for submission', { error: e });
+        log.error('Error retrieving filename for submission', { error: e });
       }
 
-      const Filename_Root = safePath (['recordset', '0', 'Filename_Root']) (result);
-      const Dataset_Long_Name = safePath (['recordset', '0', 'Dataset_Long_Name']) (result);
-
+      const Filename_Root = safePath(['recordset', '0', 'Filename_Root'])(
+        result,
+      );
+      const Dataset_Long_Name = safePath([
+        'recordset',
+        '0',
+        'Dataset_Long_Name',
+      ])(result);
 
       if (result.recordset.length !== 1 || !Filename_Root) {
-        res.status(500).send ('Error retrieving Filename_Root');
+        res.status(500).send('Error retrieving Filename_Root');
         return;
       }
 
@@ -142,7 +162,7 @@ const commitUpload = async (req, res) => {
         changeLongName = true;
       }
     } catch (e) {
-      res.status(500).send ('Error administering upload status');
+      res.status(500).send('Error administering upload status');
       return;
     }
   }
@@ -150,17 +170,31 @@ const commitUpload = async (req, res) => {
   // 1 (b) submission is "update" but shortName is different than name in tblData_Submissions
   let nameChange = false;
   if (submissionType === 'update' && fileNameRoot !== shortName) {
-    log.info ('submision is update with name change', { fileNameRoot, newShortName: shortName });
+    log.info('submision is update with name change', {
+      fileNameRoot,
+      newShortName: shortName,
+    });
     nameChange = true;
   }
 
   // 1 (c) short name check
   if (nameChange) {
     try {
-      let [error, shortNameCheckResult] = await checkShortName (shortName, userId, submissionId);
+      let [error, shortNameCheckResult] = await checkShortName(
+        shortName,
+        userId,
+        submissionId,
+      );
       if (error || !shortNameCheckResult) {
-        log.error ('Error confirming short name is available', { error, shortName, userId, submissionId });
-        return res.status(500).send ('Error confirming that new short name is available')
+        log.error('Error confirming short name is available', {
+          error,
+          shortName,
+          userId,
+          submissionId,
+        });
+        return res
+          .status(500)
+          .send('Error confirming that new short name is available');
       }
       const {
         shortNameIsAlreadyInUse,
@@ -169,12 +203,20 @@ const commitUpload = async (req, res) => {
       } = shortNameCheckResult;
 
       if (shortNameIsAlreadyInUse || shortNameUpdateConflict) {
-        log.info('Preventing data submission update: short name is not available', { shortName, userId, submissionId, ...shortNameCheckResult });
-        return res.status(409).send ('Short name is not available');
+        log.info(
+          'Preventing data submission update: short name is not available',
+          { shortName, userId, submissionId, ...shortNameCheckResult },
+        );
+        return res.status(409).send('Short name is not available');
       }
     } catch (e) {
-      log.error ('Error confirming short name is available', { error: e, shortName, userId, submissionId });
-      return res.status(500).sed ('Error');
+      log.error('Error confirming short name is available', {
+        error: e,
+        shortName,
+        userId,
+        submissionId,
+      });
+      return res.status(500).sed('Error');
     }
   }
 
@@ -183,9 +225,9 @@ const commitUpload = async (req, res) => {
   let tmpFolder;
   if (nameChange) {
     // create temp folder based on current name
-    const [tfErr, tfResult] = await createTempFolder (fileNameRoot);
+    const [tfErr, tfResult] = await createTempFolder(fileNameRoot);
     if (tfErr) {
-      log.error ('error creating temp folder for short name change', tfErr);
+      log.error('error creating temp folder for short name change', tfErr);
       return res.status(500).send('Error uploading file (#1)');
     }
     tmpFolder = tfResult.folderName;
@@ -202,7 +244,7 @@ const commitUpload = async (req, res) => {
       mode: 'add',
       autorename: false,
       mute: false,
-    }
+    },
   });
 
   const fileNameBase = nameChange ? shortName : fileNameRoot;
@@ -210,51 +252,57 @@ const commitUpload = async (req, res) => {
   const filePath = `${tmpFolder || '/' + fileNameRoot}/${fileNameBase}_${currentTime}.xlsx`;
   const rawFilePath = `${tmpFolder || '/' + fileNameRoot}/${fileNameBase}_${currentTime}_raw_original.xlsx`;
 
-  const entries = [
-    makeEntryArg (sessionIds[0], offsets[0], filePath),
-  ];
+  const entries = [makeEntryArg(sessionIds[0], offsets[0], filePath)];
 
-  if (submissionType === 'new' && sessionIds.length === 2 && offsets.length === 2) {
-    entries.push (makeEntryArg (sessionIds[1], offsets[1], rawFilePath));
+  if (
+    submissionType === 'new' &&
+    sessionIds.length === 2 &&
+    offsets.length === 2
+  ) {
+    entries.push(makeEntryArg(sessionIds[1], offsets[1], rawFilePath));
   }
 
   try {
     const response = await dropbox.filesUploadSessionFinishBatchV2({ entries });
     const { status, result } = response;
     if (status !== 200) {
-      log.error ('unable to commit upload, received non-200 response from dropbox', { status, entries });
-      res.status(500).send (`Error comitting upload (#2a)`);
+      log.error(
+        'unable to commit upload, received non-200 response from dropbox',
+        { status, entries },
+      );
+      res.status(500).send(`Error comitting upload (#2a)`);
       return;
     }
     if (result && Array.isArray(result.entries)) {
-      let allSucceeded = result.entries.every ((entry) => {
+      let allSucceeded = result.entries.every((entry) => {
         return entry['.tag'] === 'success';
       });
       if (!allSucceeded) {
-        log.error ("dropbox batch upload not successful", { response });
-        res.status(500).send ('Error committing upload (#2b)');
+        log.error('dropbox batch upload not successful', { response });
+        res.status(500).send('Error committing upload (#2b)');
         if (tmpFolder) {
-          await deleteFolder (tmpFolder);
+          await deleteFolder(tmpFolder);
         }
         return;
       }
     } else {
-      log.error ("unexpected result uploading files via batch apy", { response });
-      res.status(500).send ('Error committing upload (#2c)');
+      log.error('unexpected result uploading files via batch apy', {
+        response,
+      });
+      res.status(500).send('Error committing upload (#2c)');
       if (tmpFolder) {
-          await deleteFolder (tmpFolder);
-        }
+        await deleteFolder(tmpFolder);
+      }
       return;
     }
   } catch (e) {
-    log.error ('Error committing upload', { error: e });
-    res.status(500).send ('Error committing upload (#2d)');
+    log.error('Error committing upload', { error: e });
+    res.status(500).send('Error committing upload (#2d)');
     if (tmpFolder) {
-       await deleteFolder (tmpFolder);
+      await deleteFolder(tmpFolder);
     }
     return;
   }
-
 
   // if name change, continue with name-change steps
   // 2 (b) copy files from existing submission to new tmp folder
@@ -266,16 +314,16 @@ const commitUpload = async (req, res) => {
       newPath: tmpFolder,
     };
     const [cpErr, cpResult] = await copyFiles(arg);
-    console.log (cpErr && cpErr.error);
+    console.log(cpErr && cpErr.error);
 
     if (cpErr) {
-      log.error ('error copying files to temp folder', { ...arg, error: cpErr });
-      res.status(500).send ('Error comitting upload (#2e)');
+      log.error('error copying files to temp folder', { ...arg, error: cpErr });
+      res.status(500).send('Error comitting upload (#2e)');
       // cleanup tmp folder
-      await deleteFolder (tmpFolder);
+      await deleteFolder(tmpFolder);
       return;
     }
-    log.debug ('copy files result', cpResult);
+    log.debug('copy files result', cpResult);
     copySuccess = true;
   }
 
@@ -286,28 +334,28 @@ const commitUpload = async (req, res) => {
     if (tmpFolder && copySuccess) {
       // rename temp dir
       const arg = {
-        prevPath:  tmpFolder,
+        prevPath: tmpFolder,
         newPath: newFolderPath,
       };
-      const [rnErr, rnResult] = await renameFolder (arg);
+      const [rnErr, rnResult] = await renameFolder(arg);
       if (rnErr) {
-        log.error ('error renaming tmp folder', arg);
+        log.error('error renaming tmp folder', arg);
         res.status(500).send('Error uploading file (#2f)');
         return;
       } else {
-        log.debug ('rename folder success', rnResult);
+        log.debug('rename folder success', rnResult);
       }
       renameSuccess = true;
     } else {
-      log.error ('name change requested, but some steps failed', {
+      log.error('name change requested, but some steps failed', {
         nameChange,
         tmpFolder,
         copySuccess,
         fileNameRoot,
         shortName,
       });
-      await deleteFolder (tmpFolder);
-      res.status (500). send ('Error uploading file (#2g)');
+      await deleteFolder(tmpFolder);
+      res.status(500).send('Error uploading file (#2g)');
       return;
     }
   }
@@ -321,9 +369,13 @@ const commitUpload = async (req, res) => {
     // 3 (a) CASE: New Submission
     if (submissionType === 'new') {
       const dataSubmissionsInsert = new sql.Request(transaction);
-      dataSubmissionsInsert.input("filename", sql.NVarChar, fileNameRoot);
-      dataSubmissionsInsert.input("dataSource", sql.NVarChar, dataSource);
-      dataSubmissionsInsert.input("datasetLongName", sql.NVarChar, datasetLongName);
+      dataSubmissionsInsert.input('filename', sql.NVarChar, fileNameRoot);
+      dataSubmissionsInsert.input('dataSource', sql.NVarChar, dataSource);
+      dataSubmissionsInsert.input(
+        'datasetLongName',
+        sql.NVarChar,
+        datasetLongName,
+      );
 
       // Add a new record in tblData_Submissions
       const dataSubmissionsInsertQuery = `
@@ -333,25 +385,38 @@ const commitUpload = async (req, res) => {
         SELECT SCOPE_IDENTITY() AS ID`;
 
       const result = await dataSubmissionsInsert.query(
-        dataSubmissionsInsertQuery
+        dataSubmissionsInsertQuery,
       );
-      dataSubmissionID = safePath (['recordset', '0', 'ID']) (result);
+      dataSubmissionID = safePath(['recordset', '0', 'ID'])(result);
     } else {
       // 3 (b) CASE: Update Submission (also handles shortName change)
       let dataSubmissionPhaseChange = new sql.Request(transaction);
       const newPhase = qc1WasCompleted ? 7 : 2;
-      dataSubmissionPhaseChange.input("newPhase", sql.Int, newPhase);
+      dataSubmissionPhaseChange.input('newPhase', sql.Int, newPhase);
       let changeNameDirective = '';
       if (nameChange && tmpFolder && copySuccess && renameSuccess) {
-        log.info ('preparing to commit name change with submission update', { fileNameRoot, shortName });
-        dataSubmissionPhaseChange.input("updatedShortName", sql.NVarChar, shortName);
+        log.info('preparing to commit name change with submission update', {
+          fileNameRoot,
+          shortName,
+        });
+        dataSubmissionPhaseChange.input(
+          'updatedShortName',
+          sql.NVarChar,
+          shortName,
+        );
         changeNameDirective = `, Filename_Root = @updatedShortName`;
       }
       let changeLongNameDirective = '';
       // TODO change long name
       if (changeLongName) {
-        log.info ('preparing to change long name', { newLongName: datasetLongName });
-        dataSubmissionPhaseChange.input("newLongName", sql.NVarChar, datasetLongName);
+        log.info('preparing to change long name', {
+          newLongName: datasetLongName,
+        });
+        dataSubmissionPhaseChange.input(
+          'newLongName',
+          sql.NVarChar,
+          datasetLongName,
+        );
         changeLongNameDirective = `, Dataset_Long_Name = @newLongName`;
       }
       // update record in tblData_Submissions
@@ -362,7 +427,7 @@ const commitUpload = async (req, res) => {
             ${changeLongNameDirective}
         WHERE ID = ${submissionId}`;
 
-      log.debug ('update query', dataSubmissionPhaseChangeQuery);
+      log.debug('update query', dataSubmissionPhaseChangeQuery);
 
       await dataSubmissionPhaseChange.query(dataSubmissionPhaseChangeQuery);
     }
@@ -380,31 +445,31 @@ const commitUpload = async (req, res) => {
     await transaction.commit();
   } catch (e) {
     // 3 (e) rollback database transaction
-    log.error("transaction failed", e);
+    log.error('transaction failed', e);
     try {
       await transaction.rollback();
     } catch (err) {
-      log.error("rollback failed", err);
+      log.error('rollback failed', err);
     }
     // cleanup new dropbox folder (either the temp folder or the renamed folder)
     if (nameChange) {
       if (renameFolder) {
-        await deleteFolder (newFolderPath);
+        await deleteFolder(newFolderPath);
       } else if (tmpFolder) {
-        await deleteFolder (tmpFolder);
+        await deleteFolder(tmpFolder);
       }
     }
-    res.status(500).send ('Error updating database with submission');
+    res.status(500).send('Error updating database with submission');
     return;
   }
 
-
   if (nameChange) {
     // delete old folder
-    log.debug ('name change successufl; deleting old submission folder', { fileNameRoot });
-    await deleteFolder (`/${fileNameRoot}`);
+    log.debug('name change successufl; deleting old submission folder', {
+      fileNameRoot,
+    });
+    await deleteFolder(`/${fileNameRoot}`);
   }
-
 
   // if we're here' transaction was successful
 
@@ -415,7 +480,7 @@ const commitUpload = async (req, res) => {
 
   // 5. notifiy admin (send email)
   let subject =
-    submissionType === "New"
+    submissionType === 'New'
       ? `CMAP Data Submission - ${fileNameRoot}`
       : `Re: CMAP Data Submission - ${fileNameRoot}`;
 
@@ -430,25 +495,25 @@ const commitUpload = async (req, res) => {
   };
 
   let rejectNotifyAdmin = (e) => {
-    log.error("failed to notify admin of new data submission", {
+    log.error('failed to notify admin of new data submission', {
       subject,
       error: e,
     });
   };
 
   let resolveNotifyAdmin = () =>
-    log.info("notified admin of new data submission", {
+    log.info('notified admin of new data submission', {
       fileNameRoot,
       user: req.user.id,
     });
 
-  let sendNotifyAdmin = sendServiceMail (notifyAdminArgs);
+  let sendNotifyAdmin = sendServiceMail(notifyAdminArgs);
 
-  Future.fork (rejectNotifyAdmin) (resolveNotifyAdmin) (sendNotifyAdmin);
+  Future.fork(rejectNotifyAdmin)(resolveNotifyAdmin)(sendNotifyAdmin);
 
   // 6. notify user
   let contentTemplate =
-    submissionType === "New"
+    submissionType === 'New'
       ? templates.notifyUserOfReceiptOfNewDataSubmission
       : templates.notifyUserOfReceiptOfUpdatedDataSubmission;
 
@@ -461,25 +526,25 @@ const commitUpload = async (req, res) => {
     }),
   };
 
-  let sendNotifyUser = sendServiceMail (notifyUserArgs);
+  let sendNotifyUser = sendServiceMail(notifyUserArgs);
 
   let rejectNotifyUser = (e) => {
     log.error(
       `failed to notify user of receipt of ${
-        submissionType === "New" ? "new" : "updated"
+        submissionType === 'New' ? 'new' : 'updated'
       } data submission`,
       {
         subject,
         recipientId: req.user.id,
         error: e,
-      }
+      },
     );
   };
 
   let resolveNotifyUser = () =>
-    log.info("notified user of receipt of data submission", { subject });
+    log.info('notified user of receipt of data submission', { subject });
 
-  Future.fork (rejectNotifyUser) (resolveNotifyUser) (sendNotifyUser);
+  Future.fork(rejectNotifyUser)(resolveNotifyUser)(sendNotifyUser);
 };
 
 module.exports = commitUpload;

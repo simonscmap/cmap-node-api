@@ -1,8 +1,8 @@
-const test = require("ava");
-const updateRankQDef = require("../../../controllers/news/queryDefinitions/updateRanks");
-const S = require("../../../utility/sanctuary");
+const test = require('ava');
+const updateRankQDef = require('../../../controllers/news/queryDefinitions/updateRanks');
+const S = require('../../../utility/sanctuary');
 
-test("updateRankedItems Query Definition", (t) => {
+test('updateRankedItems Query Definition', (t) => {
   let { template } = updateRankQDef;
 
   // make the first item in the parsedArgs array a mismatch,
@@ -11,7 +11,7 @@ test("updateRankedItems Query Definition", (t) => {
   let parsedArgs = [
     { vName: null },
     {
-      vName: "ranks",
+      vName: 'ranks',
       eitherVal: S.Right([
         {
           ID: 1,
@@ -21,7 +21,7 @@ test("updateRankedItems Query Definition", (t) => {
     },
     // currentlyRankedItems must be set, even if it is an empty array
     // otherwise the template will not generate a WHEN clause
-    { vName: "currentlyRankedItems", eitherVal: S.Right([])},
+    { vName: 'currentlyRankedItems', eitherVal: S.Right([]) },
   ];
 
   let result = template(parsedArgs);

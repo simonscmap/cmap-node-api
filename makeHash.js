@@ -10,8 +10,7 @@ const hash = crypto.createHash('sha256');
 
 input.on('readable', () => {
   const data = input.read();
-  if (data)
-    hash.update(data);
+  if (data) hash.update(data);
   else {
     console.log(hash.digest('hex'));
   }

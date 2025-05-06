@@ -1,7 +1,5 @@
-const sql = require("mssql");
-const {
-  userReadAndWritePool,
-} = require("../../dbHandlers/dbPools");
+const sql = require('mssql');
+const { userReadAndWritePool } = require('../../dbHandlers/dbPools');
 
 // Fetch all data submissions.
 // Used to populate admin dashboard
@@ -28,10 +26,9 @@ const submissions = async (req, res) => {
         ORDER BY [dbo].[tblData_Submissions].[Phase_ID]
         `;
 
-
   // TODO error handling????
   let result = await request.query(query);
   return res.json(result.recordset);
 };
 
-module.exports = submissions
+module.exports = submissions;

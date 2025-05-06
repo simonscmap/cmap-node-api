@@ -1,7 +1,6 @@
-const test = require("ava");
+const test = require('ava');
 
-test("extract recipient from email message", (t) => {
-
+test('extract recipient from email message', (t) => {
   const message = `From: Mail Delivery Subsystem <mailer-daemon@googlemail.com>
 To: someoneg@gmail.com
 Auto-Submitted: auto-replied
@@ -23,15 +22,11 @@ Content-Type: multipart/alternative; boundary="000000000000bfb5a6058edbf1d0"
 
   const match = re.exec(message);
 
-  t.is (true, Array.isArray (match));
-  t.is (match[1], "intended.recipient@someaddress.com");
-
+  t.is(true, Array.isArray(match));
+  t.is(match[1], 'intended.recipient@someaddress.com');
 });
 
-
-
-test("extract email emailId from email message", (t) => {
-
+test('extract email emailId from email message', (t) => {
   const message = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
@@ -45,7 +40,6 @@ test("extract email emailId from email message", (t) => {
 
   const match = emailIdRe.exec(message);
 
-  t.is (true, Array.isArray (match));
-  t.is (match[1], "999");
-
+  t.is(true, Array.isArray(match));
+  t.is(match[1], '999');
 });

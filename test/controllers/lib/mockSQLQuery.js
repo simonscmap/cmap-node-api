@@ -1,7 +1,7 @@
 let createMockRequest = (mockPool) => {
   let context = {
     mockPool,
-    args: {}
+    args: {},
   };
 
   let MockRequest = {};
@@ -10,13 +10,13 @@ let createMockRequest = (mockPool) => {
 
   MockRequest.input = (name, sqlType, val) => {
     context.args[name] = () => ({ sqlType, val });
-  }
+  };
 
   MockRequest.query = (queryTemplate) => {
     return Promise.resolve(queryTemplate);
-  }
+  };
 
   return MockRequest;
-}
+};
 
 module.exports = createMockRequest;

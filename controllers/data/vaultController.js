@@ -154,9 +154,8 @@ const getShareLinkController = async (req, res) => {
   const listSharedLinksArg = { path: folderPath, direct_only: true };
   let listSharedLinksResp;
   try {
-    listSharedLinksResp = await dropbox.sharingListSharedLinks(
-      listSharedLinksArg,
-    );
+    listSharedLinksResp =
+      await dropbox.sharingListSharedLinks(listSharedLinksArg);
   } catch (e) {
     log.error('dropbox error: listSharedLinks', {
       ...listSharedLinksArg,

@@ -1,9 +1,9 @@
-const { SERVER_NAMES } = require("../constants");
+const { SERVER_NAMES } = require('../constants');
 
 const {
   roundRobin,
   mapServerNameToPoolConnection,
-} = require("../router/roundRobin");
+} = require('../router/roundRobin');
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
   let pool;
@@ -19,14 +19,20 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   // remove cluster from candidates
   // however, cluster will be included in remaining candidates list
-  let candidates = candidateList.slice(0).filter ((c) => c !== 'cluster');
+  let candidates = candidateList.slice(0).filter((c) => c !== 'cluster');
 
   if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
-      messages.push(['server name override in use', { serverNameOverride, candidateList }])
+      messages.push([
+        'server name override in use',
+        { serverNameOverride, candidateList },
+      ]);
       candidates = [overrideName];
     } else {
-      messages.push(['requested server not among candidate servers', { serverNameOverride, candidateList }])
+      messages.push([
+        'requested server not among candidate servers',
+        { serverNameOverride, candidateList },
+      ]);
     }
   }
 
@@ -34,10 +40,13 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
   // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
   poolName = roundRobin(candidates);
 
-  let remainingCandidates = candidateList.filter ((c) => c !== poolName);
+  let remainingCandidates = candidateList.filter((c) => c !== poolName);
 
   if (poolName === undefined) {
-    messages.push(['could not settle pool name, defaulting to rainier', { candidateList }])
+    messages.push([
+      'could not settle pool name, defaulting to rainier',
+      { candidateList },
+    ]);
     poolName = SERVER_NAMES.rainier;
     pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
   } else {
@@ -48,7 +57,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   if (!pool) {
     error = true;
-    errors.push (['failed to get pool', { candidateList, serverNameOverride }]);
+    errors.push(['failed to get pool', { candidateList, serverNameOverride }]);
   } else {
     messages.push(['get pool result', { candidateList, poolName }]);
   }

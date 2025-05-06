@@ -1,13 +1,13 @@
-const jwt = require("jsonwebtoken");
-const sql = require("mssql");
+const jwt = require('jsonwebtoken');
+const sql = require('mssql');
 
-const pools = require("../../dbHandlers/dbPools");
-const jwtConfig = require("../../config/jwtConfig");
-const guestTokenHashFromRequest = require("../../utility/guestTokenHashFromRequest");
-const sqlSegments = require("../../utility/sqlSegments");
+const pools = require('../../dbHandlers/dbPools');
+const jwtConfig = require('../../config/jwtConfig');
+const guestTokenHashFromRequest = require('../../utility/guestTokenHashFromRequest');
+const sqlSegments = require('../../utility/sqlSegments');
 
-const initializeLogger = require("../../log-service");
-const log = initializeLogger("controllers/user/getGuestToken");
+const initializeLogger = require('../../log-service');
+const log = initializeLogger('controllers/user/getGuestToken');
 
 // Generates and sends a guest token to user
 module.exports = async (req, res) => {
@@ -47,12 +47,12 @@ module.exports = async (req, res) => {
       if (e.number === 2601) {
         // another node instance inserted this row during our network call.
         log.warning(
-          "detected increment by other node while attempting to get new guest token",
-          { error: e }
+          'detected increment by other node while attempting to get new guest token',
+          { error: e },
         );
         // Just increment
       } else {
-        log.error("error getting guest token", { error: e });
+        log.error('error getting guest token', { error: e });
         // TODO does an error here indicate 503 service unavailable
         return res.sendStatus(503);
       }
@@ -92,11 +92,11 @@ module.exports = async (req, res) => {
   let expires = parseInt(req.query.expires);
 
   res.cookie(
-    "guestToken",
-    await jwt.sign(token, jwtConfig.secret, { expiresIn: "24h" }),
-    { expires: new Date(expires) }
+    'guestToken',
+    await jwt.sign(token, jwtConfig.secret, { expiresIn: '24h' }),
+    { expires: new Date(expires) },
   );
 
-  log.info("success getting guest token");
+  log.info('success getting guest token');
   return res.sendStatus(200);
 };

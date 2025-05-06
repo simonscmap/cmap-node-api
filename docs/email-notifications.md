@@ -33,7 +33,6 @@ The Email Notification feature is implemented wit the following system component
   - sending (and re-sending) notifications
   - observing recipient counts and failed deliveries
 
-
 ## How Things Work
 
 ### Subscriptions
@@ -42,7 +41,7 @@ Users can set up two different kinds of subscriptions.
 
 A user can be subscribed to ALL news. A user can subscribe to =n= datasets and receive news related to the datasets they've subscribed to.
 
-*Note: there is nothing preventing a user from subscribing to both all news and specific datasets, but they will not receive multiple email notifications for a single story. Effectively subscribing to all news makes subscribing to specific datasets redundant.*
+_Note: there is nothing preventing a user from subscribing to both all news and specific datasets, but they will not receive multiple email notifications for a single story. Effectively subscribing to all news makes subscribing to specific datasets redundant._
 
 IMPORTANT: The different types of subscriptions are stored in different places in the database.
 
@@ -63,6 +62,6 @@ In order to find which users should get notified when a news story is published,
 In order to associate datasets with as story, the story editor in the News Admin Dashboard has a new panel for "tagging" related datasets.
 
 Several features make this as easy as possible. (1) A full list of dataset short names is displayed with a fuzzy text search. Click on a dataset short name to add it as a tag. (2)
-Any short name detected in the body of the news story, its headline, or its links will be *suggested* as a tag. (3) Any tag that has been added which has not been mentioned in the body of the story is flagged in red to prevent accidental associations.
+Any short name detected in the body of the news story, its headline, or its links will be _suggested_ as a tag. (3) Any tag that has been added which has not been mentioned in the body of the story is flagged in red to prevent accidental associations.
 
 NOTE: the news story must be /SAVED/ after adding tags.

@@ -4,15 +4,19 @@
 // any keys that point to `undefined`
 const transformFeatureResults = (recordsets, log) => {
   if (!log) {
-    console.error ('a log function is required');
+    console.error('a log function is required');
     return null;
   }
-  if (!Array.isArray(recordsets) || !recordsets.every(Array.isArray) || recordsets.length !== 2) {
+  if (
+    !Array.isArray(recordsets) ||
+    !recordsets.every(Array.isArray) ||
+    recordsets.length !== 2
+  ) {
     log.error('expected array for recordsets', { recordsets });
     return null;
   }
 
-  let [ ancillary, ci] = recordsets;
+  let [ancillary, ci] = recordsets;
 
   ancillary = ancillary.reduce((accumulator, current) => {
     let { Table_Name } = current; // note the case
@@ -29,18 +33,16 @@ const transformFeatureResults = (recordsets, log) => {
   }, {});
 
   let mergeFlagsForTableName = (tableName) => ({
-    [tableName]: Object.assign({}, ancillary[tableName], ci[tableName])
+    [tableName]: Object.assign({}, ancillary[tableName], ci[tableName]),
   });
 
   let tables = Array.from(
-    new Set(
-      Object.keys(ancillary).concat(Object.keys(ci))
-    )
+    new Set(Object.keys(ancillary).concat(Object.keys(ci))),
   )
-                    .map(mergeFlagsForTableName)
-                    .reduce((acc, curr) => ({...acc, ...curr}), {});
+    .map(mergeFlagsForTableName)
+    .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
   return tables;
-}
+};
 
 module.exports = { transformFeatureResults };

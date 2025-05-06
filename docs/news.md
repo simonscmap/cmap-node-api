@@ -14,12 +14,12 @@ The `rank` field, which is provided in order to allow for an admin to override a
 
 The `view_status` field, an `INT`, is designed as an enum to specify the following states for a news item:
 
-| value | signified status|
-| ---   | ---             |
-| 0     | hidden          |
-| 1     | draft           |
-| 2     | preview         |
-| 3     | published       |
+| value | signified status |
+| ----- | ---------------- |
+| 0     | hidden           |
+| 1     | draft            |
+| 2     | preview          |
+| 3     | published        |
 
 It may seem as though `hidden` and `draft` would be the same, however, consider the case where a previously published story needs to be removed, from the website (not just the front page, but any sort of news archive we may provide) but retained internally.
 

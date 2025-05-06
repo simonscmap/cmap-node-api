@@ -10,16 +10,16 @@
 const {
   fetchAllOnPremTablesWithCache,
   fetchDatasetIdsWithCache,
-} = require("../utility/router/queries");
+} = require('../utility/router/queries');
 
 // pure functions without side effects,
 const {
   compareTableAndDatasetLists,
   filterRealTables,
   extractTableNamesFromQuery,
-} = require("../utility/router/pure");
+} = require('../utility/router/pure');
 
-const createLogger = require("../log-service");
+const createLogger = require('../log-service');
 
 // Perform all query analysis, assign to req object,
 // and pass to next middleware in the chain
@@ -28,7 +28,7 @@ const queryAnalysisMiddleware = async (req, res, next) => {
   const log = createLogger('queryAnalysis middleware');
 
   if (!query) {
-    log.warn ('no query on the request object to perform analysis on');
+    log.warn('no query on the request object to perform analysis on');
     return next();
   }
 
@@ -43,18 +43,21 @@ const queryAnalysisMiddleware = async (req, res, next) => {
   let datasetIds = await fetchDatasetIdsWithCache();
   req.datasetIds = datasetIds;
 
-  let {
-    coreTables,
-    datasetTables
-  } = compareTableAndDatasetLists(onPremTableList, datasetIds);
+  let { coreTables, datasetTables } = compareTableAndDatasetLists(
+    onPremTableList,
+    datasetIds,
+  );
   req.coreTables = coreTables;
 
   // 4. match table names in query to core & data tables
-  let matchingTables = filterRealTables(queryAnalysis, coreTables, datasetTables);
+  let matchingTables = filterRealTables(
+    queryAnalysis,
+    coreTables,
+    datasetTables,
+  );
   req.matchingTables = matchingTables;
 
   next();
 };
 
-
-module.exports = queryAnalysisMiddleware ;
+module.exports = queryAnalysisMiddleware;

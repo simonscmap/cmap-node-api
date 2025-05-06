@@ -1,5 +1,5 @@
-const logInit = require("../../log-service");
-const log = logInit ('controllers/data/depthCounter');
+const logInit = require('../../log-service');
+const log = logInit('controllers/data/depthCounter');
 
 const darwinDepths = [
   5, 15, 25, 35, 45, 55, 65, 75.005, 85.025, 95.095, 105.31, 115.87, 127.15,
@@ -23,8 +23,9 @@ const piscesDepths = [
   3992.48388672, 4405.22412109, 4833.29101562, 5274.78417969, 5727.91699219,
 ];
 
-const _piscesTables = ['tblPisces_NRT', 'tblPisces_NRT_Calendar']
-  .map((s) => s.toLowerCase());
+const _piscesTables = ['tblPisces_NRT', 'tblPisces_NRT_Calendar'].map((s) =>
+  s.toLowerCase(),
+);
 
 const _darwinTables = [
   'tblDarwin_Chl_Climatology',
@@ -41,13 +42,15 @@ const darwinTable = new Set(_darwinTables);
 
 const count = (tableName, depth1, depth2) => {
   if (typeof tableName !== 'string') {
-    log.warn ('wrong type argument: expected tableName to be string', { tableName });
+    log.warn('wrong type argument: expected tableName to be string', {
+      tableName,
+    });
     return 0;
   } else if (typeof depth1 !== 'number') {
-    log.warn ('wrong type argument: expected depth1 to be number', { depth1 });
+    log.warn('wrong type argument: expected depth1 to be number', { depth1 });
     return 0;
   } else if (typeof depth2 !== 'number') {
-    log.warn ('wrong type argument: expected depth2 to be number', { depth2 });
+    log.warn('wrong type argument: expected depth2 to be number', { depth2 });
     return 0;
   }
 
@@ -61,7 +64,9 @@ const count = (tableName, depth1, depth2) => {
   } else if (darwinTable.has(normalizedTableName)) {
     presetDepths = darwinDepths;
   } else {
-    log.info ('dataset table does not match darwin or pisces depths', { tableName });
+    log.info('dataset table does not match darwin or pisces depths', {
+      tableName,
+    });
     return 0;
   }
 

@@ -17,9 +17,9 @@ To send an email, use the `sendServiceMail` function exported in `email/sendMail
 ## `queryHandler/`
 
 Contains modules that define requests to on prem servers and the cluster, along with some relevant library functions.
+
 - `getPool.js` exports a function that resolves a pool by name, with reasonable defaults; used by the router to resolve pool connection to desired target
 -
-
 
 ## `router/`
 
@@ -28,7 +28,6 @@ The distributed data router. Parses incoming queries, detemines which tables are
 - `queryToDatabaseTarget.js`
 
 See technical notes on the router [data-router.md](/docs/data-router.md).
-
 
 ---
 

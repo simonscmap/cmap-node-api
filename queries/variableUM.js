@@ -1,4 +1,4 @@
-const { variableCatalogUnstructuredMetadata } = require("./variableCatalog");
+const { variableCatalogUnstructuredMetadata } = require('./variableCatalog');
 
 const makeVariableUMQuery = (shortname) =>
   `SELECT

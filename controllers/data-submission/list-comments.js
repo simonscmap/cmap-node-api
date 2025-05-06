@@ -1,7 +1,5 @@
-const sql = require("mssql");
-const {
-  userReadAndWritePool,
-} = require("../../dbHandlers/dbPools");
+const sql = require('mssql');
+const { userReadAndWritePool } = require('../../dbHandlers/dbPools');
 
 // Retrieves comments for a single submission
 const listComments = async (req, res) => {
@@ -13,7 +11,7 @@ const listComments = async (req, res) => {
   if (!req.user.isDataSubmissionAdmin) {
     try {
       let checkOwnerRequest = new sql.Request(pool);
-      checkOwnerRequest.input("ID", sql.Int, id);
+      checkOwnerRequest.input('ID', sql.Int, id);
 
       let checkOwnerQuery = `
                 SELECT Submitter_ID from tblData_Submissions
@@ -32,7 +30,7 @@ const listComments = async (req, res) => {
     }
   }
 
-  request.input("ID", sql.Int, id);
+  request.input('ID', sql.Int, id);
 
   let query = `
         SELECT

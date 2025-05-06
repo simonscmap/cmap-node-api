@@ -1,6 +1,6 @@
-const UnsafeUser = require("../../models/UnsafeUser");
-const initializeLogger = require("../../log-service");
-const log = initializeLogger("controllers/user/changePassword");
+const UnsafeUser = require('../../models/UnsafeUser');
+const initializeLogger = require('../../log-service');
+const log = initializeLogger('controllers/user/changePassword');
 
 // Endpoint for user profile self-update password
 module.exports = async (req, res) => {
@@ -10,10 +10,10 @@ module.exports = async (req, res) => {
 
   if (!result.rowsAffected || !result.rowsAffected[0]) {
     // TODO does this check really signal a bad request?
-    log.error("failed to update password", { userId: user.id });
+    log.error('failed to update password', { userId: user.id });
     return res.sendStatus(400);
   } else {
-    log.info("success updating password", { userId: user.id });
+    log.info('success updating password', { userId: user.id });
     return res.sendStatus(200);
   }
 };

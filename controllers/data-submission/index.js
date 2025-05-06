@@ -1,4 +1,4 @@
-const addComment = require("./add-comment");
+const addComment = require('./add-comment');
 const beginUploadSession = require('./begin-upload-session');
 const checkName = require('./check-name');
 const commitUpload = require('./commit-upload');
@@ -21,5 +21,5 @@ module.exports = {
   listSubmissionsByUser,
   mostRecentFile,
   setSubmissionPhase,
-  uploadFilePart
+  uploadFilePart,
 };

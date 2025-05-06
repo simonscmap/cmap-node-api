@@ -172,5 +172,4 @@ AND view_status = 3;
   `;
 };
 
-
 module.exports.makeDatasetFullPageQuery = makeDatasetFullPageQuery;

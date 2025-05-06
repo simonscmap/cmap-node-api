@@ -1,16 +1,16 @@
 // Admin Comment Template
-const Mustache = require("mustache");
-const baseTemplate = require("./base-template");
-const { notifyUserOfAdminComment } = require("./partials");
+const Mustache = require('mustache');
+const baseTemplate = require('./base-template');
+const { notifyUserOfAdminComment } = require('./partials');
 
-const isProduction = process.env.NODE_ENV === "production";
-const isStaging = process.env.NODE_ENV === "staging";
+const isProduction = process.env.NODE_ENV === 'production';
+const isStaging = process.env.NODE_ENV === 'staging';
 
 const domain = isProduction
-             ? "https://simonscmap.com"
-             : isStaging
-             ? "https://simonscmap.dev"
-             : "http://localhost:8080";
+  ? 'https://simonscmap.com'
+  : isStaging
+    ? 'https://simonscmap.dev'
+    : 'http://localhost:8080';
 
 // This template constitutes the notification sent to the user of
 // a data submission when an admin has added a comment to the submission
@@ -22,16 +22,16 @@ const render = ({ datasetName, userMessage, userName, addressee }) => {
     baseTemplate,
     {
       datasetName: encodeURI(datasetName),
-      userMessage: userMessage.split("\n"),
-      messageType: "Notification",
-      messageTitle: "New Message from CMAP Admin",
+      userMessage: userMessage.split('\n'),
+      messageType: 'Notification',
+      messageTitle: 'New Message from CMAP Admin',
       domain,
       addressee,
       commentor: userName, // this is the CMAP admin who made the comment
     },
     {
       messageBody: notifyUserOfAdminComment,
-    }
+    },
   );
 };
 
