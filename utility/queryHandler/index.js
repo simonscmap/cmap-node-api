@@ -1,4 +1,4 @@
-const { routeQuery } = require("../router/router");
+const { routeQuery } = require('../router/router');
 
 /* Data handler used to route, execute, and stream queries and their responses.
  *   - uses the distributed data router in /utility/router/router.js

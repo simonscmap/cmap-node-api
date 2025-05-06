@@ -1,9 +1,9 @@
-const test = require("ava");
-const cacheAsync = require("../utility/cacheAsync");
-const nodeCache = require("../utility/nodeCache");
+const test = require('ava');
+const cacheAsync = require('../utility/cacheAsync');
+const nodeCache = require('../utility/nodeCache');
 
-test("node cache", (t) => {
-  let key = "test";
+test('node cache', (t) => {
+  let key = 'test';
   let r1 = nodeCache.get(key);
   t.is(r1, undefined);
 
@@ -18,10 +18,10 @@ test("node cache", (t) => {
   nodeCache.flushAll();
 });
 
-test("cacheAsync", async (t) => {
+test('cacheAsync', async (t) => {
   // TEST 1
   // cacheAsync gets result from function that return promise
-  let KEY = "key";
+  let KEY = 'key';
   let job1 = () => Promise.resolve([null, 5]);
 
   // we're not awaiting this, so its a promise

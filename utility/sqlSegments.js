@@ -1,12 +1,12 @@
 // SQL statement sections used in multiple routes
 
 module.exports = {
-    declareAndSetDateTimeVariables: `
+  declareAndSetDateTimeVariables: `
         DECLARE @DateTimeVariable datetime
         SET @DateTimeVariable = GETDATE()
     `,
 
-    dateTimeFromParts: `
+  dateTimeFromParts: `
         DATETIMEFROMPARTS ( 
             DATEPART(year, @DateTimeVariable), 
             DATEPART(month, @DateTimeVariable), 
@@ -14,5 +14,5 @@ module.exports = {
             DATEPART(hour, @DateTimeVariable), 
             0, 0, 0
         )
-    `
-}
+    `,
+};

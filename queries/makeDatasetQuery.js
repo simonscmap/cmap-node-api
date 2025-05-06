@@ -5,8 +5,8 @@ const makeDatasetQuery = (id) => {
   return `
     select * from tblDatasets where ID = ${id}
   `;
-}
+};
 
 module.exports = {
-  makeDatasetQuery
+  makeDatasetQuery,
 };

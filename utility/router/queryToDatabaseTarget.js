@@ -4,7 +4,7 @@ const {
   fetchAllOnPremTablesWithCache,
   fetchDatasetIdsWithCache,
   fetchDatasetLocationsWithCache,
-} = require("./queries");
+} = require('./queries');
 // all helper functions that are pure, i.e., have no side effects,
 // are imported from ./pure.js
 const {
@@ -13,7 +13,7 @@ const {
   assertPriority,
   extractTableNamesFromQuery,
   calculateCandidateTargets,
-} = require("./pure");
+} = require('./pure');
 
 // Execute
 
@@ -28,21 +28,24 @@ const run = async (query) => {
   let datasetIds = await fetchDatasetIdsWithCache();
 
   // TODO: extract all fetches and this comparison function to a cached result
-  let { coreTables, datasetTables } = compareTableAndDatasetLists(onPremTableList, datasetIds);
+  let { coreTables, datasetTables } = compareTableAndDatasetLists(
+    onPremTableList,
+    datasetIds,
+  );
 
   // 4. match table names in query to core & data tables
-  let matchingTables = filterRealTables(queryAnalysis, coreTables, datasetTables);
+  let matchingTables = filterRealTables(
+    queryAnalysis,
+    coreTables,
+    datasetTables,
+  );
 
   // 5. look up locations for dataset ids
   let datasetLocations = await fetchDatasetLocationsWithCache();
 
   // 6. calculate candidate locations
-  let {
-    errors,
-    warnings,
-    respondWithErrorMessage,
-    candidateLocations,
-    } = calculateCandidateTargets(
+  let { errors, warnings, respondWithErrorMessage, candidateLocations } =
+    calculateCandidateTargets(
       matchingTables,
       datasetIds,
       datasetLocations,
@@ -51,20 +54,24 @@ const run = async (query) => {
     );
 
   // 7. assert priority
-  let { prioritizedLocations, priorityTargetType } = assertPriority(
-    candidateLocations
-  );
+  let { prioritizedLocations, priorityTargetType } =
+    assertPriority(candidateLocations);
 
-  let messages = [["router result", {
-    query,
-    commandType: queryAnalysis.commandType,
-    namedTables: queryAnalysis.extractedTableNames,
-    coreTablesIdentified: matchingTables.matchingCoreTables,
-    datasetTablesIdentified: matchingTables.matchingDatasetTables,
-    omittedTables: matchingTables.omittedTables,
-    candidates: candidateLocations.join(" "),
-    errorMessages: errors,
-  }]];
+  let messages = [
+    [
+      'router result',
+      {
+        query,
+        commandType: queryAnalysis.commandType,
+        namedTables: queryAnalysis.extractedTableNames,
+        coreTablesIdentified: matchingTables.matchingCoreTables,
+        datasetTablesIdentified: matchingTables.matchingDatasetTables,
+        omittedTables: matchingTables.omittedTables,
+        candidates: candidateLocations.join(' '),
+        errorMessages: errors,
+      },
+    ],
+  ];
 
   // 8. return candidate query targets
   return {

@@ -1,5 +1,5 @@
-const sql = require("mssql");
-const { dataReadOnlyPool } = require("../../dbHandlers/dbPools");
+const sql = require('mssql');
+const { dataReadOnlyPool } = require('../../dbHandlers/dbPools');
 
 // Retrieve submissions for a single user. Used by user dashboard
 const submissionsByUser = async (req, res) => {

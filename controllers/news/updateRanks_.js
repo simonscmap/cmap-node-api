@@ -1,18 +1,18 @@
-const sql = require("mssql");
-const pools = require("../../dbHandlers/dbPools");
-const Future = require("fluture");
-const directQuery = require("../../utility/directQuery");
-const initializeLogger = require("../../log-service");
+const sql = require('mssql');
+const pools = require('../../dbHandlers/dbPools');
+const Future = require('fluture');
+const directQuery = require('../../utility/directQuery');
+const initializeLogger = require('../../log-service');
 
 const fetchRankedItems = async () => {
   const options = {
-    description: 'fetch ranked news items'
-  }
+    description: 'fetch ranked news items',
+  };
   const query = `SELECT [ID], [rank]
     FROM [Opedia].[dbo].[tblNews]
     WHERE rank IS NOT NULL`;
-  return directQuery (query, options);
-}
+  return directQuery(query, options);
+};
 
 const updateRank = async (userId, newsIds) => {
   const options = {
@@ -24,20 +24,17 @@ const updateRank = async (userId, newsIds) => {
                             END,
                      UserId = @UserId,
                      modify_date = @modify_date
-                 WHERE ID in (${commaSeparatedIds})`
-  return directQuery (query, options);
-}
-
+                 WHERE ID in (${commaSeparatedIds})`;
+  return directQuery(query, options);
+};
 
 // Controller
 const updateRankController = async (req, res) => {
-  const log = initializeLogger ('update rank controller');
+  const log = initializeLogger('update rank controller');
 
   // check args
 
-  const [err, result] = await fetchRankedItems ();
-
-
-}
+  const [err, result] = await fetchRankedItems();
+};
 
 module.exports = updateRankController;

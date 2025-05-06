@@ -1,20 +1,20 @@
 // Old handler from /dataretrieval routes that are no longer used by web app
 
-const sql = require("mssql");
-const ndjson = require("ndjson");
-var pools = require("./dbPools");
-const zlib = require("zlib");
-const CustomTransformStream = require("../utility/CustomTransformStream");
-const createNewLogger = require("../log-service");
+const sql = require('mssql');
+const ndjson = require('ndjson');
+var pools = require('./dbPools');
+const zlib = require('zlib');
+const CustomTransformStream = require('../utility/CustomTransformStream');
+const createNewLogger = require('../log-service');
 
-const log = createNewLogger().setModule("handleCustomQuery");
+const log = createNewLogger().setModule('handleCustomQuery');
 
 module.exports = async (query, res) => {
   let pool;
   try {
     pool = await pools.dataReadOnlyPool;
   } catch (e) {
-    log.error("error creating read-only pool", e);
+    log.error('error creating read-only pool', e);
     throw new Error(e);
   }
 
@@ -27,16 +27,16 @@ module.exports = async (query, res) => {
   request.pipe(ndjsonStream).pipe(transformer).pipe(gzip).pipe(res);
 
   res.writeHead(200, {
-    "Transfer-Encoding": "chunked",
-    charset: "utf-8",
-    "Content-Type": "application/json",
-    "Content-Encoding": "gzip",
+    'Transfer-Encoding': 'chunked',
+    charset: 'utf-8',
+    'Content-Type': 'application/json',
+    'Content-Encoding': 'gzip',
   });
 
   // .pipe does not close on error so we need to close all the streams conditionally when the response ends
 
   request.query(query);
-  request.on("error", (err) => {
+  request.on('error', (err) => {
     res.end(JSON.stringify(err));
   });
 };

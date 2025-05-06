@@ -1,6 +1,6 @@
-const { throttle } = require("throttle-debounce");
-const { versions } = require("./get-versions");
-const { id: workerId } = require("./get-worker");
+const { throttle } = require('throttle-debounce');
+const { versions } = require('./get-versions');
+const { id: workerId } = require('./get-worker');
 const {
   head,
   filter,
@@ -9,49 +9,52 @@ const {
   last,
   parseInt: parseInteger,
   chain,
-  fromMaybe
-} = require("../utility/sanctuary");
-const filterLogsForDevelopment = require ("./filters");
+  fromMaybe,
+} = require('../utility/sanctuary');
+const filterLogsForDevelopment = require('./filters');
 
 // the development server will use 'staging' in order to enable news preview
 const isProduction =
-  process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+  process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 const DEBUG_USAGE = process.env.DEBUG_USAGE === 'enable';
-const DEBUG_USAGE_THROTTLE_MS = parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
-      ? parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
-      : 100;
+const DEBUG_USAGE_THROTTLE_MS = parseInt(
+  process.env.DEBUG_USAGE_THROTTLE_MS,
+  10,
+)
+  ? parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
+  : 100;
 
 let chalk;
 if (isDevelopment) {
   chalk = require('chalk');
 }
 
-let includesLogLevel = (term) => term.includes("logLevel");
-let includesLogFormat = (term) => term.includes("logFormat");
-let split = (term) => term.split("=");
+let includesLogLevel = (term) => term.includes('logLevel');
+let includesLogFormat = (term) => term.includes('logFormat');
+let split = (term) => term.split('=');
 
 let logThresholdFromArgv = pipe([
-  filter (includesLogLevel), // filter argv for one with "logLevel"
+  filter(includesLogLevel), // filter argv for one with "logLevel"
   head, // get the logLevel arg; head returns a Maybe
   map(split), // term should be logLevel=n
-  chain (last), // get the part after '='; returns a Maybe, so we chain
-  chain (parseInteger (10)), // parseInt retuns a maybe, so we chain
-  fromMaybe (5) // default to the most inclusive threshold
+  chain(last), // get the part after '='; returns a Maybe, so we chain
+  chain(parseInteger(10)), // parseInt retuns a maybe, so we chain
+  fromMaybe(5), // default to the most inclusive threshold
 ]);
 
 let logFormatFromArgv = pipe([
-  filter (includesLogFormat),
+  filter(includesLogFormat),
   head, // get the logLevel arg; head returns a Maybe
-  map (split), // term should be logFormat=value
-  chain (last), // get the part after '='; returns a Maybe, so we chain
-  fromMaybe ("object") // default to the most inclusive threshold
+  map(split), // term should be logFormat=value
+  chain(last), // get the part after '='; returns a Maybe, so we chain
+  fromMaybe('object'), // default to the most inclusive threshold
 ]);
 
-const logThreshhold = logThresholdFromArgv (process.argv);
-const logFormat = logFormatFromArgv (process.argv);
+const logThreshhold = logThresholdFromArgv(process.argv);
+const logFormat = logFormatFromArgv(process.argv);
 
 const tagInfo = {
   versions: {
@@ -74,8 +77,7 @@ const logLevel = {
   fatal: 0,
 };
 
-
-const throttledResourceUsageLog = throttle (DEBUG_USAGE_THROTTLE_MS, (args) => {
+const throttledResourceUsageLog = throttle(DEBUG_USAGE_THROTTLE_MS, (args) => {
   const payload = {
     ...args,
     level: 3,
@@ -87,24 +89,24 @@ const throttledResourceUsageLog = throttle (DEBUG_USAGE_THROTTLE_MS, (args) => {
   };
 
   if (isProduction) {
-    writeLogInProduction (payload)
+    writeLogInProduction(payload);
   } else {
-    writeLogInDevelopment (payload);
+    writeLogInDevelopment(payload);
   }
 });
 
-function writeLogInProduction (payload) {
+function writeLogInProduction(payload) {
   payload.time = Date.now();
 
   // write log to stdout
-  if (isProduction || logFormat === "json") {
+  if (isProduction || logFormat === 'json') {
     console.log(JSON.stringify(payload));
     return;
   }
 }
 
-function writeLogInDevelopment (payload) {
-  const shouldLog = filterLogsForDevelopment (payload);
+function writeLogInDevelopment(payload) {
+  const shouldLog = filterLogsForDevelopment(payload);
   if (!shouldLog) {
     return;
   }
@@ -115,34 +117,34 @@ function writeLogInDevelopment (payload) {
   const level = payload.level;
 
   const levelHeader = Object.entries(logLevel)
-        .filter(([, val]) => val === level)
-        .flat()
-        .shift()
-        .toUpperCase()
+    .filter(([, val]) => val === level)
+    .flat()
+    .shift()
+    .toUpperCase();
 
   const { module, ...ctx } = payload.context;
   let header;
   switch (levelHeader) {
-  case 'ERROR':
-    header = chalk`\n{red ${level}} - {red.bold ${levelHeader}} in {blueBright ${module}}`;
-    break;
-  case 'WARN':
-    header = chalk`\n{magenta ${level}} - {magenta ${levelHeader}} in {blueBright ${module}}`;
-    break;
-  case 'INFO':
-    header = chalk`\n{green ${level}} - {green ${levelHeader}} in {blueBright ${module}}`;
-    break;
-  case 'DEBUG':
-    header = chalk`\n{yellow ${level}} - {yellow ${levelHeader}} in {blueBright ${module}}`;
-    break;
-  default:
-    // trace
-    header = chalk`\n{blackBright ${level} - ${levelHeader} in} {blueBright ${module}}`;
+    case 'ERROR':
+      header = chalk`\n{red ${level}} - {red.bold ${levelHeader}} in {blueBright ${module}}`;
+      break;
+    case 'WARN':
+      header = chalk`\n{magenta ${level}} - {magenta ${levelHeader}} in {blueBright ${module}}`;
+      break;
+    case 'INFO':
+      header = chalk`\n{green ${level}} - {green ${levelHeader}} in {blueBright ${module}}`;
+      break;
+    case 'DEBUG':
+      header = chalk`\n{yellow ${level}} - {yellow ${levelHeader}} in {blueBright ${module}}`;
+      break;
+    default:
+      // trace
+      header = chalk`\n{blackBright ${level} - ${levelHeader} in} {blueBright ${module}}`;
   }
 
   let abbreviatedPayload = {
     message: payload.message,
-  }
+  };
   if (Object.keys(ctx).length) {
     abbreviatedPayload.context = ctx;
   }
@@ -166,7 +168,7 @@ function log(level, tags, context, message, isError, data) {
   }
 
   // 1. ensure that log will have full context
-  if (typeof level !== "number") {
+  if (typeof level !== 'number') {
     console.error('missing arg "level" in logger:');
     console.log(level);
     return;
@@ -190,7 +192,6 @@ function log(level, tags, context, message, isError, data) {
     return;
   }
 
-
   // 3. prepare log
   let payload = {
     level,
@@ -212,14 +213,14 @@ function log(level, tags, context, message, isError, data) {
   // 4. PRODUCTION write log to stdout
   if (isProduction) {
     payload.tags = tags;
-    writeLogInProduction (payload);
+    writeLogInProduction(payload);
     if (DEBUG_USAGE) {
-      throttledResourceUsageLog ({
+      throttledResourceUsageLog({
         message: 'resource usage',
         context: {
           ...payload.context,
           originalMessage: payload.message,
-        }
+        },
       });
     }
     return;
@@ -227,14 +228,14 @@ function log(level, tags, context, message, isError, data) {
 
   // 4. DEVELOPMENT write log
   if (isDevelopment) {
-    writeLogInDevelopment (payload);
+    writeLogInDevelopment(payload);
     if (DEBUG_USAGE) {
-      throttledResourceUsageLog ({
+      throttledResourceUsageLog({
         message: 'resource usage',
         context: {
           ...payload.context,
           originalMessage: payload.message,
-        }
+        },
       });
     }
     return;
@@ -247,8 +248,8 @@ function createNewLogger(moduleName, extraContext = {}) {
   let props = {
     tags: tagInfo,
     context: {
-      module: moduleName
-    }
+      module: moduleName,
+    },
   };
 
   if (session) {
@@ -259,31 +260,33 @@ function createNewLogger(moduleName, extraContext = {}) {
     props.context.requestId = requestId;
   }
 
-  extra.forEach ((ctxItem) => {
+  extra.forEach((ctxItem) => {
     if (Array.isArray(ctxItem) && ctxItem.length === 2) {
       let [k, v] = ctxItem;
       props.context[k] = v;
     }
   });
 
-
   let logger = Object.assign({}, props);
 
   // methods to set context info
   logger.setModule = (x) => {
-    return createNewLogger (x, {...extraContext});
+    return createNewLogger(x, { ...extraContext });
   };
 
   logger.setSession = (x) => {
-    return createNewLogger (moduleName, { ...extraContext, session: x });
+    return createNewLogger(moduleName, { ...extraContext, session: x });
   };
 
   logger.setReqId = (rid) => {
-    return createNewLogger (moduleName, { ...extraContext, requestId: rid });
+    return createNewLogger(moduleName, { ...extraContext, requestId: rid });
   };
 
   logger.addContext = (ctx) => {
-    return createNewLogger (moduleName, { ...extraContext, extra: extra.concat([ctx])});
+    return createNewLogger(moduleName, {
+      ...extraContext,
+      extra: extra.concat([ctx]),
+    });
   };
 
   // this method does not return a new logger
@@ -301,7 +304,7 @@ function createNewLogger(moduleName, extraContext = {}) {
         logger.context,
         logger.message,
         logger.isError,
-        logger.data
+        logger.data,
       );
     };
   });

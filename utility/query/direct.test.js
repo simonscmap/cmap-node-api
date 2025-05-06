@@ -1,10 +1,8 @@
-const Future = require("fluture");
-const test = require("ava");
+const Future = require('fluture');
+const test = require('ava');
 const {
   simpleFutureTest,
   futureTestWithPredicate,
-} = require ('../../test/testHelpers');
+} = require('../../test/testHelpers');
 
-test ("resolve pool", () => {
-
-});
+test('resolve pool', () => {});

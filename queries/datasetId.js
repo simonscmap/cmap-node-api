@@ -1,9 +1,9 @@
-const pools = require("../dbHandlers/dbPools");
-const sql = require("mssql");
-const initializeLogger = require("../log-service");
-const cacheAsync = require("../utility/cacheAsync");
+const pools = require('../dbHandlers/dbPools');
+const sql = require('mssql');
+const initializeLogger = require('../log-service');
+const cacheAsync = require('../utility/cacheAsync');
 
-const moduleLogger = initializeLogger("queries/datasetId");
+const moduleLogger = initializeLogger('queries/datasetId');
 
 const CACHE_KEY_DATASET_LIST = 'mapDatasetNameToId';
 
@@ -32,7 +32,7 @@ const fetchDatasetList = async (log = moduleLogger) => {
   try {
     pool = await pools.dataReadOnlyPool;
   } catch (e) {
-    log.error("attempt to connect to pool failed", { error: e });
+    log.error('attempt to connect to pool failed', { error: e });
     return [true, new Map()];
   }
 
@@ -41,9 +41,9 @@ const fetchDatasetList = async (log = moduleLogger) => {
   let result;
   try {
     result = await request.query(q);
-    log.trace("success fetching list of dataset ids");
+    log.trace('success fetching list of dataset ids');
   } catch (e) {
-    log.error("error fetching list of datasets", { error: e });
+    log.error('error fetching list of datasets', { error: e });
     return [true, new Map()];
   }
 
@@ -54,7 +54,7 @@ const fetchDatasetList = async (log = moduleLogger) => {
     // set results in cache
     return [false, datasetMap];
   } else {
-    log.error("error fetching list of datasets: no recordset returned ", {
+    log.error('error fetching list of datasets: no recordset returned ', {
       result,
     });
     return [true, new Map()];
@@ -66,12 +66,12 @@ const fetchDatasetListWithCache = async () =>
   await cacheAsync(
     CACHE_KEY_DATASET_LIST,
     fetchDatasetList,
-    { ttl: 60 * 60 } // 1 hour; ttl is given in seconds
+    { ttl: 60 * 60 }, // 1 hour; ttl is given in seconds
   );
 
 const getDatasetId = async (shortname, log = moduleLogger) => {
   if (typeof shortname !== 'string') {
-    log.error ('received wrong type argument for shortname', { shortname });
+    log.error('received wrong type argument for shortname', { shortname });
     return null;
   }
   let key = shortname.toLowerCase();
@@ -79,36 +79,38 @@ const getDatasetId = async (shortname, log = moduleLogger) => {
   let idMap = await fetchDatasetListWithCache();
   const result = idMap.get(key);
   if (result) {
-    log.info ('retrieved dataset id', { shortname, result });
+    log.info('retrieved dataset id', { shortname, result });
   } else {
     log.error('failed to retrieve dataset id', {
       shortname,
-      idMapSize: (idMap && idMap.size),
+      idMapSize: idMap && idMap.size,
       result,
     });
   }
   return result;
-}
+};
 
 module.exports.getDatasetId = getDatasetId;
 
 // TODO
-const getServerLocalDatasetId = (serverName) =>
-      async (shortName, log = moduleLogger) => {
-        // 1. get correct pool for server
-        let pool;
-        try {
-          pool = await pools[serverName];
-        } catch (e) {
-          log.error("attempt to connect to pool failed", { error: e });
-          return null;
-        }
-        // 2. get id
-        const request = new sql.Request(pool);
-        request.input ('shortName', sql.VarChar, shortName);
-        const query = 'SELECT id, dataset_name FROM tblDatasets WHERE dataset_name = @shortName';
+const getServerLocalDatasetId =
+  (serverName) =>
+  async (shortName, log = moduleLogger) => {
+    // 1. get correct pool for server
+    let pool;
+    try {
+      pool = await pools[serverName];
+    } catch (e) {
+      log.error('attempt to connect to pool failed', { error: e });
+      return null;
+    }
+    // 2. get id
+    const request = new sql.Request(pool);
+    request.input('shortName', sql.VarChar, shortName);
+    const query =
+      'SELECT id, dataset_name FROM tblDatasets WHERE dataset_name = @shortName';
 
-        // TODO execute query and return result
-      };
+    // TODO execute query and return result
+  };
 
 module.exports.getServerLocalDatasetId = getServerLocalDatasetId;

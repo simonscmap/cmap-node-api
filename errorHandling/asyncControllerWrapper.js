@@ -1,8 +1,8 @@
 // Wrapper to catch error in async functions
-const initializeLogger = require("../log-service");
-const moduleLogger = initializeLogger ("async controller wrapper");
+const initializeLogger = require('../log-service');
+const moduleLogger = initializeLogger('async controller wrapper');
 
-module.exports = controllerFunction => (req, res, next) => {
+module.exports = (controllerFunction) => (req, res, next) => {
   let log = moduleLogger
     .setReqId(req.requestId)
     .addContext(['originalUrl', req.originalUrl]);
@@ -15,4 +15,4 @@ module.exports = controllerFunction => (req, res, next) => {
     log.error('error in async controller wrapper', { error: err });
     next(err);
   });
-}
+};

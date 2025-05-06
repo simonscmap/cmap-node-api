@@ -1,15 +1,15 @@
 // Notify Admin of New Data Submission
-const Mustache = require("mustache");
-const baseTemplate = require("./base-template");
-const { notifyAdminOfDataSubmission } = require("./partials");
+const Mustache = require('mustache');
+const baseTemplate = require('./base-template');
+const { notifyAdminOfDataSubmission } = require('./partials');
 
-const isProduction = process.env.NODE_ENV === "production";
-const isStaging = process.env.NODE_ENV === "staging"
+const isProduction = process.env.NODE_ENV === 'production';
+const isStaging = process.env.NODE_ENV === 'staging';
 const domain = isProduction
-             ? "https://simonscmap.com"
-             : isStaging
-             ? "https://simonscmap.dev"
-             : "http://localhost:8080";
+  ? 'https://simonscmap.com'
+  : isStaging
+    ? 'https://simonscmap.dev'
+    : 'http://localhost:8080';
 
 const render = ({ datasetName, user, submissionType }) => {
   // mustache.render :: template -> data -> partials -> render
@@ -17,16 +17,16 @@ const render = ({ datasetName, user, submissionType }) => {
     baseTemplate,
     {
       datasetName: encodeURI(datasetName),
-      messageType: "Notification",
-      messageTitle: "New Data Submission",
-      addressee: "CMAP Admin",
+      messageType: 'Notification',
+      messageTitle: 'New Data Submission',
+      addressee: 'CMAP Admin',
       submitter: `${user.firstName} ${user.lastName}`, // this is the user
       submissionType,
       domain,
     },
     {
       messageBody: notifyAdminOfDataSubmission,
-    }
+    },
   );
 };
 

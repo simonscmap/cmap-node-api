@@ -1,10 +1,10 @@
-const directQuery = require("../../utility/directQuery");
-const { safePathOr } = require("../../utility/objectUtils");
-const initializeLogger = require("../../log-service");
+const directQuery = require('../../utility/directQuery');
+const { safePathOr } = require('../../utility/objectUtils');
+const initializeLogger = require('../../log-service');
 
-const moduleLogger = initializeLogger ("controllers/notifications/getTags");
+const moduleLogger = initializeLogger('controllers/notifications/getTags');
 
-const safePathOrEmptyArray = safePathOr ([]) (Array.isArray)
+const safePathOrEmptyArray = safePathOr([])(Array.isArray);
 
 const getTagsForNewsItem = async (newsId, log = moduleLogger) => {
   const query = `
@@ -13,15 +13,15 @@ const getTagsForNewsItem = async (newsId, log = moduleLogger) => {
     WHERE News_ID=${newsId}
   `;
   const options = {
-    description: "get tagged datasets for news item",
+    description: 'get tagged datasets for news item',
     poolName: 'rainier',
   };
-  const [err, resp] = await directQuery (query, options, log);
+  const [err, resp] = await directQuery(query, options, log);
   if (err) {
     return [err];
   }
-  const result = safePathOrEmptyArray (['recordset']) (resp);
+  const result = safePathOrEmptyArray(['recordset'])(resp);
   return [null, result];
-}
+};
 
 module.exports = getTagsForNewsItem;

@@ -1,10 +1,21 @@
-const test = require("ava");
+const test = require('ava');
 // const sql = require("mssql");
 // const Future = require("fluture");
-const S = require("../../../utility/sanctuary");
-const $ = require("sanctuary-def");
+const S = require('../../../utility/sanctuary');
+const $ = require('sanctuary-def');
 
-let {bimap, encase, pipe, gets, is, map, maybeToEither, join, fromRight, fromLeft } = S;
+let {
+  bimap,
+  encase,
+  pipe,
+  gets,
+  is,
+  map,
+  maybeToEither,
+  join,
+  fromRight,
+  fromLeft,
+} = S;
 
 // bimap takes 2 functions, a 'left' and 'right' function,
 // and will map the appropriate 1 onto the value, according the value's type
@@ -21,41 +32,40 @@ let {bimap, encase, pipe, gets, is, map, maybeToEither, join, fromRight, fromLef
 
 let makeErrorMessage = (e) => {
   if (typeof e === 'object') {
-    return `body is invalid json: ${e.message}`
+    return `body is invalid json: ${e.message}`;
   } else if (typeof e === 'string') {
     return e;
   } else {
     return 'unexpected error resolving body';
   }
-}
+};
 
 let resolver = pipe([
-  gets (is ($.String))(['body', 'body']),
+  gets(is($.String))(['body', 'body']),
   // Just (String) | Nothing
-  map (encase (JSON.parse)),
+  map(encase(JSON.parse)),
   // Just (Right (Object)) | Just (Left (SyntaxError)) | Nothing
-  maybeToEither ("body is required"),
+  maybeToEither('body is required'),
   // Right (Right (Object)) | Right (Left (SyntaxError)) | Left (msg)
   join,
   // Right (Object) | Left (SyntaxError))| Left (msg)
-  bimap (makeErrorMessage) (JSON.stringify),
+  bimap(makeErrorMessage)(JSON.stringify),
 ]);
 
-test("json validation resolver with bimap", (t) => {
-
-  let correctReq = { body: { body: '{"content":"","links":[]}' } } ;
+test('json validation resolver with bimap', (t) => {
+  let correctReq = { body: { body: '{"content":"","links":[]}' } };
 
   let malformedArg = { body: { body: '{"content":"","links":[}' } };
-  let missingArg = { body: { } };
+  let missingArg = { body: {} };
 
-  let r1 = resolver (correctReq)
-  let r1_ = fromRight ('') (r1);
+  let r1 = resolver(correctReq);
+  let r1_ = fromRight('')(r1);
 
-  let r2 = resolver (malformedArg);
-  let r2_ = fromLeft ('') (r2);
+  let r2 = resolver(malformedArg);
+  let r2_ = fromLeft('')(r2);
 
-  let r3 = resolver (missingArg)
-  let r3_ = fromLeft ('') (r3);
+  let r3 = resolver(missingArg);
+  let r3_ = fromLeft('')(r3);
 
   t.is(S.isRight(r1), true);
   t.is(S.isLeft(r2), true);

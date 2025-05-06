@@ -1,4 +1,4 @@
-const router = require("express").Router();
+const router = require('express').Router();
 // const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
 // const checkAdminAuth = require("../middleware/checkAdminAuth");
 // const passport = require('../middleware/passport');

@@ -24,7 +24,11 @@ let partialsNames = [
 // read in email templates and export them as strings
 
 const partials = partialsNames.reduce((acc, name) => {
-  const pathToTemplate = path.resolve(__dirname, 'mustache', `${name}.mustache`);
+  const pathToTemplate = path.resolve(
+    __dirname,
+    'mustache',
+    `${name}.mustache`,
+  );
   try {
     acc[name] = fs.readFileSync(pathToTemplate, 'utf8');
   } catch (e) {
@@ -34,4 +38,4 @@ const partials = partialsNames.reduce((acc, name) => {
   return acc;
 }, {});
 
-module.exports = partials
+module.exports = partials;

@@ -6,34 +6,33 @@
 
 const cacheAsync = require('./cacheAsync');
 const nodeCache = require('./nodeCache');
-const initializeLogger = require("../log-service");
-const log = initializeLogger("preWarmCacheAsync");
+const initializeLogger = require('../log-service');
+const log = initializeLogger('preWarmCacheAsync');
 
 const wrapper = async (cacheKey, job, options = {}) => {
-  if (nodeCache.get (cacheKey) === undefined) {
-    log.info ('warming cache', { cacheKey });
+  if (nodeCache.get(cacheKey) === undefined) {
+    log.info('warming cache', { cacheKey });
     // pre-warm cache
     try {
-      await cacheAsync (cacheKey, job, options);
+      await cacheAsync(cacheKey, job, options);
     } catch (e) {
-      log.info ('error warming cache', { cacheKey, error: e });
+      log.info('error warming cache', { cacheKey, error: e });
     }
   } else {
-    log.info ('cache already warm', { cacheKey });
+    log.info('cache already warm', { cacheKey });
   }
 
   // re-warm upon expiration
   nodeCache.on('expired', (keyOfExpiredCache /* , expiredValue */) => {
-    log.info ('cache event: expired', { key: keyOfExpiredCache });
+    log.info('cache event: expired', { key: keyOfExpiredCache });
     if (keyOfExpiredCache === cacheKey) {
-      log.info ('re-warming cache', { cacheKey });
+      log.info('re-warming cache', { cacheKey });
       // trigger job & cache result
-      cacheAsync (cacheKey, job, options)
-        .catch ((e) => {
-          log.error ('error re-warming cache', { cacheKey, error: e });
-        });
+      cacheAsync(cacheKey, job, options).catch((e) => {
+        log.error('error re-warming cache', { cacheKey, error: e });
+      });
     } else {
-      log.info ('expired key did not match', keyOfExpiredCache);
+      log.info('expired key did not match', keyOfExpiredCache);
     }
   });
 
@@ -44,8 +43,7 @@ const wrapper = async (cacheKey, job, options = {}) => {
   // returning this function here is for convenience;
   // a separace call to cacheAsync or to nodeCache would work just as well
   // as long as the cacheKey is the same
-  const fn = async () =>
-    await cacheAsync (cacheKey, job, options);
+  const fn = async () => await cacheAsync(cacheKey, job, options);
 
   return fn;
 };

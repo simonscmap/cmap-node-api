@@ -1,5 +1,5 @@
-const S = require("../../../utility/sanctuary");
-const $ = require("sanctuary-def");
+const S = require('../../../utility/sanctuary');
+const $ = require('sanctuary-def');
 const sql = require('mssql');
 // const { trace } = require('../../lib')
 
@@ -20,28 +20,30 @@ let {
   pipe,
 } = S;
 
-let maybeNothingToRight = ifElse (isJust) (maybeToEither ("Oops")) ((arg) => Right(arg));
+let maybeNothingToRight = ifElse(isJust)(maybeToEither('Oops'))((arg) =>
+  Right(arg),
+);
 
 let makeErrorMessage = (e) => {
   if (typeof e === 'object') {
-    return `body is invalid json: ${e.message}`
+    return `body is invalid json: ${e.message}`;
   } else if (typeof e === 'string') {
     return e;
   } else {
     return 'unexpected error resolving body';
   }
-}
+};
 
 let bodyResolver = pipe([
-  gets (is ($.String))(["body", "story", "body"]),
+  gets(is($.String))(['body', 'story', 'body']),
   // Just (String) | Nothing
-  map (encase (JSON.parse)),
+  map(encase(JSON.parse)),
   // Just (Right (Object)) | Just (Left (SyntaxError)) | Nothing
-  maybeToEither ("body is required"),
+  maybeToEither('body is required'),
   // Right (Right (Object)) | Right (Left (SyntaxError)) | Left (msg)
   join,
   // Right (Object) | Left (SyntaxError))| Left (msg)
-  bimap (makeErrorMessage) (JSON.stringify),
+  bimap(makeErrorMessage)(JSON.stringify),
 ]);
 
 let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
@@ -60,99 +62,100 @@ let template = () => `INSERT INTO [Opedia].[dbo].[tblNews]
        , @Status_ID
       )`;
 
-
 let createStoryQueryDefinition = {
   name: 'Create News Story',
   template: template,
   args: [
     {
-      vName: "ID",
+      vName: 'ID',
       sqlType: sql.Int,
       defaultTo: 0,
       resolver: pipe([
-        gets (is ($.Integer)) (["topStoryId"]),
-        maybeToEither("could not resolve story id"), // note that this comes from prev query
+        gets(is($.Integer))(['topStoryId']),
+        maybeToEither('could not resolve story id'), // note that this comes from prev query
       ]),
     },
     {
-      vName: "headline",
+      vName: 'headline',
       sqlType: sql.NVarChar,
-      defaultTo: empty (String),
+      defaultTo: empty(String),
       // even though this field is NVarChar, we'll require a headline
       resolver: pipe([
-        gets (is ($.String)) (["body", "story", "headline"]),
-        maybeToEither("headline is required"),
+        gets(is($.String))(['body', 'story', 'headline']),
+        maybeToEither('headline is required'),
       ]),
     },
     {
-      vName: "link",
+      vName: 'link',
       sqlType: sql.NVarChar,
-      defaultTo: S.empty (String),
+      defaultTo: S.empty(String),
       resolver: pipe([
-        gets (is ($.String)) (["body", "story", "link"]),
+        gets(is($.String))(['body', 'story', 'link']),
         maybeNothingToRight,
       ]),
     },
     {
-      vName: "body",
+      vName: 'body',
       sqlType: sql.NVarChar,
       defaultTo: S.empty(String),
-      resolver: bodyResolver
+      resolver: bodyResolver,
     },
     {
-      vName: "date",
+      vName: 'date',
       sqlType: sql.NVarChar,
       defaultTo: S.empty(String),
       resolver: pipe([
-        gets (is ($.String)) (["body", "story", "date"]),
+        gets(is($.String))(['body', 'story', 'date']),
         maybeNothingToRight,
       ]),
     },
     {
-      vName: "view_status",
+      vName: 'view_status',
       sqlType: sql.Int,
       defaultTo: 2, // start new stories in Draft status
       resolver: () => Right(2),
     },
     {
-      vName: "rank",
+      vName: 'rank',
       sqlType: sql.Int,
       defaultTo: null,
       resolver: () => Right(null),
     },
     {
-      vName: "create_date",
+      vName: 'create_date',
       sqlType: sql.DateTime,
-      defaultTo: (new Date()).toISOString(),
-      resolver: () => S.Right((new Date()).toISOString())
+      defaultTo: new Date().toISOString(),
+      resolver: () => S.Right(new Date().toISOString()),
     },
     {
-      vName: "UserID",
+      vName: 'UserID',
       sqlType: sql.Int,
       defaultTo: -1,
       resolver: pipe([
-        gets (is ($.Integer)) (["user", "id"]),
-        maybeToEither("user id is required"),
-      ])
+        gets(is($.Integer))(['user', 'id']),
+        maybeToEither('user id is required'),
+      ]),
     },
     {
-      vName: "Status_ID",
+      vName: 'Status_ID',
       sqlType: sql.Int,
       defaultTo: 0,
-      resolver: compose (S.Right) (compose (fromMaybe (0)) (
-        gets (is ($.Integer)) (["body", "story", "Status_ID"]),
-      )),
+      resolver: compose(S.Right)(
+        compose(fromMaybe(0))(
+          gets(is($.Integer))(['body', 'story', 'Status_ID']),
+        ),
+      ),
     },
     {
-      vName: "label",
+      vName: 'label',
       sqlType: sql.VarChar,
       defaultTo: '',
       resolver: pipe([
-        gets (is ($.String)) (["body", "story", "label"]),
-        maybeToEither ('Expecting an string'),
+        gets(is($.String))(['body', 'story', 'label']),
+        maybeToEither('Expecting an string'),
       ]),
     },
-  ]
-}
+  ],
+};
 
 module.exports = createStoryQueryDefinition;

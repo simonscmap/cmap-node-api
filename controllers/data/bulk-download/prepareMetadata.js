@@ -1,8 +1,8 @@
 const XLSX = require('xlsx');
-const fs = require("fs");
+const fs = require('fs');
 const { Readable } = require('stream');
-const initLog = require("../../../log-service");
-const moduleLogger = initLog ("bulk-download");
+const initLog = require('../../../log-service');
+const moduleLogger = initLog('bulk-download');
 
 const datasetMetadataToDownloadFormat = (metadata) => {
   let { dataset, cruises, references, variables } = metadata;
@@ -56,7 +56,8 @@ const datasetMetadataToDownloadFormat = (metadata) => {
       visualize: e.Visualize ? 1 : 0,
       var_keywords: e.Keywords || '',
       var_comment: e.Comment || '',
-      var_unstructured_variable_metadata: e.Unstructured_Variable_Metadata || '',
+      var_unstructured_variable_metadata:
+        e.Unstructured_Variable_Metadata || '',
     });
 
     summaryStatisticsRows.push({
@@ -113,30 +114,30 @@ const makeMetadataWorkbook = (metadataJSON) => {
 };
 
 const writeToDisk = (buffer, targetPath) => {
-  return new Promise ((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const targetFile = fs.createWriteStream(targetPath, { close: true });
     const stream = Readable.from(buffer);
 
-    targetFile.on("end", (d) => {
+    targetFile.on('end', (d) => {
       moduleLogger.info('file stream end', { d });
     });
 
-    targetFile.on("close", (d) => {
+    targetFile.on('close', (d) => {
       moduleLogger.info('target file stream closed', d);
-      resolve ();
+      resolve();
     });
 
-    targetFile.on("error", (e) => {
+    targetFile.on('error', (e) => {
       moduleLogger.error('write error', e);
-      reject ();
+      reject();
     });
 
     stream.pipe(targetFile);
   });
-}
+};
 
 module.exports = {
   assemble: datasetMetadataToDownloadFormat,
   toBuffer: makeMetadataWorkbook,
   toDisk: writeToDisk,
-}
+};

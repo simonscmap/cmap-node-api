@@ -1,4 +1,4 @@
-const { internalRouter } = require ('../../utility/router/internal-router');
+const { internalRouter } = require('../../utility/router/internal-router');
 // const log = require('../../log-service') ('controllers/data/fetchDepthsForGriddedDataset');
 const { safePath } = require('../../utility/objectUtils');
 
@@ -13,20 +13,25 @@ const getHasHourField = async ({ tableName }) => {
 
   const query = `SELECT TOP 1 * from ${tableName}`;
 
-  const [error, result] = await internalRouter (query);
+  const [error, result] = await internalRouter(query);
 
   if (error) {
-    return [{ status: 500, message: 'error determining presence of hour column', err: error }];
+    return [
+      {
+        status: 500,
+        message: 'error determining presence of hour column',
+        err: error,
+      },
+    ];
   }
 
-  const maybeHour = safePath (['0', 'hour']) (result);
+  const maybeHour = safePath(['0', 'hour'])(result);
 
   if (maybeHour) {
     return [null, true];
   } else {
     return [null, false];
   }
-
-}
+};
 
 module.exports = getHasHourField;
