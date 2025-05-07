@@ -6,7 +6,19 @@
   "rules": {
     "no-unused-vars": "error",
     "no-undef": "error",
-    "no-unexpected-multiline": "off"
+    "no-unexpected-multiline": "off",
+     "object-curly-newline": [
+      "error",
+      {
+        "ObjectPattern": {
+          "minProperties": 3,
+          "multiline": true,
+          "consistent": true
+        },
+        "ImportDeclaration": "never",
+        "ObjectExpression": "never"
+      }
+    ]
   },
   "globals": {
     "module": "readonly",
