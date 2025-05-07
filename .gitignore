@@ -41,3 +41,5 @@ config/UNSAFE_jwtConfig.js
 /token.json
 /utility/googleServiceAccountKeyFile.json
 .env
+
+.vscode/

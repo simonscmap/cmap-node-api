@@ -1,9 +1,7 @@
 const sql = require('mssql');
 const nodeCache = require('../../utility/nodeCache');
 const queryHandler = require('../../utility/queryHandler');
-const directQuery = require('../../utility/directQuery');
 const { coerceTimeMinAndMax } = require('../../utility/download/coerce-to-iso');
-const { safePath } = require('../../utility/objectUtils');
 const pools = require('../../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../../dbHandlers/datasetCatalogQuery');
 const cruiseCatalogQuery = require('../../dbHandlers/cruiseCatalogQuery');
@@ -889,9 +887,7 @@ module.exports.cruiseFullPage = async (req, res, next) => {
     ...dataset,
     variables: variables
       .filter(({ Dataset_ID }) => Dataset_ID === dataset.Dataset_ID)
-      .map(({ Dataset_ID, ...rest }) => ({
-        ...rest,
-      })),
+      .map(({ Dataset_ID, ...rest }) => ({ ...rest })),
   }));
 
   cruiseData.datasets = datasetsWithVariables;
@@ -1056,23 +1052,20 @@ module.exports.variableSearch = async (req, res, next) => {
   const request = await new sql.Request(pool);
 
   const {
-    searchTerms,
-    hasDepth,
-    timeStart,
-    timeEnd,
-    latStart,
-    latEnd,
-    lonStart,
-    lonEnd,
-    sensor,
     dataSource,
     distributor,
+    hasDepth,
+    latEnd,
+    latStart,
+    lonEnd,
+    lonStart,
     processLevel,
-    temporalResolution,
     spatialResolution,
-    make,
-    region,
+    temporalResolution,
+    timeEnd,
+    timeStart,
   } = req.query;
+  let { searchTerms, sensor, make, region } = req.query;
 
   sensor = typeof sensor === 'string' ? [sensor] : sensor;
   make = typeof make === 'string' ? [make] : make;
@@ -1255,10 +1248,7 @@ module.exports.variableSearch = async (req, res, next) => {
       'Cache-Control': 'max-age=7200',
     });
     await res.end(
-      JSON.stringify({
-        counts,
-        variables: response.recordsets[0],
-      }),
+      JSON.stringify({ counts, variables: response.recordsets[0] }),
     );
     next();
   } catch (e) {
@@ -1589,11 +1579,7 @@ module.exports.programData = async (req, res, next) => {
     }
   });
 
-  const payload = {
-    id: program && program.id,
-    datasets,
-    cruises,
-  };
+  const payload = { id: program && program.id, datasets, cruises };
 
   nodeCache.set(`program_data_${programName}`, payload);
   log.debug('set cache for program', { programName });
