@@ -1062,13 +1062,12 @@ module.exports.variableSearch = async (req, res, next) => {
     lonEnd,
     lonStart,
     processLevel,
-    searchTerms,
     spatialResolution,
     temporalResolution,
     timeEnd,
     timeStart,
   } = req.query;
-  let { sensor, make, region } = req.query;
+  let { searchTerms, sensor, make, region } = req.query;
 
   sensor = typeof sensor === 'string' ? [sensor] : sensor;
   make = typeof make === 'string' ? [make] : make;
