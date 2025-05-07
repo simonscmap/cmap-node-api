@@ -22,6 +22,8 @@ public/images/
 
 public/web-app-version-tag.json
 
+public/web-app-version-tag.json
+
 *.zip
 shell.nix
 *.DS_Store
@@ -40,6 +42,7 @@ config/UNSAFE_jwtConfig.js
 /credentials.json
 /token.json
 /utility/googleServiceAccountKeyFile.json
+.env
 .env
 
 .vscode/
