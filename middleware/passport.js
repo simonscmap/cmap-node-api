@@ -3,7 +3,8 @@ const sql = require('mssql');
 const passport = require('passport');
 const bcrypt = require('bcryptjs');
 const JwtStrategy = require('passport-jwt').Strategy;
-const HeaderApiKeyStrategy = require('passport-headerapikey').HeaderAPIKeyStrategy;
+const HeaderApiKeyStrategy =
+  require('passport-headerapikey').HeaderAPIKeyStrategy;
 const LocalStrategy = require('passport-local').Strategy;
 const CustomStrategy = require('passport-custom').Strategy;
 const notifyAdmin = require('../utility/email/notifyAdmin');
@@ -14,91 +15,107 @@ const authMethodMapping = require('../config/authMethodMapping');
 const GuestUser = require('../models/GuestUser');
 const pools = require('../dbHandlers/dbPools');
 const guestTokenHashFromRequest = require('../utility/guestTokenHashFromRequest');
-const initializeLogger = require("../log-service");
+const initializeLogger = require('../log-service');
 
-const moduleLogger = initializeLogger ('middleware/passport');
+const moduleLogger = initializeLogger('middleware/passport');
 
-const headerApiKeyOpts = { // Configure how passport identifies the API Key
-    header: 'Authorization',
-    prefix: 'Api-Key ',
-}
+const headerApiKeyOpts = {
+  // Configure how passport identifies the API Key
+  header: 'Authorization',
+  prefix: 'Api-Key ',
+};
 
-const jwtExtractorOpts = { // Configure how passport extracts and verifies the JWT
-    secretOrKey : secret,
-    jwtFromRequest : (req) => {
-        var token = null;
-        if(req && req.cookies) token = req.cookies.jwt;
-        return token;
-    },
-    passReqToCallback: true
-}
+const jwtExtractorOpts = {
+  // Configure how passport extracts and verifies the JWT
+  secretOrKey: secret,
+  jwtFromRequest: (req) => {
+    var token = null;
+    if (req && req.cookies) token = req.cookies.jwt;
+    return token;
+  },
+  passReqToCallback: true,
+};
 
 const localStrategyOptions = {
-    passReqToCallback: true
-}
+  passReqToCallback: true,
+};
 
 // Passport Strategies
 
 // attempts to identify "authoritative" browsers (user agent contains "mozilla")
-passport.use('browserOnly', new CustomStrategy(async(req, done) => {
-    if(!req.useragent.isAuthoritative) return done(null, false);
+passport.use(
+  'browserOnly',
+  new CustomStrategy(async (req, done) => {
+    if (!req.useragent.isAuthoritative) return done(null, false);
     return done(null, new GuestUser());
-}));
+  }),
+);
 
 // identifies a valid guest token with uses remaining
-passport.use('guest', new CustomStrategy(async(req, done) => {
-  const log = moduleLogger.setReqId(req.requestId);
-  log.info ('using guest strategy');
+passport.use(
+  'guest',
+  new CustomStrategy(async (req, done) => {
+    const log = moduleLogger.setReqId(req.requestId);
+    log.info('using guest strategy');
 
-  try {
-    // get token from cookie
-    const token = req.cookies.guestToken;
-    jwt.verify(token, secret); // throws an error on failure
-    const { hash, id } = jwt.decode(token);
+    try {
+      // get token from cookie
+      const token = req.cookies.guestToken;
+      jwt.verify(token, secret); // throws an error on failure
+      const { hash, id } = jwt.decode(token);
 
-    // request token record
-    const pool = await pools.userReadAndWritePool;
-    const checkTokenRequest = new sql.Request(pool);
-    checkTokenRequest.input('id', sql.Int, id);
-    const checkTokenResult = await checkTokenRequest.query(`SELECT [Hash], [Times_Used] from [tblGuest_Tokens] WHERE ID = @id`);
+      // request token record
+      const pool = await pools.userReadAndWritePool;
+      const checkTokenRequest = new sql.Request(pool);
+      checkTokenRequest.input('id', sql.Int, id);
+      const checkTokenResult = await checkTokenRequest.query(
+        `SELECT [Hash], [Times_Used] from [tblGuest_Tokens] WHERE ID = @id`,
+      );
 
-    const tokenRecord = checkTokenResult
-          && Array.isArray (checkTokenResult.recordset)
-          && checkTokenResult.recordset[0];
+      const tokenRecord =
+        checkTokenResult &&
+        Array.isArray(checkTokenResult.recordset) &&
+        checkTokenResult.recordset[0];
 
-    if (!tokenRecord) {
-      log.error ('guest token record not found', { token, recordResult: checkTokenResult });
+      if (!tokenRecord) {
+        log.error('guest token record not found', {
+          token,
+          recordResult: checkTokenResult,
+        });
+        return done(null, false);
+      }
+
+      if (tokenRecord.Times_Used > 9) {
+        log.info('guest token consumed', { tokenRecord });
+        return done(null, false);
+      }
+
+      if (
+        tokenRecord.Hash !== guestTokenHashFromRequest(req) ||
+        guestTokenHashFromRequest(req) !== hash
+      ) {
+        log.info('guest token hash did not match', { tokenRecord });
+        return done(null, false);
+      }
+
+      let incrementTokenUsesRequest = new sql.Request(pool);
+      incrementTokenUsesRequest.input('id', sql.Int, id);
+      incrementTokenUsesRequest.query(
+        `UPDATE tblGuest_Tokens SET [Times_Used] = [Times_Used] + 1 WHERE ID = @id`,
+      );
+
+      log.debug('incremented guest token', { tokenRecord });
+      return done(null, new GuestUser());
+    } catch (e) {
+      log.error('error executing guest authentication strategy', { error: e });
       return done(null, false);
     }
-
-    if (tokenRecord.Times_Used > 9) {
-      log.info ('guest token consumed', { tokenRecord });
-      return done(null, false);
-    }
-
-    if (tokenRecord.Hash !== guestTokenHashFromRequest(req) || guestTokenHashFromRequest(req) !== hash) {
-      log.info ('guest token hash did not match', { tokenRecord });
-      return done(null, false);
-    }
-
-    let incrementTokenUsesRequest = new sql.Request(pool);
-    incrementTokenUsesRequest.input('id', sql.Int, id);
-    incrementTokenUsesRequest.query(`UPDATE tblGuest_Tokens SET [Times_Used] = [Times_Used] + 1 WHERE ID = @id`);
-
-    log.debug ('incremented guest token', { tokenRecord });
-    return done(null, new GuestUser());
-  }
-
-  catch(e) {
-    log.error ('error executing guest authentication strategy', { error: e });
-    return done(null, false);
-  }
-}));
-
+  }),
+);
 
 const localVerification = async (req, username, password, done) => {
   const log = moduleLogger.setReqId(req.requestId);
-  log.info ('attempting password login', { providedUsername: username });
+  log.info('attempting password login', { providedUsername: username });
   try {
     // getUserByUsername returns a new UnsafeUser
     let user = await UnsafeUser.getUserByUsername(username, log);
@@ -106,68 +123,80 @@ const localVerification = async (req, username, password, done) => {
     if (!user) {
       // if no system username matches the login-provided username,
       // try it as the email address
-      user = await UnsafeUser.getUserByEmail (username, log);
+      user = await UnsafeUser.getUserByEmail(username, log);
       if (user) {
-        log.info ("user used email as username", { username, id: user.id });
+        log.info('user used email as username', { username, id: user.id });
       }
     }
-
 
     if (!user) {
-      log.info ('cancelling login: no user with provided username found', { providedUsername: username });
+      log.info('cancelling login: no user with provided username found', {
+        providedUsername: username,
+      });
       const text = `There was an attempt to login to the website that failed because the provided username "${username}" was not found in our system. A lookup for a user with the email "${username}" was also attempted without success.`;
-      notifyAdmin ('Bad Username Login Attempt', text);
-      return done (null, false);
+      notifyAdmin('Bad Username Login Attempt', text);
+      return done(null, false);
     }
 
-    bcrypt.compare (password, user.password, function (err, isMatch) {
+    bcrypt.compare(password, user.password, function (err, isMatch) {
       if (isMatch) {
-        log.info ('password matched', { username, id: user.id });
+        log.info('password matched', { username, id: user.id });
         req.cmapApiCallDetails.authMethod = authMethodMapping.local;
         req.cmapApiCallDetails.userID = user.id;
-        return done (null, user.makeSafe());
+        return done(null, user.makeSafe());
       } else {
-        log.debug ('password did not match', { error: err, username, id: user.id });
+        log.debug('password did not match', {
+          error: err,
+          username,
+          id: user.id,
+        });
         const text = `There was an attempt to login to the website with the username "${username}" that failed because the password was incorrect.`;
-      notifyAdmin ('Bad Password Login Attempt', text);
-        return done (null, false);
+        notifyAdmin('Bad Password Login Attempt', text);
+        return done(null, false);
       }
-    })
+    });
   } catch (e) {
-    log.error('error attempting to use local strategy for login', { username, error: e });
+    log.error('error attempting to use local strategy for login', {
+      username,
+      error: e,
+    });
     const text = `An attempt to login to the website with the username "${username}" failed due to an unexpected error: ${e.message}.`;
-      notifyAdmin ('Error in Login Attempt', text);
-    return done (null, false);
+    notifyAdmin('Error in Login Attempt', text);
+    return done(null, false);
   }
 };
 
-const localStrategy = new LocalStrategy (localStrategyOptions, localVerification);
+const localStrategy = new LocalStrategy(
+  localStrategyOptions,
+  localVerification,
+);
 
 // Protects user signin route. Finds user and checks password
 passport.use(localStrategy);
 
-  // Confirms JWT was signed using out secret
-passport.use(new JwtStrategy(
-  jwtExtractorOpts,
-  async function(req, jwtPayload, done) {
+// Confirms JWT was signed using out secret
+passport.use(
+  new JwtStrategy(jwtExtractorOpts, async function (req, jwtPayload, done) {
     req.cmapApiCallDetails.authMethod = authMethodMapping.jwt;
-    const log = moduleLogger.setReqId (req.requestId);
+    const log = moduleLogger.setReqId(req.requestId);
     try {
       let unsafeUser = await UnsafeUser.getUserByID(jwtPayload.sub, log);
       req.cmapApiCallDetails.userID = unsafeUser.id;
       return done(null, unsafeUser);
     } catch {
-      return done(null, false)
+      return done(null, false);
     }
-  }
-));
+  }),
+);
 
 // Confirms API key belonds to registered user
-passport.use(new HeaderApiKeyStrategy(
-  headerApiKeyOpts,
-  true,
-  async function(apiKey, done, req) {
-    const log = moduleLogger.setReqId (req.requestId);
+passport.use(
+  new HeaderApiKeyStrategy(headerApiKeyOpts, true, async function (
+    apiKey,
+    done,
+    req,
+  ) {
+    const log = moduleLogger.setReqId(req.requestId);
     let unsafeUser = await UnsafeUser.getUserByApiKey(apiKey, log);
     if (unsafeUser) {
       req.cmapApiCallDetails.authMethod = authMethodMapping.apiKey;
@@ -177,7 +206,7 @@ passport.use(new HeaderApiKeyStrategy(
     } else {
       return done(null, false);
     }
-  }
-));
+  }),
+);
 
 module.exports = passport;

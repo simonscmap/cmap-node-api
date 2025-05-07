@@ -1,11 +1,15 @@
 // This module generates a route controller that will execute a provided query definition.
 // It is used in a limited number of routes that service simple /news apis
-const sql = require("mssql");
-const pools = require("../dbHandlers/dbPools");
-const initializeLogger = require("../log-service");
-const Future = require("fluture");
-const S = require("../utility/sanctuary");
-const { eitherSupplyInputOrReject, parseQueryDefinition, executeRequest } = require("./lib");
+const sql = require('mssql');
+const pools = require('../dbHandlers/dbPools');
+const initializeLogger = require('../log-service');
+const Future = require('fluture');
+const S = require('../utility/sanctuary');
+const {
+  eitherSupplyInputOrReject,
+  parseQueryDefinition,
+  executeRequest,
+} = require('./lib');
 
 let { chain } = S;
 let { fork } = Future;
@@ -20,26 +24,26 @@ let createRequestWithPool = (pool) => Future.resolve(new sql.Request(pool));
 let generateController = (queryDefinition) => (req, res) => {
   let { name } = queryDefinition;
   const log = initializeLogger(`controller: ${name}`);
-  log.trace(`request to: ${name}`, { requestBody: req.body })
+  log.trace(`request to: ${name}`, { requestBody: req.body });
 
-  let eitherDefinitionOrError = parseQueryDefinition (queryDefinition) (req);
+  let eitherDefinitionOrError = parseQueryDefinition(queryDefinition)(req);
 
   let reject = (e) => {
     log.error(`error in ${name}`, { error: e });
     res.status(500).send(`Error in ${name}`);
-  }
+  };
 
   let resolve = (queryResponse) => {
     log.info(`success in ${name}`, { result: queryResponse });
     res.status(200).send(queryResponse.recordset);
-  }
+  };
 
   // TODO: vary pool based on needs of the query
   userReadAndWritePool
-    .pipe(chain (createRequestWithPool))
-    .pipe(chain (eitherSupplyInputOrReject (eitherDefinitionOrError)))
-    .pipe(chain ((executeRequest)))
-    .pipe(fork (reject) (resolve))
-}
+    .pipe(chain(createRequestWithPool))
+    .pipe(chain(eitherSupplyInputOrReject(eitherDefinitionOrError)))
+    .pipe(chain(executeRequest))
+    .pipe(fork(reject)(resolve));
+};
 
 module.exports.generateController = generateController;

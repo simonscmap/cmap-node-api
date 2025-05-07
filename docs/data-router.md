@@ -8,20 +8,20 @@ The on-prem servers are named `rainier`, `rossby`, and `mariana`. The initial sp
 
 The Distributed Datasets Router manages incoming queries on the `api/data/query` route (also the "custom query route"), detecting which datasets an incoming query will visit and routes the query to a valid database.
 
-Additional functionality has been added to complement the routing feature: (1) select * expansion, (2) automatic retries. Select * expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
+Additional functionality has been added to complement the routing feature: (1) select _ expansion, (2) automatic retries. Select _ expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
 
 ## Phases of the Query Route as Middleware
 
 The steps to implement data routing (and complementary features) on the `api/data/query` route have been separated and sequenced by middleware:
 
 | Step | Description                         | Function                                                                         |
-|------|-------------------------------------|----------------------------------------------------------------------------------|
+| ---- | ----------------------------------- | -------------------------------------------------------------------------------- |
 | 1    | modifications are made to the query | [/controllers/data/index.js::queryModification](/controllers/data/index.js)      |
 | 2    | the modified query is analyzed      | [/middleware/queryAnalysis.js](/middleware/queryAnalysis.js)                     |
 | 3    | candidate servers are calculated    | [/utility/router/routerMiddleware.js](/utility/router/routerMiddleware.js)       |
 | 4    | the query is executed               | [/utility/router/router.js::routeQueryFromMiddleware](/utility/router/router.js) |
 
-1. The incoming query is checked to see if it is executing a registered stored procedure, and if so that sproc is called with a flag that causes it to return an executable query string (which can be analyzed in a later step to determine which server to execute it on). The "select *" expansion function is then applied, and the final modified query is placed on the request obejct and passed to the next middleware function.
+1. The incoming query is checked to see if it is executing a registered stored procedure, and if so that sproc is called with a flag that causes it to return an executable query string (which can be analyzed in a later step to determine which server to execute it on). The "select \*" expansion function is then applied, and the final modified query is placed on the request obejct and passed to the next middleware function.
 
 2. The modified query is parsed; named tables are extracted and analyzed to determine if they are core tables or dataset tables. The results are placed on the request object for further use by other middleware.
 
@@ -72,12 +72,14 @@ A query parameter `servername` can be used to specify which server to run the qu
 ### Query-to-Database-Target
 
 The `queryToDatabaseTarget` module exports a single function `getCandidateList`, which takes as its only parameter the query in question, and returns an object describing the resulting set of viable database targets. The object includes:
+
 - `commandType`: a string indicating whether the query is a sproc or a custom query (`sproc` | `custom`)
 - `priorityTargetType`: a string indicating whether the query should run on-prem or on cluster (`cluster` | `prem`)
 - `candidateLocations`: the array of viable server names (e.g. `["ranier", "cluster]`)
 - `errorMessage`: in cases where a detailed error message is needed
 
 `queryToDatabaseTarget` proceeds in 8 distinct steps, which are commented clearly in the module itself:
+
 1. parse the query and extract the names of the tables that will be visited by the query
 2. fetch a list of all tables in the database (cached)
 3. filter the table names extracted from the query, remove and table names that do not exist
@@ -174,6 +176,7 @@ As noted in inline comments in [queryToDatabaseTarget.js](/utility/router/queryT
 ### calculateCandidateTargets
 
 Three cases are split into three different tests in order to ensure the expected behavior of `calculateCandidateTargets`.
+
 1. case where a only a single server is a candidate
 2. case where multiple candidates are available
 3. case where no common candidates are available

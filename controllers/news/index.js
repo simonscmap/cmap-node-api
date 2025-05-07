@@ -18,4 +18,4 @@ module.exports = {
   update,
   updateRanks,
   unpublish,
-}
+};

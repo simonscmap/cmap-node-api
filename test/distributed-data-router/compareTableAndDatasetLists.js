@@ -1,7 +1,5 @@
-const test = require("ava");
-const {
-  compareTableAndDatasetLists,
-} = require("../../utility/router/pure");
+const test = require('ava');
+const { compareTableAndDatasetLists } = require('../../utility/router/pure');
 
 /* compareTableAndDataselt lists should produce a list of core tables,
  * and a list of dataset tables;
@@ -9,7 +7,7 @@ const {
  * on-prem tables, the other a list of all dataset tables (whether the
  * dataset in on-prem on not.
  */
-test("returns lists of core and dataset tables", (t) => {
+test('returns lists of core and dataset tables', (t) => {
   let mockOnPremTableList = [
     { Table_Name: 'tblCoreTable' },
     { Table_Name: 'tblDataset1' },
@@ -21,19 +19,13 @@ test("returns lists of core and dataset tables", (t) => {
     { Table_Name: 'tblDataset3' },
   ];
 
-  let result = compareTableAndDatasetLists(mockOnPremTableList, mockDatasetTableList);
-
-  t.deepEqual(
-    result,
-    {
-      coreTables: [
-        'tblCoreTable',
-      ],
-      datasetTables: [
-        'tblDataset1',
-        'tblDataset2',
-        'tblDataset3',
-      ],
-    }
+  let result = compareTableAndDatasetLists(
+    mockOnPremTableList,
+    mockDatasetTableList,
   );
+
+  t.deepEqual(result, {
+    coreTables: ['tblCoreTable'],
+    datasetTables: ['tblDataset1', 'tblDataset2', 'tblDataset3'],
+  });
 });

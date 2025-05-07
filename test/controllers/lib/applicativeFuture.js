@@ -1,23 +1,22 @@
-const test = require("ava");
-const Future = require("fluture");
-const S = require("../../../utility/sanctuary");
+const test = require('ava');
+const Future = require('fluture');
+const S = require('../../../utility/sanctuary');
 // const { parseQueryDefinition, eitherSupplyInputOrReject, executeRequest } = require("../../../controllers/lib");
 // const { mockDeleteQueryDefinition } = require("./mockQueryDefinition");
 // const createMockRequest = require("./mockSQLQuery");
 
 let { resolve, ap } = Future;
 
-test("applicative future poc", () => {
+test('applicative future poc', () => {
   // https://github.com/fluture-js/Fluture#ap
-  let f = (ap (resolve (2)) (ap (resolve (2)) (resolve (x => y => x + y))))
+  let f = ap(resolve(2))(ap(resolve(2))(resolve((x) => (y) => x + y)));
 
-  return new Promise ((resolve, reject) => {
-    Future.fork (reject) (resolve) (f);
+  return new Promise((resolve, reject) => {
+    Future.fork(reject)(resolve)(f);
   });
-})
+});
 
-
-test("applicative futrue: update rank simulation", () => {
+test('applicative futrue: update rank simulation', () => {
   // simulate update rank
 
   // Problem: the update query depends on the result of a prior query,
@@ -36,22 +35,26 @@ test("applicative futrue: update rank simulation", () => {
   // See https://github.com/fantasyland/fantasy-land/tree/v4.0.1#ap-method
 
   // See https://sanctuary.js.org/#join
-  let updateQDefFuture = resolve ('qdef future');
-  let newWriteRequestFuture = resolve ('write request future').pipe( S.map (x => x.toUpperCase()));
+  let updateQDefFuture = resolve('qdef future');
+  let newWriteRequestFuture = resolve('write request future').pipe(
+    S.map((x) => x.toUpperCase()),
+  );
 
-  let runUpdateRank = writeRequest => qdef => resolve (writeRequest + qdef)
+  let runUpdateRank = (writeRequest) => (qdef) => resolve(writeRequest + qdef);
 
-  let runF = S.join (ap (newWriteRequestFuture) (ap (updateQDefFuture) (resolve (runUpdateRank))));
+  let runF = S.join(
+    ap(newWriteRequestFuture)(ap(updateQDefFuture)(resolve(runUpdateRank))),
+  );
 
   // fork runF and check that the function runUpdateRank correctly produces the sum of the
   // two arguments, including the piped modification of newWriteRequestFuture
-  return new Promise ((resolve, reject) => {
-    Future.fork (reject) (result => {
+  return new Promise((resolve, reject) => {
+    Future.fork(reject)((result) => {
       if (result == 'qdef futureWRITE REQUEST FUTURE') {
-        resolve ();
+        resolve();
       } else {
-        reject (result);
+        reject(result);
       }
-    }) (runF);
+    })(runF);
   });
-})
+});

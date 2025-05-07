@@ -3,17 +3,19 @@
    checkQuerySize is the core function that implements necessary requests and decision making
    the remaining functions are helpers
  */
-const createLogger = require("../log-service");
-const { QUERY_ROW_LIMIT } = require("../utility/constants");
+const createLogger = require('../log-service');
+const { QUERY_ROW_LIMIT } = require('../utility/constants');
 const isGriddedData = require('../controllers/data/identifyDatasetType');
 const getGriddedDatasetDepths = require('../controllers/data/fetchDepthsForGriddedDataset');
-const reconstructDatasetRowCount = require ('../controllers/data/reconstructDatasetRowCount');
+const reconstructDatasetRowCount = require('../controllers/data/reconstructDatasetRowCount');
 const getRowCountForQuery = require('../controllers/data/fetchRowCountForQuery');
-const { extractQueryConstraints } = require('../controllers/data/extractQueryConstraints');
+const {
+  extractQueryConstraints,
+} = require('../controllers/data/extractQueryConstraints');
 const { calculateSize } = require('../controllers/data/calculateQuerySize');
 const getDataset = require('../controllers/catalog/fetchDataset');
 
-const moduleLogger = createLogger ('checkQuerySize');
+const moduleLogger = createLogger('checkQuerySize');
 
 // Helper Functions
 const makeResponders = ({ modifiedQuery, analysis, constraints }) => {
@@ -22,15 +24,15 @@ const makeResponders = ({ modifiedQuery, analysis, constraints }) => {
       modifiedQuery,
       constraints,
       analysis,
-    }
+    },
   };
 
   return {
     allow: (projection, messages) =>
       Object.assign(baseResponseObj, { allow: true, projection, messages }),
     prohibit: (projection, response) =>
-      Object.assign(baseResponseObj, { allow: false, projection, response })
-  }
+      Object.assign(baseResponseObj, { allow: false, projection, response }),
+  };
 };
 
 const makeProjection = (size, provenance) => ({ size, provenance });
@@ -38,7 +40,12 @@ const makeProjection = (size, provenance) => ({ size, provenance });
 // getRowCountProjection
 // :: TableName -> Constraints -> Query -> Logger -> [ Error?, Projection ]
 // returns the row count projection for a select query that visits 1 table
-const getRowCountProjection = async (tablename, constraints, query, log = moduleLogger) => {
+const getRowCountProjection = async (
+  tablename,
+  constraints,
+  query,
+  log = moduleLogger,
+) => {
   // get dataset
   let [fetchError, dataset] = await getDataset({ tablename });
   if (fetchError) {
@@ -52,7 +59,7 @@ const getRowCountProjection = async (tablename, constraints, query, log = module
     return [null, makeProjection(-datasetTotalRowCount, 'table stats')];
   }
 
-  log.debug ('getRowCountProjection')
+  log.debug('getRowCountProjection');
 
   // (c) dataset is gridded, make calculation
   if (isGriddedData(dataset)) {
@@ -65,17 +72,13 @@ const getRowCountProjection = async (tablename, constraints, query, log = module
 
     // get dataset row count, if not provided
     if (!datasetTotalRowCount) {
-      let [
-        error,
-        reconstructedRowCount,
-        deltas
-      ] = await reconstructDatasetRowCount (dataset, tablename, depths, log);
+      let [error, reconstructedRowCount, deltas] =
+        await reconstructDatasetRowCount(dataset, tablename, depths, log);
       if (error) {
         return [error];
       } else {
         dataset.Row_Count = reconstructedRowCount;
         if (!constraints) {
-
         } else {
           constraints.deltas = deltas;
         }
@@ -83,20 +86,29 @@ const getRowCountProjection = async (tablename, constraints, query, log = module
     }
 
     // calculate size of query
-    let [size, messages, datasetSummary] = calculateSize (constraints, dataset, depths, log);
+    let [size, messages, datasetSummary] = calculateSize(
+      constraints,
+      dataset,
+      depths,
+      log,
+    );
     return [null, makeProjection(size, 'calculation'), messages];
   }
 
   // (d) dataset is irregular
   // query a count of matching rows
-  let [queryError, count] = await getRowCountForQuery (tablename, constraints, dataset, log.getReqId());
+  let [queryError, count] = await getRowCountForQuery(
+    tablename,
+    constraints,
+    dataset,
+    log.getReqId(),
+  );
   if (queryError) {
-    return [queryError]
+    return [queryError];
   } else {
     return [null, makeProjection(count, 'query')];
   }
 };
-
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
@@ -114,43 +126,61 @@ const getRowCountProjection = async (tablename, constraints, query, log = module
 const checkQuerySize = async (args, logger) => {
   const {
     modifiedQuery: query,
-    matchingTables: {
-      matchingDatasetTables
-    },
+    matchingTables: { matchingDatasetTables },
     queryAnalysis: analysis,
   } = args;
 
-  let constraints = extractQueryConstraints (query);
+  let constraints = extractQueryConstraints(query);
 
-  const { allow, prohibit } = makeResponders ({ modifiedQuery: query, analysis, constraints });
+  const { allow, prohibit } = makeResponders({
+    modifiedQuery: query,
+    analysis,
+    constraints,
+  });
 
   // (1) no tables were identified
   if (matchingDatasetTables.length === 0) {
-    let noTableWarning = 'no matching dataset tables on which to perform size check';
-    return allow (null, [noTableWarning]);
+    let noTableWarning =
+      'no matching dataset tables on which to perform size check';
+    return allow(null, [noTableWarning]);
   }
 
   // (2) multiple tables were identified
   if (matchingDatasetTables.length > 1) {
-    log.info ('allowing query that visits multiple tables', { matchingDatasetTables });
-    return allow (null, ['query visits multiple tables; no size projection available']);
+    log.info('allowing query that visits multiple tables', {
+      matchingDatasetTables,
+    });
+    return allow(null, [
+      'query visits multiple tables; no size projection available',
+    ]);
   }
 
   // (3) Query visits exactly 1 table and therefore 1 dataset: proceed to get query row count
-  let [error, projection, messages] = await getRowCountProjection (matchingDatasetTables[0], constraints, query, logger);
+  let [error, projection, messages] = await getRowCountProjection(
+    matchingDatasetTables[0],
+    constraints,
+    query,
+    logger,
+  );
   if (messages) {
     logger.info('size calculation messages:', { messages });
   }
 
   if (error) {
-    return prohibit (null, { status: 500, message: 'error determining query size projection'});
+    return prohibit(null, {
+      status: 500,
+      message: 'error determining query size projection',
+    });
   }
 
   // size check
   if (projection.size < QUERY_ROW_LIMIT) {
-    return allow (projection, messages);
+    return allow(projection, messages);
   } else {
-    return prohibit (projection, { status: 400, message: 'query size too large'});
+    return prohibit(projection, {
+      status: 400,
+      message: 'query size too large',
+    });
   }
 };
 
@@ -167,10 +197,10 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
 
   const log = createLogger('middleware/checkQuerySize')
     .setReqId(requestId)
-    .addContext(['modifiedQuery', query ]);
+    .addContext(['modifiedQuery', query]);
 
   if (!query) {
-    log.warn ('no query on the request object to perform analysis on', {});
+    log.warn('no query on the request object to perform analysis on', {});
     return next();
   }
 
@@ -180,20 +210,23 @@ const checkQuerySizeMiddleware = async (req, res, next) => {
     queryAnalysis,
   };
 
-  let result = await checkQuerySize (args, log);
+  let result = await checkQuerySize(args, log);
 
-  log.info ('result', { ...result.query, ...result.projection, allow: result.allow })
+  log.info('result', {
+    ...result.query,
+    ...result.projection,
+    allow: result.allow,
+  });
 
   if (Array.isArray(result.messages)) {
-    result.messages.forEach ((message) => {
+    result.messages.forEach((message) => {
       if (message) {
-        log.warn (message, null);
+        log.warn(message, null);
       }
     });
   }
 
-  return res.json (result);
+  return res.json(result);
 };
-
 
 module.exports = checkQuerySizeMiddleware;

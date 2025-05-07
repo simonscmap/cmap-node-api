@@ -1,23 +1,23 @@
-const test = require("ava");
-let S = require("../../../utility/sanctuary");
+const test = require('ava');
+let S = require('../../../utility/sanctuary');
 
-let { mockDeleteQueryDefinition } = require("./mockQueryDefinition");
+let { mockDeleteQueryDefinition } = require('./mockQueryDefinition');
 
 // the definition for argsAreValid is moved here, out of the controllers/lib
 // because it is no longer used; but this test can serve as a record, in case
 // it can serve some purpose later
 // args -> either valid or error message
 let argsAreValid = (parsedArgs) => {
-  let pickEitherVals = S.map (S.prop ("eitherVal"));
-  let concatErrorMessages = S.compose (S.lefts) (pickEitherVals);
-  let rightOrLeft = S.ifElse ((errors) => errors.length === 0) (S.Right) (S.Left);
-  let run = S.compose (rightOrLeft) (concatErrorMessages);
-  return run (parsedArgs);
+  let pickEitherVals = S.map(S.prop('eitherVal'));
+  let concatErrorMessages = S.compose(S.lefts)(pickEitherVals);
+  let rightOrLeft = S.ifElse((errors) => errors.length === 0)(S.Right)(S.Left);
+  let run = S.compose(rightOrLeft)(concatErrorMessages);
+  return run(parsedArgs);
 };
 
 // TESTS
 
-test("validate args: success case", (t) => {
+test('validate args: success case', (t) => {
   let mockValidReq = {
     body: {
       id: 1,
@@ -41,7 +41,7 @@ test("validate args: success case", (t) => {
   t.is(S.fromRight(0)(parsedValidReq.args[0].eitherVal), 1);
 });
 
-test("validate args: failure case", (t) => {
+test('validate args: failure case', (t) => {
   let mockInvalidReq = {
     body: {},
   };

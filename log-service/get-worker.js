@@ -1,9 +1,9 @@
-const cluster = require("cluster");
+const cluster = require('cluster');
 
 let id;
 
 if (cluster.isMaster) {
-  id = "master";
+  id = 'master';
 } else if (cluster.isWorker) {
   id = cluster.worker.id;
 }

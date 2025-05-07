@@ -1,7 +1,7 @@
-const initializeLogger = require("../log-service");
-const nodeCache = require("../utility/nodeCache");
+const initializeLogger = require('../log-service');
+const nodeCache = require('../utility/nodeCache');
 
-const log = initializeLogger("cacheAsync");
+const log = initializeLogger('cacheAsync');
 
 // given a cache key and an async function,
 // manage checking the cache &/or running the async job
@@ -27,13 +27,13 @@ const cacheAsync = async (cacheKey, job, options = {}) => {
   let [error, data] = await job();
 
   if (error) {
-    log.warn (`error in cacheAsync while running job`, { error });
+    log.warn(`error in cacheAsync while running job`, { error });
     return data; // let job determine what to return, even when there is an error
   }
 
   log.trace(`success running job in cacheAsync for ${cacheKey}`);
 
-  if (options.ttl && Number.isInteger (options.ttl)) {
+  if (options.ttl && Number.isInteger(options.ttl)) {
     // ttl in seconds
     nodeCache.set(cacheKey, data, options.ttl);
   } else {

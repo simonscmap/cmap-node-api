@@ -1,9 +1,9 @@
-const { Parser } = require("node-sql-parser");
-const initializeLogger = require("../../log-service");
-const log = initializeLogger("router pure");
-const { SERVER_NAMES } = require("../constants");
+const { Parser } = require('node-sql-parser');
+const initializeLogger = require('../../log-service');
+const log = initializeLogger('router pure');
+const { SERVER_NAMES } = require('../constants');
 
-const toLowerCase = (str = "") => str.toLowerCase();
+const toLowerCase = (str = '') => str.toLowerCase();
 
 // return a string name representing the data type
 // differentiate between arrays and objects and nulls
@@ -11,7 +11,7 @@ const tagType = (arg) => {
   let typeOfArg = typeof arg;
 
   if (typeOfArg === 'object') {
-    if (Array.isArray (arg)) {
+    if (Array.isArray(arg)) {
       return 'array';
     }
 
@@ -21,55 +21,51 @@ const tagType = (arg) => {
   }
 
   return typeOfArg;
-}
+};
 
 // parser options: https://github.com/taozhi8833998/node-sql-parser/blob/master/src/parser.all.js
 const tsqlParserOptions = {
-  database: "transactsql", // a.k.a mssql
+  database: 'transactsql', // a.k.a mssql
 };
 
 const hiveParserOptions = {
-  database: "hive", // a.k.a spark
-}
+  database: 'hive', // a.k.a spark
+};
 
 const locationIncompatibilityMessage =
-  "unable to perform query because datasets named in the query are distributed; " +
-  "you may need to perform your join locally after dowloading the datasets individually";
+  'unable to perform query because datasets named in the query are distributed; ' +
+  'you may need to perform your join locally after dowloading the datasets individually';
 
 // HELPERS
 
-const normalizeQueryString = (query = "") =>
-  [query].map(removeSQLDashComments)
+const normalizeQueryString = (query = '') =>
+  [query]
+    .map(removeSQLDashComments)
     .map(removeSQLBlockComments)
     //.map(s => s.toLowerCase())
-    .map(s => s.trim())
-    .shift()
-
+    .map((s) => s.trim())
+    .shift();
 
 // strip brackets from query
-const removeBrackets = (query) =>
-  query.replace(/\[|\]/gi, "");
+const removeBrackets = (query) => query.replace(/\[|\]/gi, '');
 
-const replaceSTDEV = (query) =>
-  query.replace(/STDEV/gi, "STDDEV");
+const replaceSTDEV = (query) => query.replace(/STDEV/gi, 'STDDEV');
 
 const removeDbo = (query) => {
-  let normalizedQuery = normalizeQueryString (query);
+  let normalizedQuery = normalizeQueryString(query);
 
-  let queryWords = normalizedQuery
-    .split(' ')
-    .filter(word => word.length > 0);
+  let queryWords = normalizedQuery.split(' ').filter((word) => word.length > 0);
 
   // assume that remove dbo runs AFTER removing brackets
   // otherwise this check for index will not work
   let stripDbo = (word) => {
     if (word.toLowerCase().indexOf('dbo.') === 0) {
-      return query.replace(/dbo\./gi, "");
+      return query.replace(/dbo\./gi, '');
     }
     return word;
-  }
+  };
 
-  return queryWords.map (stripDbo).join (' ');
+  return queryWords.map(stripDbo).join(' ');
 };
 
 /*
@@ -112,15 +108,18 @@ const topToLimit = (top) => {
   if (top.percent !== null) {
     return [true, 'top uses percent'];
   } else {
-    return [false, {
-      separator: "",
-      value: [
-        {
-          type: "number",
-          value: top.value,
-        }
-      ],
-    }];
+    return [
+      false,
+      {
+        separator: '',
+        value: [
+          {
+            type: 'number',
+            value: top.value,
+          },
+        ],
+      },
+    ];
   }
 };
 
@@ -128,13 +127,12 @@ const topToLimit = (top) => {
 // replace 'TOP' with 'LIMIT'
 // :: -> [Error, Obj]
 const traverseAST = (obj) => {
-  let argType = tagType (obj);
+  let argType = tagType(obj);
   let error = false;
   let msg = '';
   let result = obj;
 
   if (argType === 'object') {
-
     let entries = Object.entries(obj).reduce((acc, entry) => {
       // don't continue with reduce if there has been an error
       // while trying to convert TOP to LIMIT
@@ -160,7 +158,7 @@ const traverseAST = (obj) => {
         // which prevents and previously injectet 'limit' entry
         // from being overwritten by a null
       } else if (t === 'object' || t === 'array') {
-        let [e, traversedValue, m] = traverseAST (value);
+        let [e, traversedValue, m] = traverseAST(value);
         if (e) {
           error = true;
           msg += m;
@@ -174,12 +172,12 @@ const traverseAST = (obj) => {
       return [...acc, ...replacements];
     }, []);
 
-    result = Object.fromEntries (entries);
+    result = Object.fromEntries(entries);
   } else if (argType === 'array') {
-    result = obj.map ((value) => {
-      let entryType = tagType (value);
+    result = obj.map((value) => {
+      let entryType = tagType(value);
       if (entryType === 'object' || entryType === 'array') {
-        let [e, traversedValue, m] = traverseAST (value);
+        let [e, traversedValue, m] = traverseAST(value);
         if (e) {
           error = true;
           msg += m;
@@ -189,7 +187,7 @@ const traverseAST = (obj) => {
       } else {
         return value;
       }
-    })
+    });
   }
 
   if (error) {
@@ -199,28 +197,29 @@ const traverseAST = (obj) => {
   }
 };
 
-let removeBackticks = (s) => s.replace(/`/gi, "");
-let removeParensFromTop = (s) => s.replace(/TOP\s*\(?\s*(\d+)\s*\)?/gi, "TOP $1");
+let removeBackticks = (s) => s.replace(/`/gi, '');
+let removeParensFromTop = (s) =>
+  s.replace(/TOP\s*\(?\s*(\d+)\s*\)?/gi, 'TOP $1');
 
 // :: QueryString -> [Error, AST, Message?]
 let parse = (s) => {
-  let parser = new Parser ();
+  let parser = new Parser();
   let result;
   try {
-    result = parser.astify (s, { database: 'transactsql' });
+    result = parser.astify(s, { database: 'transactsql' });
   } catch (e) {
     return [true, null, e.message];
   }
 
   return [false, result];
-}
+};
 
 // :: AST -> [Error, QueryString, Message?]
 let sqlify = (ast) => {
   let opt = {
-    database: 'hive'
-  }
-  let parser = new Parser()
+    database: 'hive',
+  };
+  let parser = new Parser();
   let sql;
   let error = false;
   let msg;
@@ -228,38 +227,36 @@ let sqlify = (ast) => {
     sql = parser.sqlify(ast, opt);
   } catch (e) {
     error = true;
-    msg = e.message
+    msg = e.message;
   }
   return [error, sql, msg];
-}
+};
 
 // :: QueryString -> [Error, QueryString, Message?]
 let transformTopQueryToLimit = (q) => {
   let [e, ast] = [q]
-    .map (removeBackticks)
-    .map (removeParensFromTop)
-    .map (parse)
+    .map(removeBackticks)
+    .map(removeParensFromTop)
+    .map(parse)
     .shift();
 
   if (e) {
     return [true, null, 'AST Parse Error: ' + e];
   }
 
-  let [e2, newAst] = traverseAST (ast); // traverse and transform
+  let [e2, newAst] = traverseAST(ast); // traverse and transform
 
   if (e2) {
     return [true, null, 'Traverse Error: ' + e2];
   }
 
-  let [e3, newSql] = sqlify (newAst);
+  let [e3, newSql] = sqlify(newAst);
 
   if (e3) {
     return [true, null, 'Sqlify Error: ' + newSql];
   }
 
-  let result = [newSql]
-    .map (removeBackticks)
-    .shift();
+  let result = [newSql].map(removeBackticks).shift();
 
   return [false, result];
 };
@@ -269,31 +266,34 @@ let transformTopQueryToLimit = (q) => {
 // error path, thus we just log; it would be a good candidate for
 // using a Either with Map
 const applyTopTransform = (q) => {
-  const re = new RegExp(/TOP\s*\(?\s*\d+\s*\)?/, "gi");
-  let match = re.exec (q);
+  const re = new RegExp(/TOP\s*\(?\s*\d+\s*\)?/, 'gi');
+  let match = re.exec(q);
   // apply the transform if there is a TOP expression
   if (match) {
-    let [e, result, eMsg] = transformTopQueryToLimit (q);
+    let [e, result, eMsg] = transformTopQueryToLimit(q);
     if (e) {
       // if there is an error, just return the original query
-      log.warn ('error while attempting to replace TOP with LIMIT',
-                { query: q, erorr: eMsg});
+      log.warn('error while attempting to replace TOP with LIMIT', {
+        query: q,
+        erorr: eMsg,
+      });
       return q;
     } else {
-      log.info ('replaced TOP with LIMIT', { originalQuery: q, result});
+      log.info('replaced TOP with LIMIT', { originalQuery: q, result });
       return result;
     }
   }
-  log.debug ('no match for TOP expression', { query: q });
+  log.debug('no match for TOP expression', { query: q });
   return q;
-}
+};
 
 const tsqlToHiveTransforms = (query) =>
-  [query].map (removeBrackets)
-         .map (replaceSTDEV)
-         .map (removeDbo)
-         .map (applyTopTransform)
-         .shift ()
+  [query]
+    .map(removeBrackets)
+    .map(replaceSTDEV)
+    .map(removeDbo)
+    .map(applyTopTransform)
+    .shift();
 
 /* Transform Dasaset_Servers recordset to Map
  * :: [{Dataset_ID, ServerName}] => Map ID [ServerName]
@@ -325,11 +325,14 @@ const transformDatasetServersListToMap = (recordset) => {
 const compareTableAndDatasetLists = (tableList = [], datasetList = []) => {
   // core tables are tables that exist on prem, but are not in the dataset list
   let coreTables = tableList
-    .filter(({ Table_Name: onPremTbl }) => !datasetList
-      .some(({ Table_Name: dataTbl }) => onPremTbl.toLowerCase() === dataTbl.toLowerCase())
+    .filter(
+      ({ Table_Name: onPremTbl }) =>
+        !datasetList.some(
+          ({ Table_Name: dataTbl }) =>
+            onPremTbl.toLowerCase() === dataTbl.toLowerCase(),
+        ),
     )
     .map(({ Table_Name }) => Table_Name);
-
 
   let datasetTables = datasetList.map(({ Table_Name }) => Table_Name);
 
@@ -338,7 +341,6 @@ const compareTableAndDatasetLists = (tableList = [], datasetList = []) => {
     datasetTables,
   };
 };
-
 
 /* Extract table names from AST
  * :: AST -> [TableName]
@@ -351,14 +353,14 @@ const extractTableNamesFromAST = (ast) => {
   }
   try {
     let result = ast.tableList.map((tableString) =>
-      tableString.split("::").slice(-1).join()
+      tableString.split('::').slice(-1).join(),
     );
     // NOTE we will no longer filter out names not starting with "tbl"
     // because we want to allow queries that may visit core tables
     //.filter((tableName) => tableName.slice(0, 3) === "tbl");
     return result;
   } catch (e) {
-    log.error("error parsing ast", { error: e, ast });
+    log.error('error parsing ast', { error: e, ast });
     return [];
   }
 };
@@ -368,15 +370,15 @@ const extractTableNamesFromAST = (ast) => {
  * Note that extractTableNamesFromEXEC provides a fallback if no query is
  * provided, in which case it will return an empty array
  */
-const extractTableNamesFromEXEC = (query = "") => {
+const extractTableNamesFromEXEC = (query = '') => {
   let allSingleQuotesCommasBrackets = new RegExp(/'|,|\[|\]/gi);
   let replaceAllSingleQuotesCommasBrackets = (replacementString) => (target) =>
-  target.replace(allSingleQuotesCommasBrackets, replacementString);
+    target.replace(allSingleQuotesCommasBrackets, replacementString);
 
   return query
-    .split(" ")
-    .map(replaceAllSingleQuotesCommasBrackets ("")) // remove all: ' , [ ]
-    .filter((w) => w.slice(0, 3) === "tbl"); // return any strings that start with "tbl"
+    .split(' ')
+    .map(replaceAllSingleQuotesCommasBrackets('')) // remove all: ' , [ ]
+    .filter((w) => w.slice(0, 3) === 'tbl'); // return any strings that start with "tbl"
 };
 
 /* String parsing table names from query
@@ -384,40 +386,45 @@ const extractTableNamesFromEXEC = (query = "") => {
  * that table names begin with "tbl"; this differs from the function
  * above "extractTableNamesFromAST"
  */
-const extractTableNamesFromGrammaticalQueryString = (query = "") => {
+const extractTableNamesFromGrammaticalQueryString = (query = '') => {
   // Note that replacing single quotes with spaces and then splitting on spaces
   // will incorrectly extract string literals (such as arguments to functions) as tables;
   // we handle the behavior consequences of this elsewhere
 
-  let allSingleQuotesCommasBracketsNewlinesReturnsTabs = new RegExp(/'|,|\[|\]|\n|\r|\t/gi);
+  let allSingleQuotesCommasBracketsNewlinesReturnsTabs = new RegExp(
+    /'|,|\[|\]|\n|\r|\t/gi,
+  );
   let replaceBothersomePunctuation = (replacementString) => (target) =>
-    target.replace(allSingleQuotesCommasBracketsNewlinesReturnsTabs, replacementString);
+    target.replace(
+      allSingleQuotesCommasBracketsNewlinesReturnsTabs,
+      replacementString,
+    );
 
   // this IS case sensitive, and depends on the convention that table names
   // start with "tbl"
-  let isTableName = (word) => word.slice(0, 3) === "tbl";
+  let isTableName = (word) => word.slice(0, 3) === 'tbl';
 
   let terminatingParen = new RegExp(/\)\B/);
-  let removeTerminatingParen = (word) => word.replace(terminatingParen, "");
+  let removeTerminatingParen = (word) => word.replace(terminatingParen, '');
 
-  let splitOnSpaces = (s) => s.split(" ");
+  let splitOnSpaces = (s) => s.split(' ');
 
   // '|,|\[|\]|\n|\r|\t
 
   return [query]
-    .map (removeSQLDashComments)
-    .map (removeSQLBlockComments)
-    .map (replaceBothersomePunctuation (" "))
-    .map (splitOnSpaces)
-    .flat () // here we end up with an array within the containing array, so flatten them
-    .filter (isTableName)
-    .map (removeTerminatingParen) // a tableName could come at the end of a subquey or parenthesized expression
+    .map(removeSQLDashComments)
+    .map(removeSQLBlockComments)
+    .map(replaceBothersomePunctuation(' '))
+    .map(splitOnSpaces)
+    .flat() // here we end up with an array within the containing array, so flatten them
+    .filter(isTableName)
+    .map(removeTerminatingParen); // a tableName could come at the end of a subquey or parenthesized expression
 };
 
 // Remove SQL "--" comments, which operate on the rest of the line
-const removeSQLDashComments = (query = "") => {
+const removeSQLDashComments = (query = '') => {
   let stripDashComment = (line) => {
-    let indexOfDash = line.indexOf("--");
+    let indexOfDash = line.indexOf('--');
     if (indexOfDash === -1) {
       return line;
     } else {
@@ -427,73 +434,74 @@ const removeSQLDashComments = (query = "") => {
 
   let stringHasLength = (line) => line.length > 0;
 
-  let lines = query.split("\n");
+  let lines = query.split('\n');
   let linesWithoutDashedComments = lines
     .map(stripDashComment)
     .filter(stringHasLength);
 
-  return linesWithoutDashedComments.join("\n");
+  return linesWithoutDashedComments.join('\n');
 };
 
-const removeSQLBlockComments = (query = "") => {
-  while (query.indexOf("/*") > -1) {
-    let openCommentIx = query.indexOf("/*");
-    let nextCloseIx = query.indexOf("*/", openCommentIx);
+const removeSQLBlockComments = (query = '') => {
+  while (query.indexOf('/*') > -1) {
+    let openCommentIx = query.indexOf('/*');
+    let nextCloseIx = query.indexOf('*/', openCommentIx);
     // its safe to mutate this, because a string arg is copied, not passed by reference
     // note, to strip the whole comment we must account for the character length of the "*/"
     // by adding 2 to the index of the closing comment
     query = [query.slice(0, openCommentIx), query.slice(nextCloseIx + 2)].join(
-      ""
+      '',
     );
   }
   return query;
 };
 
 // isSproc -- determine if a query is executing a sproc
-const isSproc = (query = "") => {
-  let normalizedQuery = [query].map (removeSQLDashComments)
-                               .map (removeSQLBlockComments)
-                               .map (s => s.toLowerCase())
-                               .map (s => s.trim())
-                               .shift()
+const isSproc = (query = '') => {
+  let normalizedQuery = [query]
+    .map(removeSQLDashComments)
+    .map(removeSQLBlockComments)
+    .map((s) => s.toLowerCase())
+    .map((s) => s.trim())
+    .shift();
 
   let [commandTerm, spName] = normalizedQuery
-    .split (' ')
-    .filter(word => word.length > 0);
+    .split(' ')
+    .filter((word) => word.length > 0);
 
-  let beginsWith = (str) => (qString) => qString.indexOf (str) === 0;
-  let beginsWithExec = beginsWith ('exec');
-  let beginsWithExecute = beginsWith ('execute');
-  let startsWithExecKeyword = (word) => beginsWithExec (word) || beginsWithExecute (word);
+  let beginsWith = (str) => (qString) => qString.indexOf(str) === 0;
+  let beginsWithExec = beginsWith('exec');
+  let beginsWithExecute = beginsWith('execute');
+  let startsWithExecKeyword = (word) =>
+    beginsWithExec(word) || beginsWithExecute(word);
 
-  if (!commandTerm || !startsWithExecKeyword (commandTerm)) {
+  if (!commandTerm || !startsWithExecKeyword(commandTerm)) {
     return false;
   }
 
   // at this point we know it starts with exec or execute
-  let beginsWithUsp = beginsWith ('usp');
-  if (!spName || !beginsWithUsp (spName)) {
+  let beginsWithUsp = beginsWith('usp');
+  if (!spName || !beginsWithUsp(spName)) {
     return false;
   }
 
   return true;
 };
 
-const extractSprocName = (query = "") => {
-  let normalizedQuery = [query].map(removeSQLDashComments)
+const extractSprocName = (query = '') => {
+  let normalizedQuery = [query]
+    .map(removeSQLDashComments)
     .map(removeSQLBlockComments)
-    .map(s => s.toLowerCase())
-    .map(s => s.trim())
-    .shift()
+    .map((s) => s.toLowerCase())
+    .map((s) => s.trim())
+    .shift();
 
   if (normalizedQuery.length < 2) {
-    log.warn ('expected sproc to have name', { query });
+    log.warn('expected sproc to have name', { query });
     return '';
   }
 
-  let [, spName] = normalizedQuery
-    .split(' ')
-    .filter(word => word.length > 0);
+  let [, spName] = normalizedQuery.split(' ').filter((word) => word.length > 0);
 
   return spName;
 };
@@ -501,50 +509,64 @@ const extractSprocName = (query = "") => {
 /* parse a sql query into an AST
    :: Query -> AST | null
  */
-const queryToAST = (query = "") => {
+const queryToAST = (query = '') => {
   const parser = new Parser();
-  let result = {}
+  let result = {};
   try {
     result.parserResult = parser.parse(query, tsqlParserOptions);
     result.flavor = tsqlParserOptions.database;
   } catch (e) {
     // if parsing as tsql fails, try as hive
-    log.warn("attempt to parse query as tsql failed", { error: e, query });
+    log.warn('attempt to parse query as tsql failed', { error: e, query });
     try {
-      result.parserResult = parser.parse(removeBrackets(query), hiveParserOptions);
+      result.parserResult = parser.parse(
+        removeBrackets(query),
+        hiveParserOptions,
+      );
       result.flavor = hiveParserOptions.database;
     } catch (e2) {
-      log.warn("attempt to parse query as ansi sql failed", { error: e2, query });
+      log.warn('attempt to parse query as ansi sql failed', {
+        error: e2,
+        query,
+      });
       return;
     }
   }
-  log.debug("queryToAst result", result);
+  log.debug('queryToAst result', result);
 
   return result;
 };
 
 // given lists of core and dataset tables, return matching table names
 // as well as data on omitted tables, and flags for no table references
-const filterRealTables = (queryAnalysis, coreTables = [], datasetTables = []) => {
-  let { extractedPrimaryTableNames: names, extractedTableNames = [] } = queryAnalysis;
+const filterRealTables = (
+  queryAnalysis,
+  coreTables = [],
+  datasetTables = [],
+) => {
+  let { extractedPrimaryTableNames: names, extractedTableNames = [] } =
+    queryAnalysis;
 
   // core tables that are referenced by the query
-  let matchingCoreTables = coreTables
-    .filter((coreTbl) =>
-      names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()));
+  let matchingCoreTables = coreTables.filter((coreTbl) =>
+    names.some((name) => name.toLowerCase() === coreTbl.toLowerCase()),
+  );
 
   // dataset tables that are referenced by the query
-  let matchingDatasetTables = datasetTables
-    .filter((dataTbl) =>
-      names.some((name) => name.toLowerCase() === dataTbl.toLowerCase()));
+  let matchingDatasetTables = datasetTables.filter((dataTbl) =>
+    names.some((name) => name.toLowerCase() === dataTbl.toLowerCase()),
+  );
 
   // tables that are named but do not match any core or dataset table
-  let omittedTables = names
-    .filter((name) =>
-      !matchingCoreTables.includes(name) && !matchingDatasetTables.includes(name));
+  let omittedTables = names.filter(
+    (name) =>
+      !matchingCoreTables.includes(name) &&
+      !matchingDatasetTables.includes(name),
+  );
 
   // no REAL tables are referenced by the query
-  let noTablesWarning = matchingCoreTables.length === 0 && matchingDatasetTables.length === 0;
+  let noTablesWarning =
+    matchingCoreTables.length === 0 && matchingDatasetTables.length === 0;
 
   // the query contains no table references at all
   // NOTE this flag relies on the result of the query's parsed AST
@@ -561,21 +583,21 @@ const filterRealTables = (queryAnalysis, coreTables = [], datasetTables = []) =>
 
 // assert priority
 const assertPriority = (candidateLocations) => {
-  let includesCluster = candidateLocations.includes("cluster");
+  let includesCluster = candidateLocations.includes('cluster');
 
   let prioritizedLocations = includesCluster
-    ? candidateLocations.filter((loc) => loc !== "cluster").concat("cluster")
+    ? candidateLocations.filter((loc) => loc !== 'cluster').concat('cluster')
     : candidateLocations;
 
   let priorityTargetType =
-    candidateLocations.length === 1 && includesCluster ? "cluster" : "prem";
+    candidateLocations.length === 1 && includesCluster ? 'cluster' : 'prem';
 
   return {
     priorityTargetType,
     prioritizedLocations,
   };
 };
-const { COMMAND_TYPES } = require("../constants");
+const { COMMAND_TYPES } = require('../constants');
 
 // ANALYZE QUERY
 
@@ -590,16 +612,16 @@ const { COMMAND_TYPES } = require("../constants");
  * see: https://github.com/taozhi8833998/node-sql-parser
  * NOTE: this uses both the parser library, and custom string parsing
  */
-const extractTableNamesFromQuery = (query = "") => {
+const extractTableNamesFromQuery = (query = '') => {
   let commandType = isSproc(query) ? COMMAND_TYPES.sproc : COMMAND_TYPES.custom;
 
   // Sproc
   if (commandType === COMMAND_TYPES.sproc) {
     let tableNames = extractTableNamesFromEXEC(query);
     if (!tableNames.length) {
-      log.debug("no tables specified in sproc", { query, tableNames });
+      log.debug('no tables specified in sproc', { query, tableNames });
     } else {
-      log.debug("sproc table names", { tableNames });
+      log.debug('sproc table names', { tableNames });
     }
     return {
       commandType,
@@ -611,18 +633,18 @@ const extractTableNamesFromQuery = (query = "") => {
   // Grammatical Query
 
   let termsFromStringParse = extractTableNamesFromGrammaticalQueryString(query);
-  log.debug("grammatical", { termsFromStringParse });
+  log.debug('grammatical', { termsFromStringParse });
 
   let termsFromAST = [];
 
   let result = queryToAST(query);
   if (!result) {
-    log.warn("error parsing query: no resulting ast", { query, result });
+    log.warn('error parsing query: no resulting ast', { query, result });
   } else {
     let parserResult = result.parserResult;
     if (parserResult && parserResult.ast && parserResult.ast.from) {
       termsFromAST = extractTableNamesFromAST(parserResult);
-      log.debug("tables names from AST", {
+      log.debug('tables names from AST', {
         query,
         flavor: result.flavor,
         ast: parserResult,
@@ -648,7 +670,12 @@ const extractTableNamesFromQuery = (query = "") => {
 /*
  *:: [TableName] -> [{Dataset_ID, Table_Name}] -> Map Id [ServerName] -> QueryAnalysis -> [ServerName]
  */
-const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations, queryAnalysis) => {
+const calculateCandidateTargets = (
+  matchingTables,
+  datasetIds,
+  datasetLocations,
+  queryAnalysis,
+) => {
   let {
     matchingCoreTables,
     matchingDatasetTables,
@@ -667,7 +694,7 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
     // but also keeps nonsense queries from reaching the database layer
     // NOTE: only log this as an error if query is not a stored procedure
     errors.push(['no tables were referenced in the query', { matchingTables }]);
-    return { errors, candidateLocations: []};
+    return { errors, candidateLocations: [] };
   } else if (omittedTables && omittedTables.length) {
     // NOTE that omitted tables is the result of comparing the list of primary tables (that is,
     // the list of table names identified in the query excluding aliases) to the lists
@@ -675,25 +702,26 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
     // NOTE that we do NOT want to return an error in this case
     // because we want it would provide a user with a litmus test for the existence of a table
     // including core tables
-    warnings.push (['tables named in the query do not exist', { matchingTables }]);
+    warnings.push([
+      'tables named in the query do not exist',
+      { matchingTables },
+    ]);
   }
 
   // 1. get ids of dataset tables named in query
-  let targetDatasets = datasetIds
-    .filter(({ Table_Name }) =>
-      matchingDatasetTables
-        .map(toLowerCase)
-        .includes(Table_Name.toLowerCase())
-    );
+  let targetDatasets = datasetIds.filter(({ Table_Name }) =>
+    matchingDatasetTables.map(toLowerCase).includes(Table_Name.toLowerCase()),
+  );
 
-  let targetDatasetIds = targetDatasets
-    .map(({ Dataset_ID }) => Dataset_ID);
+  let targetDatasetIds = targetDatasets.map(({ Dataset_ID }) => Dataset_ID);
 
-
-  if (targetDatasetIds.length !== matchingDatasetTables.length - matchingCoreTables.length) {
+  if (
+    targetDatasetIds.length !==
+    matchingDatasetTables.length - matchingCoreTables.length
+  ) {
     warnings.push([
       'could not match all ids',
-      { targetDatasetIds, matchingDatasetTables, matchingCoreTables }
+      { targetDatasetIds, matchingDatasetTables, matchingCoreTables },
     ]);
   }
 
@@ -705,18 +733,19 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
     .map((id) => {
       let loc = datasetLocations.get(id);
       if (!loc) {
-        warnings.push (['no target found for dataset id', { id }]);
+        warnings.push(['no target found for dataset id', { id }]);
       }
       return loc;
     })
     .filter((location) => location);
 
-
-  log.trace("target datasets with locations", targetDatasets.map((dataset) => ({
-    ...dataset,
-    locations: [].concat(datasetLocations.get(dataset.Dataset_ID)).join(' '),
-  })));
-
+  log.trace(
+    'target datasets with locations',
+    targetDatasets.map((dataset) => ({
+      ...dataset,
+      locations: [].concat(datasetLocations.get(dataset.Dataset_ID)).join(' '),
+    })),
+  );
 
   /* 3. factor in core tables
 
@@ -727,8 +756,11 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
      and never on a cluster */
 
   if (matchingCoreTables.length > 0) {
-    warnings.push(['matched a core table, forcing rainier', { matchingCoreTables }])
-    locationCandidatesPerTable = [[SERVER_NAMES.rainier]]
+    warnings.push([
+      'matched a core table, forcing rainier',
+      { matchingCoreTables },
+    ]);
+    locationCandidatesPerTable = [[SERVER_NAMES.rainier]];
   }
 
   /* 4. make compatibility calculation
@@ -764,12 +796,12 @@ const calculateCandidateTargets = (matchingTables, datasetIds, datasetLocations,
   if (!noTablesWarning && result.length === 0) {
     respondWithErrorMessage = locationIncompatibilityMessage;
     warnings.push([
-      "no candidate servers identified",
+      'no candidate servers identified',
       {
         matchingTables,
         targetDatasetIds,
         locationCandidatesPerTable,
-      }
+      },
     ]);
 
     return {

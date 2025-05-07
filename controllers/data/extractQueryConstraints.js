@@ -1,7 +1,7 @@
 const { queryToAST } = require('../../utility/router/pure');
-const initializeLogger = require("../../log-service");
+const initializeLogger = require('../../log-service');
 
-const moduleLogger = initializeLogger ('extractQueryConstraints');
+const moduleLogger = initializeLogger('extractQueryConstraints');
 
 // string constants used in AST
 // Node Types
@@ -38,7 +38,7 @@ const isMin = (operator) => {
   }
   // should not happen; isMin should only be called with comparison operators
   return undefined;
-}
+};
 
 const getConstraints = (columnRef) => (min, max) => {
   // NOTE: min and/or max can be undefined
@@ -47,7 +47,7 @@ const getConstraints = (columnRef) => (min, max) => {
     min,
     max,
   };
-}
+};
 
 const getCol = (node) => {
   let { type: nodeType, expr, column } = node;
@@ -57,7 +57,7 @@ const getCol = (node) => {
   if (nodeType === column_ref) {
     return column;
   }
-}
+};
 
 function compareValues(a, b) {
   if (a < b) {
@@ -77,29 +77,27 @@ const getValues = (node) => {
     // or { type: 'string', value: '2020-08-09' }
     // both types can be sorted to return the min on the left
     // and the max on the right
-    return value
-      .map(({ value: v }) => v)
-      .sort(compareValues)
+    return value.map(({ value: v }) => v).sort(compareValues);
   }
   return [];
-}
+};
 
 const getValue = (node) => {
   let { type: nodeType, value } = node;
   if (nodeType === 'number' || nodeType === 'string') {
     return value;
   }
-  moduleLogger.warn ('unexpected value type', { nodeType, node });
+  moduleLogger.warn('unexpected value type', { nodeType, node });
   return null;
-}
+};
 
 // Extract Query Constraints
 // :: QueryString -> Constraint
 
- // MinMax k :: { min: any k, max: any k }
- // Constraints :: { time: MinMax, lat: MinMax, lon: MinMax, depth: MinMax }
-function extractQueryConstraints (queryString = '') {
-  let result = queryToAST (queryString);
+// MinMax k :: { min: any k, max: any k }
+// Constraints :: { time: MinMax, lat: MinMax, lon: MinMax, depth: MinMax }
+function extractQueryConstraints(queryString = '') {
+  let result = queryToAST(queryString);
 
   let ast;
   if (result && result.parserResult && result.parserResult.ast) {
@@ -108,7 +106,7 @@ function extractQueryConstraints (queryString = '') {
     return null;
   }
 
-  let { type: queryType , where: whereRoot } = ast;
+  let { type: queryType, where: whereRoot } = ast;
 
   if (queryType !== 'select') {
     return null;
@@ -119,7 +117,6 @@ function extractQueryConstraints (queryString = '') {
   }
 
   // console.log(JSON.stringify(whereRoot, null, 2));
-
 
   // examineNod :: Node -> Constraint
   // Constraint :: { name: String, min: any, max: any }
@@ -132,25 +129,25 @@ function extractQueryConstraints (queryString = '') {
 
     // base case: BETWEEN
     if (nodeType === binary_expr && operator === BETWEEN) {
-      let col = getCol (left);
-      let [min, max] = getValues (right);
-      return [ getConstraints(col) (min, max) ]
+      let col = getCol(left);
+      let [min, max] = getValues(right);
+      return [getConstraints(col)(min, max)];
     }
 
     if (nodeType === binary_expr && comparisonOperators.includes(operator)) {
-      let col = getCol (left);
-      let value = getValue (right);
-      let valueIsMin = isMin (operator);
+      let col = getCol(left);
+      let value = getValue(right);
+      let valueIsMin = isMin(operator);
       let min = valueIsMin ? value : undefined;
       let max = valueIsMin ? undefined : value;
-      return [ getConstraints(col) (min, max) ]
+      return [getConstraints(col)(min, max)];
     }
 
     if (nodeType === binary_expr && operator === equal) {
-      let col = getCol (left);
-      let value = getValue (right);
+      let col = getCol(left);
+      let value = getValue(right);
       // min and max are identical if operator is '='
-      return [ getConstraints (col) (value, value)];
+      return [getConstraints(col)(value, value)];
     }
 
     // keep going: AND
@@ -159,10 +156,10 @@ function extractQueryConstraints (queryString = '') {
       let resultRight = [];
 
       if (left) {
-        resultLeft = examineNode (left);
+        resultLeft = examineNode(left);
       }
       if (right) {
-        resultRight = examineNode (right);
+        resultRight = examineNode(right);
       }
 
       return [...resultLeft, ...resultRight];
@@ -172,19 +169,17 @@ function extractQueryConstraints (queryString = '') {
     return [];
 
     // TODO handle 'IS_NOT' operator
-  }
+  };
 
-
-  let constraintsList = examineNode (whereRoot);
+  let constraintsList = examineNode(whereRoot);
 
   let template = {
     time: {},
     lat: {},
     lon: {},
     depth: {},
-
   };
-  let constraints = constraintsList.reduce ((acc, curr) => {
+  let constraints = constraintsList.reduce((acc, curr) => {
     let { name, min, max } = curr;
 
     if (!['time', 'lat', 'lon', 'depth', 'month'].includes(name)) {
@@ -196,7 +191,7 @@ function extractQueryConstraints (queryString = '') {
       acc[name] = {};
     }
     // min can be 0
-    if (typeof min === 'number' || typeof min === 'string' ) {
+    if (typeof min === 'number' || typeof min === 'string') {
       acc[name].min = min;
     }
     if (max) {
@@ -211,11 +206,11 @@ function extractQueryConstraints (queryString = '') {
     delete constraints.month;
   }
 
-  moduleLogger.debug ('CONSTRAINTS', constraints);
+  moduleLogger.debug('CONSTRAINTS', constraints);
 
   return constraints;
 }
 
 module.exports = {
   extractQueryConstraints,
-}
+};

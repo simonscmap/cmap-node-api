@@ -6,7 +6,7 @@
 
 const baseConfig = {
   port: Number(process.env.DB_PORT),
-  database: "Opedia",
+  database: 'Opedia',
   pool: {
     idleTimeoutMillis: 30000,
     min: 3,
@@ -61,7 +61,7 @@ module.exports.dataRetrievalConfig = Object.assign(
       min: 3,
       max: 500,
     },
-  }
+  },
 );
 
 // 2. User Table
@@ -78,7 +78,7 @@ module.exports.userTableConfig = Object.assign(
       min: 3,
       max: 500,
     },
-  }
+  },
 );
 
 // 3. Mariana
@@ -95,7 +95,7 @@ module.exports.mariana = Object.assign(
       min: 3,
       max: 500,
     },
-  }
+  },
 );
 
 // 4. Rossby
@@ -112,5 +112,5 @@ module.exports.rossby = Object.assign(
       min: 3,
       max: 500,
     },
-  }
+  },
 );

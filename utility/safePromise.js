@@ -16,22 +16,22 @@
 const initLogger = require('../log-service');
 const moduleLogger = initLogger('utility/safePromise');
 
-const safePromise = (p, context = null) => async (...pArgs) => {
-  if (typeof p !== 'function') {
-    moduleLogger.warn('safePromise was provided an incorrect arg');
-    // mimic the return value of a rejection
-    return [
-      new Error('safePromise expects a promise-returning function')
-    ];
-  }
+const safePromise =
+  (p, context = null) =>
+  async (...pArgs) => {
+    if (typeof p !== 'function') {
+      moduleLogger.warn('safePromise was provided an incorrect arg');
+      // mimic the return value of a rejection
+      return [new Error('safePromise expects a promise-returning function')];
+    }
 
-  let resp;
-  try {
-    resp = await p.call(context, ...pArgs);
-  } catch (e) {
-    return [e]
-  }
-  return [null, resp];
-};
+    let resp;
+    try {
+      resp = await p.call(context, ...pArgs);
+    } catch (e) {
+      return [e];
+    }
+    return [null, resp];
+  };
 
 module.exports = safePromise;

@@ -1,11 +1,10 @@
-const sql = require("mssql");
-const S = require("../../../utility/sanctuary");
-const $ = require("sanctuary-def");
+const sql = require('mssql');
+const S = require('../../../utility/sanctuary');
+const $ = require('sanctuary-def');
 
-let parseId = S.maybeToEither("ID is required");
-let getIdFromReq = S.gets(S.is($.Integer))(["body", "id"]);
+let parseId = S.maybeToEither('ID is required');
+let getIdFromReq = S.gets(S.is($.Integer))(['body', 'id']);
 let idResolver = S.compose(parseId)(getIdFromReq);
-
 
 // an example of a working Query Definition
 // however, the use of a resolver may be complicated by the
@@ -16,7 +15,7 @@ let mockDeleteQueryDefinition = {
        WHERE id = @ID`,
   args: [
     {
-      vName: "ID",
+      vName: 'ID',
       sqlType: sql.Int,
       defaultTo: 0, // this is the $ type to satisfy the fromRight function
       resolver: idResolver, // req -> ethier [ value or message ]
@@ -32,46 +31,46 @@ let mockSampleQuery = {
   template: () => ``,
   args: [
     {
-      vName: "Name",
+      vName: 'Name',
       sqlType: sql.NVarChar,
       defaultTO: null,
-      resolver: S.compose
-        (S.maybeToEither ("Name must be a nullable string"))
-        (S.gets (S.is ($.Nullable ($.String))) (["body", "name"]))
-    }
-  ]
-}
+      resolver: S.compose(S.maybeToEither('Name must be a nullable string'))(
+        S.gets(S.is($.Nullable($.String)))(['body', 'name']),
+      ),
+    },
+  ],
+};
 
 let mockMultiArgQuery = {
   name: 'multiple input query',
   template: () => ``,
   args: [
     {
-      vName: "id",
+      vName: 'id',
       sqlType: sql.Int,
       defaultTO: 0,
-      resolver: S.compose
-        (S.maybeToEither ("id is required"))
-        (S.gets (S.is ($.Integer)) (["body", "story", "id"]))
+      resolver: S.compose(S.maybeToEither('id is required'))(
+        S.gets(S.is($.Integer))(['body', 'story', 'id']),
+      ),
     },
     {
-      vName: "title",
+      vName: 'title',
       sqlType: sql.VarChar,
       defaultTO: '',
-      resolver: S.compose
-        (S.maybeToEither ("title is required"))
-        (S.gets (S.is ($.String)) (["body", "story", "title"]))
+      resolver: S.compose(S.maybeToEither('title is required'))(
+        S.gets(S.is($.String))(['body', 'story', 'title']),
+      ),
     },
     {
-      vName: "headline",
+      vName: 'headline',
       sqlType: sql.VarChar,
       defaultTO: '',
-      resolver: S.compose
-        (S.maybeToEither ("headline is required"))
-        (S.gets (S.is ($.String)) (["body", "story", "headline"]))
+      resolver: S.compose(S.maybeToEither('headline is required'))(
+        S.gets(S.is($.String))(['body', 'story', 'headline']),
+      ),
     },
-  ]
-}
+  ],
+};
 
 module.exports = {
   mockDeleteQueryDefinition,

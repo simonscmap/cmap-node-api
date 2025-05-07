@@ -14,18 +14,14 @@ test('getDateRatio for normal dates', (t) => {
     '2011-12-31',
     '2011-01-01',
     '2011-02-01',
-    false
+    false,
   );
   t.is(warning, null);
   t.is(result, 0.08493150684931507);
 });
 
 test('getDateRatio for monthly climatology', (t) => {
-  let [warning, result] = getDateRatio(
-    null, null,
-    '2', '3',
-    true
-  );
+  let [warning, result] = getDateRatio(null, null, '2', '3', true);
   t.is(warning, null);
   t.is(result, 0.16666666666666666);
 });

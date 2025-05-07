@@ -1,9 +1,7 @@
-const test = require("ava");
-const {
-  isSproc,
-} = require("../../utility/router/pure");
+const test = require('ava');
+const { isSproc } = require('../../utility/router/pure');
 
-test("detects EXEC/EXECTUE with sproc name in query string", (t) => {
+test('detects EXEC/EXECTUE with sproc name in query string', (t) => {
   // basic exec
   let q1 = "EXEC uspBlah 'tblMyTable'";
   let r1 = isSproc(q1);
@@ -25,7 +23,7 @@ test("detects EXEC/EXECTUE with sproc name in query string", (t) => {
   t.falsy(r4);
 });
 
-test("ignores dash-commented EXEC in query string", (t) => {
+test('ignores dash-commented EXEC in query string', (t) => {
   // commented execs, should not be false positives
   let q2 = `-- EXEC uspBlah 'tblFakeTable'
             SELECT * from myTable`;
@@ -41,7 +39,7 @@ test("ignores dash-commented EXEC in query string", (t) => {
   t.falsy(r3);
 });
 
-test("ignores multiline-commented EXEC in query string", (t) => {
+test('ignores multiline-commented EXEC in query string', (t) => {
   let q3 = `-- EXEC uspBlah 'tblFakeTable'
             /* EXEC
                EXEC

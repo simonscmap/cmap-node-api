@@ -1,15 +1,15 @@
 // Old handler from /dataretrieval routes that are no longer used by web app
 
-const sql = require("mssql");
-const ndjson = require("ndjson");
-const zlib = require("zlib");
+const sql = require('mssql');
+const ndjson = require('ndjson');
+const zlib = require('zlib');
 
-var pools = require("./dbPools");
-const CustomTransformStream = require("../utility/CustomTransformStream");
+var pools = require('./dbPools');
+const CustomTransformStream = require('../utility/CustomTransformStream');
 
-const createNewLogger = require("../log-service");
+const createNewLogger = require('../log-service');
 
-const log = createNewLogger().setModule("handleStoredProcedure");
+const log = createNewLogger().setModule('handleStoredProcedure');
 
 // Calls stored named procedure with the supplied parameters, and
 // streams response to client as gzipped ndjson.
@@ -18,7 +18,7 @@ module.exports = async (argSet, res, next) => {
   try {
     pool = await pools.dataReadOnlyPool;
   } catch (e) {
-    log.error("error creating read-only pool", e);
+    log.error('error creating read-only pool', e);
     throw new Error(e);
   }
 
@@ -29,13 +29,13 @@ module.exports = async (argSet, res, next) => {
   const gzip = zlib.createGzip({ level: 1 });
 
   res.writeHead(200, {
-    "Transfer-Encoding": "chunked",
-    charset: "utf-8",
-    "Content-Type": "application/json",
-    "Content-Encoding": "gzip",
+    'Transfer-Encoding': 'chunked',
+    charset: 'utf-8',
+    'Content-Type': 'application/json',
+    'Content-Encoding': 'gzip',
   });
 
-  ndjsonStream.on("error", (err) => {
+  ndjsonStream.on('error', (err) => {
     next(err);
   });
 

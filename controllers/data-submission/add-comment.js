@@ -1,14 +1,14 @@
-const sql = require("mssql");
-const { userReadAndWritePool } = require("../../dbHandlers/dbPools");
-const templates = require("../../utility/email/templates");
-const { sendServiceMail } = require("../../utility/email/sendMail");
-const initializeLogger = require("../../log-service");
+const sql = require('mssql');
+const { userReadAndWritePool } = require('../../dbHandlers/dbPools');
+const templates = require('../../utility/email/templates');
+const { sendServiceMail } = require('../../utility/email/sendMail');
+const initializeLogger = require('../../log-service');
 const {
   CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
-} = require("../../utility/constants");
-const Future = require("fluture");
+} = require('../../utility/constants');
+const Future = require('fluture');
 
-let log = initializeLogger("controllers/data-submission/add-comment");
+let log = initializeLogger('controllers/data-submission/add-comment');
 
 // check owner
 // checks if user that sent comment is owner of dataset
@@ -20,7 +20,7 @@ const checkOwner = async (submissionId, userId) => {
   let pool = await userReadAndWritePool;
   let checkOwnerRequest = new sql.Request(pool);
 
-  checkOwnerRequest.input("ID", sql.Int, submissionId);
+  checkOwnerRequest.input('ID', sql.Int, submissionId);
 
   let checkOwnerQuery = `
      SELECT Submitter_ID, QC1_Completion_Date_Time from tblData_Submissions
@@ -33,8 +33,8 @@ const checkOwner = async (submissionId, userId) => {
   try {
     result = await checkOwnerRequest.query(checkOwnerQuery);
   } catch (e) {
-    log.error("error requesting dataset owner information", e);
-    throw new Error("error requesting dataset owner");
+    log.error('error requesting dataset owner information', e);
+    throw new Error('error requesting dataset owner');
   }
 
   let owner = result.recordset[0].Submitter_ID;
@@ -42,7 +42,7 @@ const checkOwner = async (submissionId, userId) => {
   qc1WasCompleted = !!result.recordset[0].QC1_Completion_Date_Time;
 
   if (!userIsOwner) {
-    log.warn("mismatch between commenting user and dataset owner", {
+    log.warn('mismatch between commenting user and dataset owner', {
       userId,
       ownerId: owner,
       submissionId,
@@ -56,12 +56,12 @@ const checkOwner = async (submissionId, userId) => {
 const insertCommentAndSelectUserInfo = async (
   submissionID,
   comment,
-  userId
+  userId,
 ) => {
   let pool = await userReadAndWritePool;
   let request = await new sql.Request(pool);
-  request.input("ID", sql.Int, submissionID);
-  request.input("comment", sql.VarChar, comment);
+  request.input('ID', sql.Int, submissionID);
+  request.input('comment', sql.VarChar, comment);
 
   let addCommentQuery = `
         INSERT INTO [dbo].[tblData_Submission_Comments]
@@ -80,7 +80,7 @@ const insertCommentAndSelectUserInfo = async (
   try {
     result = await request.query(addCommentQuery);
   } catch (e) {
-    log.error("error inserting comment and fetching dataset info");
+    log.error('error inserting comment and fetching dataset info');
     return null;
   }
 
@@ -99,7 +99,7 @@ const sendNotificationToAdmin = async (
   datasetInfo,
   comment,
   userName,
-  qc1WasCompleted
+  qc1WasCompleted,
 ) => {
   let { datasetName } = datasetInfo;
 
@@ -112,7 +112,7 @@ const sendNotificationToAdmin = async (
 
   let pool = await userReadAndWritePool;
   let dataSubmissionPhaseChange = new sql.Request(pool);
-  dataSubmissionPhaseChange.input("filename", sql.NVarChar, datasetName);
+  dataSubmissionPhaseChange.input('filename', sql.NVarChar, datasetName);
 
   let dataSubmissionPhaseChangeQuery = `
                 UPDATE [dbo].[tblData_Submissions]
@@ -124,27 +124,29 @@ const sendNotificationToAdmin = async (
 
   let emailSubject = `CMAP Data Submission - ${datasetName}`;
 
-
   let mailArgs = {
     recipient: CMAP_DATA_SUBMISSION_EMAIL_ADDRESS,
     subject: emailSubject,
     content,
   };
 
-  let sendMailFuture = sendServiceMail (mailArgs)
+  let sendMailFuture = sendServiceMail(mailArgs);
 
   let reject = (e) => {
-    log.error("failed to notify admin of new comment", {
+    log.error('failed to notify admin of new comment', {
       recipient: mailArgs.recipient,
       error: e,
     });
   };
 
   let resolve = () => {
-    log.info("email sent", { recipient: mailArgs.recipient, subject: mailArgs.subject });
+    log.info('email sent', {
+      recipient: mailArgs.recipient,
+      subject: mailArgs.subject,
+    });
   };
 
-  Future.fork (reject) (resolve) (sendMailFuture);
+  Future.fork(reject)(resolve)(sendMailFuture);
 };
 
 const sendNotificationToUser = async (datasetInfo, comment, userName) => {
@@ -165,20 +167,23 @@ const sendNotificationToUser = async (datasetInfo, comment, userName) => {
     content: mailContent,
   };
 
-  let sendMailFuture = sendServiceMail (mailArgs);
+  let sendMailFuture = sendServiceMail(mailArgs);
 
   let reject = (e) => {
-    log.error("failed to notify user of new comment", {
+    log.error('failed to notify user of new comment', {
       recipient: ownerEmail,
       error: e,
     });
   };
 
   let resolve = () => {
-    log.info("email sent", { recipient: mailArgs.recipient, subject: mailArgs.subject });
+    log.info('email sent', {
+      recipient: mailArgs.recipient,
+      subject: mailArgs.subject,
+    });
   };
 
-  Future.fork (reject) (resolve) (sendMailFuture);
+  Future.fork(reject)(resolve)(sendMailFuture);
 };
 
 // Add a timestamped comment to a submission
@@ -194,22 +199,22 @@ const sendNotificationToUser = async (datasetInfo, comment, userName) => {
 // TODO separate these out into two routes, and protect the admin route with auth
 const addCommentController = async (req, res) => {
   let { submissionID, comment } = req.body;
-  log.trace("add comment controller -- start");
+  log.trace('add comment controller -- start');
   // 1. check f request is from a user, make sure user is the owner of the data submission
   // being commented upon
 
-  log.info("commenting user", { userId: req.user.id });
+  log.info('commenting user', { userId: req.user.id });
 
   let qc1WasCompleted = false;
   let userIsAdmin = req.user.isDataSubmissionAdmin;
 
   if (!userIsAdmin) {
-    log.trace("check owner");
+    log.trace('check owner');
     let userIsOwner, qc1;
     try {
       [userIsOwner, qc1] = await checkOwner(submissionID, req.user.id);
     } catch (e) {
-      log.error("error in checkOwner", e);
+      log.error('error in checkOwner', e);
       res.sendStatus(500);
       return;
     }
@@ -223,13 +228,13 @@ const addCommentController = async (req, res) => {
 
   // 2. insert comment in db and get dataset info
 
-  log.trace("insert comment");
+  log.trace('insert comment');
   let datasetInfo;
   try {
     datasetInfo = await insertCommentAndSelectUserInfo(
       submissionID,
       comment,
-      req.user.id
+      req.user.id,
     );
   } catch (e) {
     res.sendStatus(500);
@@ -238,12 +243,12 @@ const addCommentController = async (req, res) => {
 
   // 3. fulfill web response
 
-  log.trace("send web response 200");
+  log.trace('send web response 200');
   res.sendStatus(200);
 
   // 4. send appropriate notification
   // let userName = req.user.name;
-  log.trace("send email");
+  log.trace('send email');
 
   let { firstName, lastName } = req.user;
   let fullUserName = `${firstName} ${lastName}`;
@@ -252,7 +257,7 @@ const addCommentController = async (req, res) => {
       datasetInfo,
       comment,
       fullUserName,
-      qc1WasCompleted
+      qc1WasCompleted,
     );
   } else {
     // use admin's first name only

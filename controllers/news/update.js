@@ -2,32 +2,32 @@
    in favor of a rewrite that handles dataset tagging
  */
 
-const sql = require("mssql");
-const S = require("../../utility/sanctuary");
-const $ = require("sanctuary-def");
-const { generateController } = require("../futureController");
+const sql = require('mssql');
+const S = require('../../utility/sanctuary');
+const $ = require('sanctuary-def');
+const { generateController } = require('../futureController');
 
 let { compose, gets, is, maybeToEither, fromMaybe } = S;
 
 // function pieces for arg resolvers
-let eitherIdOrError = maybeToEither ("id is required");
-let getIdFromReq = gets (is ($.Integer)) (["body", "story", "ID"]);
+let eitherIdOrError = maybeToEither('id is required');
+let getIdFromReq = gets(is($.Integer))(['body', 'story', 'ID']);
 
-let eitherHeadlineOrError = maybeToEither ("headline is required");
-let getHeadlineFromReq = gets (is ($.String)) (["body", "story", "headline"]);
+let eitherHeadlineOrError = maybeToEither('headline is required');
+let getHeadlineFromReq = gets(is($.String))(['body', 'story', 'headline']);
 
-let eitherLinkOrError = maybeToEither ("link is required");
-let getLinkFromReq = gets (is ($.String)) (["body", "story", "link"]);
+let eitherLinkOrError = maybeToEither('link is required');
+let getLinkFromReq = gets(is($.String))(['body', 'story', 'link']);
 
-let eitherBodyOrError = maybeToEither ("body is required");
-let getBodyFromReq = gets (is ($.String)) (["body", "story", "body"]);
+let eitherBodyOrError = maybeToEither('body is required');
+let getBodyFromReq = gets(is($.String))(['body', 'story', 'body']);
 
-let eitherDateOrError = maybeToEither ("date is required");
-let getDateFromReq = gets (is ($.String)) (["body", "story", "date"]);
+let eitherDateOrError = maybeToEither('date is required');
+let getDateFromReq = gets(is($.String))(['body', 'story', 'date']);
 
-let getLabelFromReq = gets (is ($.String)) (["body", "story", "label"]);
+let getLabelFromReq = gets(is($.String))(['body', 'story', 'label']);
 
-let getTagsFromReq = gets (is ($.Array ($.String))) (["tags"]);
+let getTagsFromReq = gets(is($.Array($.String)))(['tags']);
 
 // Update News Item, Query Definition
 // Only used for updating the content of a news item
@@ -50,49 +50,48 @@ let updateQueryDefinition = {
       vName: 'ID',
       sqlType: sql.Int, // todo: check
       defaultTo: 0,
-      resolver: compose (eitherIdOrError) (getIdFromReq),
+      resolver: compose(eitherIdOrError)(getIdFromReq),
     },
     {
       vName: 'label',
       sqlType: sql.VarChar, // todo: check
       defaultTo: '',
-      resolver: compose (S.Right)
-        (compose (fromMaybe ('')) (getLabelFromReq))
+      resolver: compose(S.Right)(compose(fromMaybe(''))(getLabelFromReq)),
     },
     {
       vName: 'headline',
       sqlType: sql.VarChar, // todo: check
       defaultTo: '',
-      resolver: compose (eitherHeadlineOrError) (getHeadlineFromReq),
+      resolver: compose(eitherHeadlineOrError)(getHeadlineFromReq),
     },
     {
       vName: 'link',
       sqlType: sql.VarChar, // todo: check
       defaultTo: '',
-      resolver: compose (eitherLinkOrError) (getLinkFromReq),
+      resolver: compose(eitherLinkOrError)(getLinkFromReq),
     },
     {
       vName: 'body',
       sqlType: sql.VarChar, // todo: check
       defaultTo: '',
-      resolver: compose (eitherBodyOrError) (getBodyFromReq),
+      resolver: compose(eitherBodyOrError)(getBodyFromReq),
     },
     {
       vName: 'date',
       sqlType: sql.VarChar, // todo: check
       defaultTo: '',
-      resolver: compose (eitherDateOrError) (getDateFromReq),
+      resolver: compose(eitherDateOrError)(getDateFromReq),
     },
     {
       vName: 'modify_date',
       sqlType: sql.DateTime,
-      defaultTo: (new Date()).toISOString(),
+      defaultTo: new Date().toISOString(),
       resolver: () => {
-        return S.Right((new Date()).toISOString())
-      }
+        return S.Right(new Date().toISOString());
+      },
     },
-  ]
-}
+  ],
+};
 
 // NOTE: generateController uses userReadAndWritePoll, i.e., rainier for now
 const controller = generateController(updateQueryDefinition);

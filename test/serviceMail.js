@@ -1,24 +1,24 @@
-const test = require("ava");
-const Future = require("fluture");
-const { getGmailClient } = require("../utility/serviceAccountAuth");
-const { prepareMail } = require("../utility/email/sendMail");
+const test = require('ava');
+const Future = require('fluture');
+const { getGmailClient } = require('../utility/serviceAccountAuth');
+const { prepareMail } = require('../utility/email/sendMail');
 const { google } = require('googleapis');
 
 let mockGetGmailClientFailure = () => {
   let auth = new google.auth.JWT({
-    subject: "no-reply@simonscmap.com",
-    keyFile: "NOTHING TO SEE HERE",
-    scopes: ["https://www.googleapis.com/auth/gmail.send"],
+    subject: 'no-reply@simonscmap.com',
+    keyFile: 'NOTHING TO SEE HERE',
+    scopes: ['https://www.googleapis.com/auth/gmail.send'],
   });
-  return google.gmail({ version: "v1", auth });
+  return google.gmail({ version: 'v1', auth });
 };
 
-test("generates gmail client", (t) => {
+test('generates gmail client', (t) => {
   let gmailClient = getGmailClient();
   t.truthy(gmailClient);
 });
 
-test("service mail example", (t) => {
+test('service mail example', (t) => {
   // dont execute this test, just leave it for reference
 
   t.pass();
@@ -46,16 +46,16 @@ test("service mail example", (t) => {
 * }); */
 });
 
-test("service mail rejects throw", () => {
-  let raw = prepareMail("walker@anthanes.com")("test service client")(
-    "body content"
+test('service mail rejects throw', () => {
+  let raw = prepareMail('walker@anthanes.com')('test service client')(
+    'body content',
   );
 
   let gmailClient = mockGetGmailClientFailure();
 
   let send = () =>
     gmailClient.users.messages.send({
-      userId: "me",
+      userId: 'me',
       resource: { raw },
     });
 

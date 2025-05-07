@@ -1,20 +1,20 @@
-const router = require("express").Router();
-const passport = require("../middleware/passport");
+const router = require('express').Router();
+const passport = require('../middleware/passport');
 
-const dataController = require("../controllers/data");
-const queryAnalysis = require("../middleware/queryAnalysis");
-const checkQuerySize = require("../middleware/checkQuerySize");
-const candidateAnalysis = require("../utility/router/routerMiddleware")
-const { routeQueryFromMiddleware } = require("../utility/router/router");
+const dataController = require('../controllers/data');
+const queryAnalysis = require('../middleware/queryAnalysis');
+const checkQuerySize = require('../middleware/checkQuerySize');
+const candidateAnalysis = require('../utility/router/routerMiddleware');
+const { routeQueryFromMiddleware } = require('../utility/router/router');
 
-const asyncControllerWrapper = require("../errorHandling/asyncControllerWrapper");
+const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 const wrap = asyncControllerWrapper;
 const { queryModification } = dataController;
 
 // Custom query statement route
 router.get(
-  "/query",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  '/query',
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
 
   // apply query modifiers
   wrap(queryModification),
@@ -26,12 +26,12 @@ router.get(
   wrap(candidateAnalysis),
 
   // execute
-  wrap(routeQueryFromMiddleware)
+  wrap(routeQueryFromMiddleware),
 );
 
-router.get (
+router.get(
   '/check-query-size',
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
   // apply query modifiers
   wrap(queryModification),
 
@@ -39,73 +39,70 @@ router.get (
   wrap(queryAnalysis),
 
   // regulate query size
-  wrap(checkQuerySize)
+  wrap(checkQuerySize),
 );
 
 // Stored procedure route
 router.get(
-  "/sp",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
-  asyncControllerWrapper(dataController.storedProcedure)
+  '/sp',
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
+  asyncControllerWrapper(dataController.storedProcedure),
 );
 
 router.get(
-  "/ancillary-datasets",
-  asyncControllerWrapper(dataController.ancillaryDatasets)
+  '/ancillary-datasets',
+  asyncControllerWrapper(dataController.ancillaryDatasets),
 );
 
 // Get list of tables that are continuously ingested
-router.get(
-  "/ci-datasets",
-  asyncControllerWrapper(dataController.ciDatasets)
-);
+router.get('/ci-datasets', asyncControllerWrapper(dataController.ciDatasets));
 
 // Get a map of tables with dataset features
 router.get(
-  "/dataset-features",
-  asyncControllerWrapper(dataController.datasetFeatures)
+  '/dataset-features',
+  asyncControllerWrapper(dataController.datasetFeatures),
 );
 
 // Get list of cruises
-router.get("/cruiselist", asyncControllerWrapper(dataController.cruiseList));
+router.get('/cruiselist', asyncControllerWrapper(dataController.cruiseList));
 
 // Get cruise trajectory
 router.get(
-  "/cruisetrajectory",
-  asyncControllerWrapper(dataController.cruiseTrajectory)
+  '/cruisetrajectory',
+  asyncControllerWrapper(dataController.cruiseTrajectory),
 );
 
 // Get cruise trajectory
 router.post(
-  "/cruise-trajectories",
-  asyncControllerWrapper(dataController.cruiseTrajectories)
+  '/cruise-trajectories',
+  asyncControllerWrapper(dataController.cruiseTrajectories),
 );
 
 // Table stats
-router.get("/tablestats", asyncControllerWrapper(dataController.tableStats));
+router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
 
 // Protobuf test
-router.get("/proto", asyncControllerWrapper(dataController.testProto));
+router.get('/proto', asyncControllerWrapper(dataController.testProto));
 
 router.post(
-  "/bulk-download",
-  passport.authenticate(["headerapikey", "jwt", "guest"], { session: false }),
-  asyncControllerWrapper(dataController.bulkDownloadController)
+  '/bulk-download',
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
+  asyncControllerWrapper(dataController.bulkDownloadController),
 );
 
 router.get(
-  "/trajectory-point-counts",
-  asyncControllerWrapper(dataController.trajectoryPointCounts)
+  '/trajectory-point-counts',
+  asyncControllerWrapper(dataController.trajectoryPointCounts),
 );
 
 router.get(
   '/named/:name',
-  asyncControllerWrapper(dataController.namedDataController)
+  asyncControllerWrapper(dataController.namedDataController),
 );
 
-router.get (
+router.get(
   '/share/:shortName',
-  asyncControllerWrapper(dataController.getShareLinkController)
+  asyncControllerWrapper(dataController.getShareLinkController),
 );
 
 module.exports = router;

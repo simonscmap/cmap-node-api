@@ -1,5 +1,7 @@
-const { internalRouter } = require ('../../utility/router/internal-router');
-const log = require('../../log-service') ('controllers/data/fetchDepthsForGriddedDataset');
+const { internalRouter } = require('../../utility/router/internal-router');
+const log = require('../../log-service')(
+  'controllers/data/fetchDepthsForGriddedDataset',
+);
 // fetcheDepths :: { id } -> [errorMessage?, data?]
 const fetchDepths = async (dataset) => {
   let { Table_Name, Time_Min, Lat_Min, Lon_Min } = dataset;
@@ -19,14 +21,14 @@ const fetchDepths = async (dataset) => {
       lon between ${Lat_Min} AND ${lonNextTick}
       order by depth`;
 
-  let [error, result] = await internalRouter (query);
+  let [error, result] = await internalRouter(query);
 
-  log.trace ('DEPTHS', { error, result });
+  log.trace('DEPTHS', { error, result });
 
   // On Prem
   if (!error && result && Array.isArray(result.recordset)) {
     // console.log(result.recordset);
-    let depths = result.recordset.map (({ depth }) => depth);
+    let depths = result.recordset.map(({ depth }) => depth);
     // console.log ('transformed depths', depths);
     return [null, depths];
   } else if (!error && result) {
@@ -37,8 +39,8 @@ const fetchDepths = async (dataset) => {
   } else if (error) {
     return [error];
   } else {
-    return [new Error ('Unknown error')];
+    return [new Error('Unknown error')];
   }
-}
+};
 
 module.exports = fetchDepths;
