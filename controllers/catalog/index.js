@@ -1,9 +1,7 @@
 const sql = require('mssql');
 const nodeCache = require('../../utility/nodeCache');
 const queryHandler = require('../../utility/queryHandler');
-const directQuery = require('../../utility/directQuery');
 const { coerceTimeMinAndMax } = require('../../utility/download/coerce-to-iso');
-const { safePath } = require('../../utility/objectUtils');
 const pools = require('../../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../../dbHandlers/datasetCatalogQuery');
 const cruiseCatalogQuery = require('../../dbHandlers/cruiseCatalogQuery');

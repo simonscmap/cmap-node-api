@@ -7,8 +7,7 @@
     "no-unused-vars": "error",
     "no-undef": "error",
     "no-unexpected-multiline": "off",
-     "object-curly-newline": [
-      "error",
+    "object-curly-newline": [
       {
         "ObjectPattern": {
           "minProperties": 3,
