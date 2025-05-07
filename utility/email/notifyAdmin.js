@@ -9,7 +9,7 @@ const log = initializeLogger('email/notifyAdmin');
 const isProduction = process.env.NODE_ENV === 'production';
 const isStaging = process.env.NODE_ENV === 'staging';
 
-const recipients = ['mdehghan@uw.edu', 'simonscmap@uw.edu'];
+const recipients = ['mdehghan@uw.edu', 'simonscmap@uw.edu', 'hwk@uw.edu'];
 
 const sendNotification = (title, messageText) => {
   if (!isStaging && !isProduction) {
