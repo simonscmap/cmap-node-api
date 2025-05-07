@@ -18,6 +18,7 @@ const env = require('./config/environment');
 
 // on startup, check for bounced mail
 monitor();
+monitor();
 
 const log = createNewLogger()
   .setModule('app.js')
