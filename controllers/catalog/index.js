@@ -484,7 +484,6 @@ module.exports.datasetVariableUM = async (req, res, next) => {
 // export full page metadata for bulk query
 const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
   let log = moduleLogger.setReqId(reqId);
-  i;
   let pool = await pools.dataReadOnlyPool;
 
   let datasetId = await getDatasetId(shortName, log);
