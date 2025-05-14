@@ -44,6 +44,7 @@ config/UNSAFE_jwtConfig.js
 /token.json
 /utility/googleServiceAccountKeyFile.json
 .env
-.env
+.sentryclirc
 
 .vscode/
+deployments/
