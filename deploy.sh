@@ -23,7 +23,8 @@ echo "Using Sentry release: $SENTRY_RELEASE"
 export REACT_APP_SENTRY_RELEASE="$SENTRY_RELEASE"
 echo "Setting REACT_APP_SENTRY_RELEASE: $REACT_APP_SENTRY_RELEASE"
 
-export NODE_ENV=production
+# For react, NODE_ENV is determined by the build command
+# export NODE_ENV=production
 export REACT_APP_SENTRY_DSN=https://235dc211fb6c038ff5713280b5172696@o4509317255004160.ingest.us.sentry.io/4509317256249344
 
 echo "starting deploy script";
