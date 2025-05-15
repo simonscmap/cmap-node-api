@@ -50,6 +50,10 @@ fi;
 
 echo "Building cmap-react project"
 cd "$PARENT_DIR/cmap-react"
+
+# Copy .sentryclirc to ensure Sentry CLI can find it
+cp "$SCRIPT_DIR/.sentryclirc" .
+
 npm run build
 
 # Upload source maps to Sentry
@@ -58,8 +62,11 @@ npx @sentry/cli@^1.65.0 releases new "$SENTRY_RELEASE" || echo "Release already 
 npx @sentry/cli@^1.65.0 releases set-commits "$SENTRY_RELEASE" --auto
 npx @sentry/cli@^1.65.0 releases files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
 npx @sentry/cli@^1.65.0 releases finalize "$SENTRY_RELEASE"
-cd "$SCRIPT_DIR"
 
+# Clean up .sentryclirc file
+rm .sentryclirc
+
+cd "$SCRIPT_DIR"
 
 echo "remove static dir from node api";
 rm -rf "$SCRIPT_DIR/public/static/"
