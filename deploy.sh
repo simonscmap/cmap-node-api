@@ -64,7 +64,7 @@ npm run build
 # Upload source maps to Sentry
 echo "⭐️ Uploading source maps to Sentry for release $SENTRY_RELEASE"
 npx @sentry/cli@^1.65.0 releases new "$SENTRY_RELEASE" || echo "⭐️ Release already exists"
-npx @sentry/cli@^1.65.0 releases set-commits "$SENTRY_RELEASE" --auto
+# npx @sentry/cli@^1.65.0 releases set-commits "$SENTRY_RELEASE" --auto
 npx @sentry/cli@^1.65.0 releases files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
 npx @sentry/cli@^1.65.0 releases finalize "$SENTRY_RELEASE"
 
