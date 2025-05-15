@@ -22,38 +22,38 @@ cd "$SCRIPT_DIR"
 
 # Configure Sentry release
 export SENTRY_RELEASE="$(jq -r '.version' "$PARENT_DIR/cmap-react/package.json")-${GIT_COMMIT}"
-echo "Using Sentry release: $SENTRY_RELEASE"
+echo "⭐️ Using Sentry release: $SENTRY_RELEASE"
 
 # Expose Sentry release to Create React App
 export REACT_APP_SENTRY_RELEASE="$SENTRY_RELEASE"
-echo "Setting REACT_APP_SENTRY_RELEASE: $REACT_APP_SENTRY_RELEASE"
+echo "⭐️ Setting REACT_APP_SENTRY_RELEASE: $REACT_APP_SENTRY_RELEASE"
 
 # For react, NODE_ENV is determined by the build command
 # export NODE_ENV=production
 export REACT_APP_SENTRY_DSN=https://235dc211fb6c038ff5713280b5172696@o4509317255004160.ingest.us.sentry.io/4509317256249344
 
-echo "starting deploy script";
+echo "⭐️ starting deploy script";
  
 date;
-echo "Running from: $SCRIPT_DIR"
+echo "⭐️ Running from: $SCRIPT_DIR"
 
 # Create releases directory if it doesn't exist
 mkdir -p "$SCRIPT_DIR/deployments"
 
-echo "checking google key file exists"
+echo "⭐️ checking google key file exists"
 
 projectId=$(jq '.project_id' "$SCRIPT_DIR/utility/googleServiceAccountKeyFile.json")
 privateKeyId=$(jq '.private_key_id' "$SCRIPT_DIR/utility/googleServiceAccountKeyFile.json")
 
 if [ "$projectId"=="simons-cmap" ]; then
-    echo "Key file exists"
+    echo "⭐️ Key file exists"
 else
-   echo "No key file found. App will not be able to send emails.";
+   echo "⭐️ No key file found. App will not be able to send emails.";
    echo $projectId;
    exit 1;
 fi;
 
-echo "Building cmap-react project"
+echo "⭐️ Building cmap-react project"
 cd "$PARENT_DIR/cmap-react"
 
 # Copy .sentryclirc to ensure Sentry CLI can find it
@@ -62,8 +62,8 @@ cp "$SCRIPT_DIR/.sentryclirc" .
 npm run build
 
 # Upload source maps to Sentry
-echo "Uploading source maps to Sentry for release $SENTRY_RELEASE"
-npx @sentry/cli@^1.65.0 releases new "$SENTRY_RELEASE" || echo "Release already exists"
+echo "⭐️ Uploading source maps to Sentry for release $SENTRY_RELEASE"
+npx @sentry/cli@^1.65.0 releases new "$SENTRY_RELEASE" || echo "⭐️ Release already exists"
 npx @sentry/cli@^1.65.0 releases set-commits "$SENTRY_RELEASE" --auto
 npx @sentry/cli@^1.65.0 releases files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
 npx @sentry/cli@^1.65.0 releases finalize "$SENTRY_RELEASE"
@@ -73,23 +73,23 @@ rm .sentryclirc
 
 cd "$SCRIPT_DIR"
 
-echo "remove static dir from node api";
+echo "⭐️ remove static dir from node api";
 rm -rf "$SCRIPT_DIR/public/static/"
 
-echo "copy build to public folder"
+echo "⭐️ copy build to public folder"
 cp -r "$PARENT_DIR/cmap-react/build/"* "$SCRIPT_DIR/public/"
 
-echo "Web App Version:"
+echo "⭐️ Web App Version:"
 webAppVer=$(jq '.version' "$PARENT_DIR/cmap-react/build/web-app-version-tag.json" | tr -d '"')
 echo $webAppVer
 
-echo "API Version"
+echo "⭐️ API Version"
 apiVer=$(jq '.version' "$SCRIPT_DIR/package.json" | tr -d '"')
 echo $apiVer
 
-echo "creating archive";
+echo "⭐️ creating archive";
 cd "$SCRIPT_DIR"
-zip -r "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" . -x@"$SCRIPT_DIR/exclusionList"
+zip -q -r "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" . -x@"$SCRIPT_DIR/exclusionList"
 
 # for intel based computers
 # 7z a -tzip "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" ./ -xr@exclusionList
