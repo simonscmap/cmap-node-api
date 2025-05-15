@@ -15,8 +15,13 @@
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# Change to cmap-react directory to get the correct git commit hash
+cd "$PARENT_DIR/cmap-react"
+GIT_COMMIT="$(git rev-parse --short HEAD)"
+cd "$SCRIPT_DIR"
+
 # Configure Sentry release
-export SENTRY_RELEASE="$(jq -r '.version' "$PARENT_DIR/cmap-react/package.json")-$(git rev-parse --short HEAD)"
+export SENTRY_RELEASE="$(jq -r '.version' "$PARENT_DIR/cmap-react/package.json")-${GIT_COMMIT}"
 echo "Using Sentry release: $SENTRY_RELEASE"
 
 # Expose Sentry release to Create React App
