@@ -50,11 +50,7 @@ fi;
 
 echo "Building cmap-react project"
 cd "$PARENT_DIR/cmap-react"
-start_time=$(date +%s)
 npm run build
-end_time=$(date +%s)
-build_duration=$((end_time - start_time))
-echo "Build completed in $build_duration seconds"
 
 # Upload source maps to Sentry
 echo "Uploading source maps to Sentry for release $SENTRY_RELEASE"
@@ -64,19 +60,6 @@ npx @sentry/cli@^1.65.0 releases files "$SENTRY_RELEASE" upload-sourcemaps build
 npx @sentry/cli@^1.65.0 releases finalize "$SENTRY_RELEASE"
 cd "$SCRIPT_DIR"
 
-# Create or ensure build_times.csv exists
-BUILD_TIMES_FILE="$SCRIPT_DIR/deployments/build_times.csv"
-if [ ! -f "$BUILD_TIMES_FILE" ]; then
-    echo "timestamp,date,time,build_duration_seconds" > "$BUILD_TIMES_FILE"
-fi
-
-# Get current timestamp and human readable date/time
-timestamp=$(date +%s)
-human_date=$(date "+%Y-%m-%d")
-human_time=$(date "+%H:%M:%S")
-
-# Append build time data to CSV
-echo "$timestamp,$human_date,$human_time,$build_duration" >> "$BUILD_TIMES_FILE"
 
 echo "remove static dir from node api";
 rm -rf "$SCRIPT_DIR/public/static/"
@@ -93,10 +76,7 @@ apiVer=$(jq '.version' "$SCRIPT_DIR/package.json" | tr -d '"')
 echo $apiVer
 
 echo "creating archive";
-
-
 cd "$SCRIPT_DIR"
-
 zip -r "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" . -x@"$SCRIPT_DIR/exclusionList"
 
 # for intel based computers
