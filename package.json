@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.19.3",
+  "version": "1.19.4",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
@@ -41,7 +41,6 @@
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "csv-stringify": "^5.5.0",
-    "dotenv": "^16.5.0",
     "dotenv": "^16.5.0",
     "dropbox": "^10.34.0",
     "express": "^4.17.1",
