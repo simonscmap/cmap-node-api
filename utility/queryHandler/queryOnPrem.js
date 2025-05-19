@@ -4,7 +4,6 @@ const Accumulator = require('./AccumulatorStream');
 const generateError = require('../../errorHandling/generateError');
 const initializeLogger = require('../../log-service');
 const { logErrors, logMessages } = require('../../log-service/log-helpers');
-const { SERVER_NAMES } = require('../constants');
 const { getPool } = require('./getPool');
 const formatDate = require('./formatDate');
 const moduleLogger = initializeLogger('router queryOnPrem');
@@ -54,7 +53,9 @@ const executeQueryOnPrem = async (
   logMessages(log)(messages);
 
   log.info(
-    `remaining candidates: ${remainingCandidates.length ? remainingCandidates.join(' ') : 'none'}`,
+    `remaining candidates: ${
+      remainingCandidates.length ? remainingCandidates.join(' ') : 'none'
+    }`,
   );
 
   // 2. create request object
