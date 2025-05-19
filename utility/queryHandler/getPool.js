@@ -42,17 +42,30 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   let remainingCandidates = candidateList.filter((c) => c !== poolName);
 
-  if (poolName === undefined) {
-    messages.push([
-      'could not settle pool name, defaulting to rainier',
-      { candidateList },
-    ]);
-    poolName = SERVER_NAMES.rainier;
-    pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
-  } else {
-    pool = await mapServerNameToPoolConnection(poolName);
+  try {
+    if (poolName === undefined) {
+      messages.push([
+        'could not settle pool name, defaulting to rainier',
+        { candidateList },
+      ]);
+      poolName = SERVER_NAMES.rainier;
+      pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
+    } else {
+      pool = await mapServerNameToPoolConnection(poolName);
+    }
+  } catch (e) {
+    error = true;
+    errors.push(['failed to get pool connection', { error: e, poolName }]);
+    // Return remaining candidates to trigger retry
+    return {
+      pool: null,
+      poolName,
+      error: true,
+      errors,
+      messages,
+      remainingCandidates, // This will trigger the retry mechanism
+    };
   }
-
   // this mapping will default to rainier
 
   if (!pool) {
