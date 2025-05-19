@@ -4,7 +4,6 @@ let S = require('../../utility/sanctuary');
 const {
   removeSQLDashComments,
   removeSQLBlockComments,
-  removeParensFromTop,
   extractTableNamesFromGrammaticalQueryString,
   compareTableAndDatasetLists,
 } = require('../../utility/router/pure');
@@ -15,8 +14,8 @@ const {
 } = require('../../utility/router/queries');
 const {
   mapServerNameToPoolConnection,
-  roundRobin,
-} = require('../../utility/router/roundRobin');
+  pickRandomItem,
+} = require('../router/serverPoolMapper');
 const cacheAsync = require('../cacheAsync');
 const initializeLogger = require('../../log-service');
 
@@ -85,7 +84,7 @@ const datasetIsOnlyOnCluster = (candidates) => {
 // return an async job with enclosed args
 const fetchColumnNames = (tblName, onPremLocations) => async () => {
   // pick random server from available ones
-  let serverName = roundRobin(onPremLocations);
+  let serverName = pickRandomItem(onPremLocations);
   log.debug(`round robin returned ${serverName}`, { onPremLocations });
   let pool;
   try {

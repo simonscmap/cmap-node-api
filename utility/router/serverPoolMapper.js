@@ -4,7 +4,7 @@ const initLogger = require('../../log-service');
 const log = initLogger('roundRobin');
 // :: [ServerCandidate] -> ServerCandidate
 // NOTE if an empty array is passed, the function will return undefined
-const roundRobin = (candidates = []) => {
+const pickRandomItem = (candidates = []) => {
   let numberOfCandidates = candidates.length;
   let randomIndex = Math.floor(Math.random() * numberOfCandidates);
   return candidates[randomIndex];
@@ -28,6 +28,6 @@ const mapServerNameToPoolConnection = async (name) => {
 };
 
 module.exports = {
-  roundRobin,
+  pickRandomItem,
   mapServerNameToPoolConnection,
 };

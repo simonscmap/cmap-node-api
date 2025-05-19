@@ -1,9 +1,9 @@
 const { SERVER_NAMES } = require('../constants');
 
 const {
-  roundRobin,
+  pickRandomItem,
   mapServerNameToPoolConnection,
-} = require('../router/roundRobin');
+} = require('../router/serverPoolMapper');
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
   let pool;
@@ -36,9 +36,9 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
     }
   }
 
-  // NOTE if roundRobin is passed an empty list, it will return `undefined`
+  // NOTE if pickRandomItem is passed an empty list, it will return `undefined`
   // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-  poolName = roundRobin(candidates);
+  poolName = pickRandomItem(candidates);
 
   let remainingCandidates = candidateList.filter((c) => c !== poolName);
 
