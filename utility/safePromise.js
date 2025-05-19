@@ -29,6 +29,15 @@ const safePromise =
     try {
       resp = await p.call(context, ...pArgs);
     } catch (e) {
+      moduleLogger.error('Bulk Download: Promise execution failed', {
+        error: {
+          message: e.message,
+          stack: e.stack,
+          name: e.name,
+        },
+        context,
+        args: pArgs,
+      });
       return [e];
     }
     return [null, resp];

@@ -12,7 +12,7 @@ const highlightsRoutes = require('./highlights');
 const dataSubmissionRoutes = require('./dataSubmission');
 const createNewLogger = require('../log-service');
 const pools = require('../dbHandlers/dbPools');
-const log = createNewLogger().setModule('routes/apiRouter.js');
+const log = createNewLogger().setModule('routes/api.js');
 const sql = require('mssql');
 
 let passportMethods = ['headerapikey', 'jwt'];
