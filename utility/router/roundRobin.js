@@ -10,12 +10,11 @@ const roundRobin = (candidates = []) => {
   return candidates[randomIndex];
 };
 
-// NOTE for historical reasons, rainier is coded as "dataReadOnlyPool"
 // NOTE default to rainier
 const mapServerNameToPoolConnection = async (name) => {
   switch (name) {
     case SERVER_NAMES.rainier:
-      return await pools.dataReadOnlyPool;
+      return await pools.rainier;
     case SERVER_NAMES.rossby:
       return await pools.rossby;
 
@@ -24,7 +23,7 @@ const mapServerNameToPoolConnection = async (name) => {
     //   return await pools.mariana;
     default:
       log.warn('defaulting to dataReadOnlyPool', { name });
-      return await pools.dataReadOnlyPool;
+      return await pools.rainier;
   }
 };
 
