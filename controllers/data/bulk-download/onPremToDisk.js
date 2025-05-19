@@ -166,7 +166,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
         // accumulator.unpipe(targetFile);
         resolve(remainingCandidates);
       } else {
-        log.error(
+        log.warn(
           'no request error, but no response sent; no remaining candidates servers to try',
           { remainingCandidates },
         );

@@ -208,7 +208,7 @@ const executeQueryOnPrem = async (
     accumulator.unpipe(res);
     return remainingCandidates;
   } else {
-    log.error(
+    log.warn(
       'no request error, but no response sent; no remaining candidates servers to try',
       { remainingCandidates },
     );
