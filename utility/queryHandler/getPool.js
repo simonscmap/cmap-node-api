@@ -60,7 +60,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
     return {
       pool: null,
       poolName,
-      error: true,
+      error,
       errors,
       messages,
       remainingCandidates, // This will trigger the retry mechanism
