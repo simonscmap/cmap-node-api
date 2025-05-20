@@ -5,7 +5,7 @@ const {
   mapServerNameToPoolConnection,
 } = require('../router/serverPoolMapper');
 const initializeLogger = require('../../log-service');
-const moduleLogger = initializeLogger('router getPool');
+const log = initializeLogger('router getPool');
 
 const selectServerName = (candidateList, serverNameOverride) => {
   const overrideName = serverNameOverride.toLowerCase();
@@ -13,14 +13,14 @@ const selectServerName = (candidateList, serverNameOverride) => {
 
   if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
-      moduleLogger.info('server name override in use', {
+      log.info('server name override in use', {
         serverNameOverride,
         candidateList,
       });
       return overrideName;
     }
 
-    moduleLogger.warn('requested server not among candidate servers', {
+    log.warn('requested server not among candidate servers', {
       serverNameOverride,
       candidateList,
     });
@@ -48,10 +48,6 @@ const connectToPool = async (serverName, log) => {
 };
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
-  const log = moduleLogger
-    .addContext(['candidates', candidateList])
-    .addContext(['serverNameOverride', serverNameOverride]);
-
   const selectedServerName = selectServerName(
     candidateList,
     serverNameOverride,
