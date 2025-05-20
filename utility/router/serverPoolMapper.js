@@ -1,7 +1,7 @@
 const pools = require('../../dbHandlers/dbPools');
 const { SERVER_NAMES } = require('../constants');
 const initLogger = require('../../log-service');
-const log = initLogger('roundRobin');
+const log = initLogger('router serverPoolMapper');
 // :: [ServerCandidate] -> ServerCandidate
 // NOTE if an empty array is passed, the function will return undefined
 const pickRandomArrayItem = (candidates = []) => {
