@@ -5,14 +5,16 @@ const {
   mapServerNameToPoolConnection,
 } = require('../router/serverPoolMapper');
 
+const initializeLogger = require('../../log-service');
+const moduleLogger = initializeLogger('router getPool');
+
 const getPool = async (candidateList = [], serverNameOverride = '') => {
   let pool;
   let poolName;
   let error = false;
-  // defer logging to the caller, which has requestId context
-  // by returning log info as 'errors' and 'messages'
-  let errors = [];
-  let messages = [];
+  const log = moduleLogger
+    .addContext(['candidates', candidateList])
+    .addContext(['serverNameOverride', serverNameOverride]);
 
   // adjust the candidates based on override and forceRainier
   let overrideName = serverNameOverride.toLowerCase();
@@ -23,16 +25,16 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
-      messages.push([
-        'server name override in use',
-        { serverNameOverride, candidateList },
-      ]);
+      log.info('server name override in use', {
+        serverNameOverride,
+        candidateList,
+      });
       candidates = [overrideName];
     } else {
-      messages.push([
-        'requested server not among candidate servers',
-        { serverNameOverride, candidateList },
-      ]);
+      log.warn('requested server not among candidate servers', {
+        serverNameOverride,
+        candidateList,
+      });
     }
   }
 
@@ -44,10 +46,9 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   try {
     if (poolName === undefined) {
-      messages.push([
-        'could not settle pool name, defaulting to rainier',
-        { candidateList },
-      ]);
+      log.warn('could not settle pool name, defaulting to rainier', {
+        candidateList,
+      });
       poolName = SERVER_NAMES.rainier;
       pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
     } else {
@@ -55,14 +56,12 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
     }
   } catch (e) {
     error = true;
-    errors.push(['failed to get pool connection', { error: e, poolName }]);
+    log.error('failed to get pool connection', { error: e, poolName });
     // Return remaining candidates to trigger retry
     return {
       pool: null,
       poolName,
       error,
-      errors,
-      messages,
       remainingCandidates, // This will trigger the retry mechanism
     };
   }
@@ -70,17 +69,15 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   if (!pool) {
     error = true;
-    errors.push(['failed to get pool', { candidateList, serverNameOverride }]);
+    log.error('failed to get pool', { candidateList, serverNameOverride });
   } else {
-    messages.push(['get pool result', { candidateList, poolName }]);
+    log.info('get pool result', { candidateList, poolName });
   }
 
   return {
     pool,
     poolName,
     error,
-    errors,
-    messages,
     remainingCandidates,
   };
 };
