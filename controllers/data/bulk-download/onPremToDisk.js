@@ -2,7 +2,6 @@ const fs = require('fs');
 const sql = require('mssql');
 const stringify = require('csv-stringify');
 const Accumulator = require('../../../utility/queryHandler/AccumulatorStream');
-const { logErrors, logMessages } = require('../../../log-service/log-helpers');
 const { getPool } = require('../../../utility/queryHandler/getPool');
 const formatDate = require('../../../utility/queryHandler/formatDate');
 
@@ -19,16 +18,17 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
 
   // 1. determine pool
 
-  let { pool, poolName, error, errors, messages, remainingCandidates } =
-    await getPool(candidateList);
+  let { pool, poolName, hasError, remainingCandidates } = await getPool(
+    candidateList,
+  );
 
-  if (error) {
-    logErrors(log)(errors);
-    logMessages(log)(messages);
+  if (hasError) {
+    log.error('getPool failed', {
+      candidateList,
+      remainingCandidates,
+    });
     return remainingCandidates;
   }
-
-  logMessages(log)(messages);
 
   // 2. create request object
 
