@@ -30,9 +30,24 @@ const selectServerName = (candidateList, serverNameOverride) => {
   return selectedServer || SERVER_NAMES.rainier;
 };
 
+const connectToPool = async (serverName, log) => {
+  try {
+    const pool = await mapServerNameToPoolConnection(serverName);
+    if (!pool) {
+      log.error('failed to get pool', { serverName });
+      return { success: false, pool: null };
+    }
+    return { success: true, pool };
+  } catch (error) {
+    log.error('failed to get pool connection', {
+      error,
+      serverName,
+    });
+    return { success: false, pool: null };
+  }
+};
+
 const getPool = async (candidateList = [], serverNameOverride = '') => {
-  let pool;
-  let hasError = false;
   const log = moduleLogger
     .addContext(['candidates', candidateList])
     .addContext(['serverNameOverride', serverNameOverride]);
@@ -45,26 +60,9 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
     (c) => c !== selectedServerName,
   );
 
-  try {
-    pool = await mapServerNameToPoolConnection(selectedServerName);
-  } catch (e) {
-    hasError = true;
-    log.error('failed to get pool connection', {
-      error: e,
-      selectedServerName,
-    });
-    return {
-      pool: null,
-      selectedServerName,
-      hasError,
-      remainingCandidates,
-    };
-  }
+  const { success, pool } = await connectToPool(selectedServerName, log);
 
-  if (!pool) {
-    hasError = true;
-    log.error('failed to get pool', { candidateList, serverNameOverride });
-  } else {
+  if (success) {
     log.info('get pool result', {
       candidateList,
       selectedServerName,
@@ -74,7 +72,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
   return {
     pool,
     selectedServerName,
-    hasError,
+    hasError: !success,
     remainingCandidates,
   };
 };
