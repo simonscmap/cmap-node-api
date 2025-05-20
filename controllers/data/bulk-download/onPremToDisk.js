@@ -7,7 +7,7 @@ const { getPool } = require('../../../utility/queryHandler/getPool');
 const formatDate = require('../../../utility/queryHandler/formatDate');
 
 const initializeLogger = require('../../../log-service');
-const moduleLogger = initializeLogger('router queryOnPrem');
+const moduleLogger = initializeLogger('router onPremToDisk');
 
 // returns null or an array of remaining candidates
 const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
