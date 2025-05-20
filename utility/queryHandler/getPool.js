@@ -4,14 +4,13 @@ const {
   pickRandomArrayItem,
   mapServerNameToPoolConnection,
 } = require('../router/serverPoolMapper');
-
 const initializeLogger = require('../../log-service');
 const moduleLogger = initializeLogger('router getPool');
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
   let pool;
-  let poolName;
-  let error = false;
+  let selectedServerName;
+  let hasError = false;
   const log = moduleLogger
     .addContext(['candidates', candidateList])
     .addContext(['serverNameOverride', serverNameOverride]);
@@ -40,44 +39,52 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   // NOTE if pickRandomItem is passed an empty list, it will return `undefined`
   // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-  poolName = pickRandomArrayItem(candidates);
+  selectedServerName = pickRandomArrayItem(candidates);
 
-  let remainingCandidates = candidateList.filter((c) => c !== poolName);
+  let remainingCandidates = candidateList.filter(
+    (c) => c !== selectedServerName,
+  );
 
   try {
-    if (poolName === undefined) {
+    if (selectedServerName === undefined) {
       log.warn('could not settle pool name, defaulting to rainier', {
         candidateList,
       });
-      poolName = SERVER_NAMES.rainier;
+      selectedServerName = SERVER_NAMES.rainier;
       pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
     } else {
-      pool = await mapServerNameToPoolConnection(poolName);
+      pool = await mapServerNameToPoolConnection(selectedServerName);
     }
   } catch (e) {
-    error = true;
-    log.error('failed to get pool connection', { error: e, poolName });
+    hasError = true;
+    log.error('failed to get pool connection', {
+      error: e,
+      poolName: selectedServerName,
+    });
     // Return remaining candidates to trigger retry
     return {
       pool: null,
-      poolName,
-      error,
-      remainingCandidates, // This will trigger the retry mechanism
+      selectedServerName,
+      hasError,
+      remainingCandidates,
     };
   }
   // this mapping will default to rainier
 
   if (!pool) {
-    error = true;
+    hasError = true;
     log.error('failed to get pool', { candidateList, serverNameOverride });
   } else {
-    log.info('get pool result', { candidateList, poolName });
+    log.info('get pool result', {
+      candidateList,
+      selectedServerName,
+    });
   }
 
   return {
     pool,
-    poolName,
-    error,
+    selectedServerName,
+    hasError,
     remainingCandidates,
   };
 };

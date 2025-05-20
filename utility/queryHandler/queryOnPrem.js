@@ -30,12 +30,10 @@ const executeQueryOnPrem = async (
 
   let serverNameOverride = req.query.servername;
 
-  let { pool, poolName, error, remainingCandidates } = await getPool(
-    candidateList,
-    serverNameOverride,
-  );
+  let { pool, selectedServerName, hasError, remainingCandidates } =
+    await getPool(candidateList, serverNameOverride);
 
-  if (error) {
+  if (hasError) {
     log.error('getPool failed', {
       serverNameOverride,
       candidateList,
@@ -61,7 +59,7 @@ const executeQueryOnPrem = async (
 
   // 2. create request object
 
-  log.debug('making request', { poolName });
+  log.debug('making request', { selectedServerName });
 
   let request = new sql.Request(pool);
 
@@ -97,18 +95,9 @@ const executeQueryOnPrem = async (
   });
 
   request.on('row', (row) => {
-    // TEMP
-    if (remainingCandidates.length > 0) {
-      // requestError = true;
-      // request.emit('error', new Error('oops'));
-      // request.cancel();
-      // return;
-    }
-    // END TEMP
-
     if (!res.headersSent) {
       log.info('writing headers and beginning response stream', {});
-      res.set('X-Data-Source-Targeted', poolName || 'default');
+      res.set('X-Data-Source-Targeted', selectedServerName || 'default');
       res.set('Access-Control-Expose-Headers', 'X-Data-Source-Targeted');
       res.writeHead(200, headers);
     } else {
@@ -151,7 +140,7 @@ const executeQueryOnPrem = async (
     requestError = true;
 
     log.error('error in query handler', {
-      poolName,
+      selectedServerName,
       error: err,
       query: req.cmapApiCallDetails.query,
       authMethod:

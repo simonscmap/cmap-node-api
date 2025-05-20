@@ -10,31 +10,33 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
     .addContext(['query', query]);
 
   // 1. determine pool
-  let { pool, poolName, error, remainingCandidates } = await getPool(
-    candidateList,
-  );
+  let { pool, selectedServerName, hasError, remainingCandidates } =
+    await getPool(candidateList);
 
-  if (error) {
+  if (hasError) {
     log.error('getPool failed', {
       candidateList,
       remainingCandidates,
     });
-    return [error, null, remainingCandidates];
+    return [hasError, null, remainingCandidates];
   }
 
   log.info(`remaining candidates: ${remainingCandidates.join(' ')}`);
 
   // 2. create request object
 
-  log.trace('creating request', { poolName, pool });
+  log.trace('creating request', { selectedServerName, pool });
 
   let request;
   try {
     request = await new sql.Request(pool);
   } catch (e) {
-    log.error(`unable to create new sql request from pool ${poolName}`, {
-      error: e,
-    });
+    log.error(
+      `unable to create new sql request from server pool ${selectedServerName}`,
+      {
+        error: e,
+      },
+    );
     return [e, null, remainingCandidates];
   }
 
