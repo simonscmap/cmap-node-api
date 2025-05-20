@@ -3,7 +3,6 @@ const stringify = require('csv-stringify');
 const Accumulator = require('./AccumulatorStream');
 const generateError = require('../../errorHandling/generateError');
 const initializeLogger = require('../../log-service');
-const { logErrors, logMessages } = require('../../log-service/log-helpers');
 const { getPool } = require('./getPool');
 const formatDate = require('./formatDate');
 const moduleLogger = initializeLogger('router queryOnPrem');
@@ -31,8 +30,10 @@ const executeQueryOnPrem = async (
 
   let serverNameOverride = req.query.servername;
 
-  let { pool, poolName, error, errors, messages, remainingCandidates } =
-    await getPool(candidateList, serverNameOverride);
+  let { pool, poolName, error, remainingCandidates } = await getPool(
+    candidateList,
+    serverNameOverride,
+  );
 
   if (error) {
     log.error('getPool failed', {
@@ -51,8 +52,6 @@ const executeQueryOnPrem = async (
 
     return remainingCandidates;
   }
-
-  logMessages(log)(messages);
 
   log.info(
     `remaining candidates: ${

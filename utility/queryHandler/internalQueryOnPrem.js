@@ -1,6 +1,5 @@
 const sql = require('mssql');
 const initializeLogger = require('../../log-service');
-const { logErrors, logMessages } = require('../../log-service/log-helpers');
 const { getPool } = require('./getPool');
 const moduleLogger = initializeLogger('router/intenalQueryOnPrem');
 
@@ -11,8 +10,9 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
     .addContext(['query', query]);
 
   // 1. determine pool
-  let { pool, poolName, error, errors, messages, remainingCandidates } =
-    await getPool(candidateList);
+  let { pool, poolName, error, remainingCandidates } = await getPool(
+    candidateList,
+  );
 
   if (error) {
     log.error('getPool failed', {
@@ -21,8 +21,6 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
     });
     return [error, null, remainingCandidates];
   }
-
-  logMessages(log)(messages);
 
   log.info(`remaining candidates: ${remainingCandidates.join(' ')}`);
 
