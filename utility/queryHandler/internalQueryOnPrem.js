@@ -15,8 +15,10 @@ const executeQueryOnPrem = async (query, candidateList = [], requestId) => {
     await getPool(candidateList);
 
   if (error) {
-    logErrors(log)(errors);
-    logMessages(log)(messages);
+    log.error('getPool failed', {
+      candidateList,
+      remainingCandidates,
+    });
     return [error, null, remainingCandidates];
   }
 

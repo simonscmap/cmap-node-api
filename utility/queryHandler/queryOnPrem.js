@@ -35,9 +35,11 @@ const executeQueryOnPrem = async (
     await getPool(candidateList, serverNameOverride);
 
   if (error) {
-    logErrors(log)(errors);
-    logMessages(log)(messages);
-
+    log.error('getPool failed', {
+      serverNameOverride,
+      candidateList,
+      remainingCandidates,
+    });
     if (serverNameOverride) {
       res
         .status(400)
