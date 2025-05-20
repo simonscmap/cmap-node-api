@@ -1,7 +1,7 @@
 const { SERVER_NAMES } = require('../constants');
 
 const {
-  pickRandomItem,
+  pickRandomArrayItem,
   mapServerNameToPoolConnection,
 } = require('../router/serverPoolMapper');
 
@@ -38,7 +38,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   // NOTE if pickRandomItem is passed an empty list, it will return `undefined`
   // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-  poolName = pickRandomItem(candidates);
+  poolName = pickRandomArrayItem(candidates);
 
   let remainingCandidates = candidateList.filter((c) => c !== poolName);
 

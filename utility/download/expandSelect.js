@@ -14,7 +14,7 @@ const {
 } = require('../../utility/router/queries');
 const {
   mapServerNameToPoolConnection,
-  pickRandomItem,
+  pickRandomArrayItem,
 } = require('../router/serverPoolMapper');
 const cacheAsync = require('../cacheAsync');
 const initializeLogger = require('../../log-service');
@@ -84,7 +84,7 @@ const datasetIsOnlyOnCluster = (candidates) => {
 // return an async job with enclosed args
 const fetchColumnNames = (tblName, onPremLocations) => async () => {
   // pick random server from available ones
-  let serverName = pickRandomItem(onPremLocations);
+  let serverName = pickRandomArrayItem(onPremLocations);
   log.debug(`round robin returned ${serverName}`, { onPremLocations });
   let pool;
   try {
