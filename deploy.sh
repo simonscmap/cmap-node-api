@@ -37,9 +37,6 @@ echo "⭐️ starting deploy script";
 date;
 echo "⭐️ Running from: $SCRIPT_DIR"
 
-# Create releases directory if it doesn't exist
-mkdir -p "$SCRIPT_DIR/deployments"
-
 echo "⭐️ checking google key file exists"
 
 projectId=$(jq '.project_id' "$SCRIPT_DIR/utility/googleServiceAccountKeyFile.json")
@@ -87,9 +84,12 @@ echo "⭐️ API Version"
 apiVer=$(jq '.version' "$SCRIPT_DIR/package.json" | tr -d '"')
 echo $apiVer
 
+# Create deployments directory in parent directory if it doesn't exist
+mkdir -p "$PARENT_DIR/deployments"
+
 echo "⭐️ creating archive";
 cd "$SCRIPT_DIR"
-zip -q -r "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" . -x@"$SCRIPT_DIR/exclusionList"
+zip -q -r "$PARENT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" . -x@"$SCRIPT_DIR/exclusionList"
 
 # for intel based computers
-# 7z a -tzip "$SCRIPT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" ./ -xr@exclusionList
+# 7z a -tzip "$PARENT_DIR/deployments/$(date +%Y%m%d-%H%M)_back-${apiVer}_front-${webAppVer}.zip" ./ -xr@exclusionList
