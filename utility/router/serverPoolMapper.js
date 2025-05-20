@@ -22,7 +22,7 @@ const mapServerNameToPoolConnection = async (name) => {
     // case SERVER_NAMES.mariana:
     //   return await pools.mariana;
     default:
-      log.warn('defaulting to dataReadOnlyPool', { name });
+      log.warn(`defaulting to ${SERVER_NAMES.rainier}`, { name });
       return await pools.rainier;
   }
 };
