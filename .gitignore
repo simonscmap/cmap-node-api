@@ -49,4 +49,3 @@ config/UNSAFE_jwtConfig.js
 .sentryclirc
 
 .vscode/
-deployments/

@@ -207,7 +207,25 @@ function log(level, tags, context, message, isError, data) {
   }
 
   if (data) {
-    payload.data = data;
+    // Properly serialize Error objects
+    if (data instanceof Error) {
+      payload.data = {
+        message: data.message,
+        stack: data.stack,
+        name: data.name,
+      };
+    } else if (data.error instanceof Error) {
+      payload.data = {
+        ...data,
+        error: {
+          message: data.error.message,
+          stack: data.error.stack,
+          name: data.error.name,
+        },
+      };
+    } else {
+      payload.data = data;
+    }
   }
 
   // 4. PRODUCTION write log to stdout

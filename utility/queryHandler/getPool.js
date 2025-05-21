@@ -1,73 +1,74 @@
 const { SERVER_NAMES } = require('../constants');
 
 const {
-  roundRobin,
+  pickRandomArrayItem,
   mapServerNameToPoolConnection,
-} = require('../router/roundRobin');
+} = require('../router/serverPoolMapper');
+const initializeLogger = require('../../log-service');
+const log = initializeLogger('router getPool');
 
-const getPool = async (candidateList = [], serverNameOverride = '') => {
-  let pool;
-  let poolName;
-  let error = false;
-  // defer logging to the caller, which has requestId context
-  // by returning log info as 'errors' and 'messages'
-  let errors = [];
-  let messages = [];
-
-  // adjust the candidates based on override and forceRainier
-  let overrideName = serverNameOverride.toLowerCase();
-
-  // remove cluster from candidates
-  // however, cluster will be included in remaining candidates list
+const selectServerName = (candidateList, serverNameOverride) => {
+  const overrideName = serverNameOverride.toLowerCase();
   let candidates = candidateList.slice(0).filter((c) => c !== 'cluster');
 
   if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
-      messages.push([
-        'server name override in use',
-        { serverNameOverride, candidateList },
-      ]);
-      candidates = [overrideName];
-    } else {
-      messages.push([
-        'requested server not among candidate servers',
-        { serverNameOverride, candidateList },
-      ]);
+      log.info('server name override in use', {
+        serverNameOverride,
+        candidateList,
+      });
+      return overrideName;
     }
+
+    log.warn('requested server not among candidate servers', {
+      serverNameOverride,
+      candidateList,
+    });
   }
 
-  // NOTE if roundRobin is passed an empty list, it will return `undefined`
-  // which will map to a default pool in the subsequent call to `mapServerNameToPoolConnection`
-  poolName = roundRobin(candidates);
+  const selectedServer = pickRandomArrayItem(candidates);
+  return selectedServer || SERVER_NAMES.rainier;
+};
 
-  let remainingCandidates = candidateList.filter((c) => c !== poolName);
-
-  if (poolName === undefined) {
-    messages.push([
-      'could not settle pool name, defaulting to rainier',
-      { candidateList },
-    ]);
-    poolName = SERVER_NAMES.rainier;
-    pool = await mapServerNameToPoolConnection(SERVER_NAMES.rainier);
-  } else {
-    pool = await mapServerNameToPoolConnection(poolName);
+const connectToPool = async (serverName, log) => {
+  try {
+    const pool = await mapServerNameToPoolConnection(serverName);
+    if (!pool) {
+      log.error('failed to get pool', { serverName });
+      return { success: false, pool: null };
+    }
+    return { success: true, pool };
+  } catch (error) {
+    log.error('failed to get pool connection', {
+      error,
+      serverName,
+    });
+    return { success: false, pool: null };
   }
+};
 
-  // this mapping will default to rainier
+const getPool = async (candidateList = [], serverNameOverride = '') => {
+  const selectedServerName = selectServerName(
+    candidateList,
+    serverNameOverride,
+  );
+  const remainingCandidates = candidateList.filter(
+    (c) => c !== selectedServerName,
+  );
 
-  if (!pool) {
-    error = true;
-    errors.push(['failed to get pool', { candidateList, serverNameOverride }]);
-  } else {
-    messages.push(['get pool result', { candidateList, poolName }]);
+  const { success, pool } = await connectToPool(selectedServerName, log);
+
+  if (success) {
+    log.info('get pool result', {
+      candidateList,
+      selectedServerName,
+    });
   }
 
   return {
     pool,
-    poolName,
-    error,
-    errors,
-    messages,
+    selectedServerName,
+    hasError: !success,
     remainingCandidates,
   };
 };
