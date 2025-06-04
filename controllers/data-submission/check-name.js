@@ -12,10 +12,15 @@ const getOriginalNames = async (targetSubmissionId) => {
   let resp;
   try {
     const checkLongNameRequest = new sql.Request(pool);
+    checkLongNameRequest.input(
+      'targetSubmissionId',
+      sql.Int,
+      targetSubmissionId,
+    );
     resp = await checkLongNameRequest.query(`
         select Filename_Root, Dataset_Long_Name
         from tblData_Submissions
-        where ID = ${targetSubmissionId}
+        where ID = @targetSubmissionId
       `);
   } catch (e) {
     return [e];
@@ -37,9 +42,10 @@ const checkLongName = async (longName, userId, targetSubmissionId) => {
 
   try {
     const checkLongNameRequest = new sql.Request(pool);
+    checkLongNameRequest.input('longName', sql.NVarChar, longName);
     const longNameResponse = await checkLongNameRequest.query(`
       select ID from tblDatasets
-      where Dataset_Long_Name = '${longName}'
+      where Dataset_Long_Name = @longName
     `);
     let id = safePath(['recordset', '0', 'ID'])(longNameResponse);
     if (id) {
@@ -52,9 +58,10 @@ const checkLongName = async (longName, userId, targetSubmissionId) => {
 
   try {
     const checkLongNameRequest = new sql.Request(pool);
+    checkLongNameRequest.input('longName', sql.NVarChar, longName);
     const resp = await checkLongNameRequest.query(`
         select ID, Submitter_ID from tblData_Submissions
-        where Dataset_Long_Name = '${longName}'
+        where Dataset_Long_Name = @longName
       `);
     if (resp && resp.recordset && resp.recordset.length === 0) {
       // no record with that long name found
@@ -123,9 +130,10 @@ const checkShortName = async (
   let queryPublishedResp;
   try {
     const checkNameRequest = new sql.Request(pool);
+    checkNameRequest.input('shortName', sql.NVarChar, shortName);
     queryPublishedResp = await checkNameRequest.query(`
         select ID from tblDatasets
-        where Dataset_Name = '${shortName}'
+        where Dataset_Name = @shortName
     `);
     // the short name is already published
   } catch (e) {
@@ -159,9 +167,10 @@ const checkShortName = async (
   let conflictResp;
   try {
     const checkShortNameRequest = new sql.Request(pool);
+    checkShortNameRequest.input('shortName', sql.NVarChar, shortName);
     conflictResp = await checkShortNameRequest.query(`
         select ID, Submitter_ID from tblData_Submissions
-        where Filename_Root = '${shortName}'
+        where Filename_Root = @shortName
     `);
   } catch (e) {
     log.error('sql error', { e });
