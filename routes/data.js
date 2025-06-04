@@ -105,4 +105,9 @@ router.get(
   asyncControllerWrapper(dataController.getShareLinkController),
 );
 
+router.get(
+  '/vaultfiles/:shortName',
+  asyncControllerWrapper(dataController.getVaultFilesController),
+);
+
 module.exports = router;

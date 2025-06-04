@@ -222,8 +222,9 @@ const queryModification = async (req, res, next) => {
   }
 
   // if 'select * ...', replace '*' with columns
-  let [errorMsg, updatedQuery, queryWasModified] =
-    await expandIfSelectStar(query);
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar(
+    query,
+  );
 
   if (errorMsg) {
     log.warn(errorMsg, { query });
@@ -519,4 +520,5 @@ module.exports = {
   tableStats,
   trajectoryPointCounts,
   getShareLinkController: vaultController.getShareLinkController,
+  getVaultFilesController: vaultController.getVaultFilesController,
 };
