@@ -30,6 +30,92 @@ function forceDropboxFolderDownload(dropboxLink) {
   return url.toString();
 }
 
+// Function to recursively get all files in a folder including subfolders
+const getFilesRecursively = async (path, log) => {
+  const dropbox = dbx;
+
+  // Helper function to handle pagination
+  const listFolderContinue = async (files, cursor) => {
+    try {
+      const response = await dropbox.filesListFolderContinue({ cursor });
+
+      // Process files from this batch
+      const newFiles = response.result.entries
+        .filter((entry) => entry['.tag'] === 'file')
+        .map((file) => ({
+          name: file.name,
+          path: file.path_display,
+          size: file.size,
+          sizeFormatted: formatFileSize(file.size),
+        }));
+
+      const allFiles = [...files, ...newFiles];
+
+      // If there are more files, continue pagination
+      if (response.result.has_more) {
+        return await listFolderContinue(allFiles, response.result.cursor);
+      }
+
+      return allFiles;
+    } catch (error) {
+      log.error('Error in pagination', { cursor, error });
+      // Return files collected so far even if pagination fails
+      return files;
+    }
+  };
+
+  try {
+    // Initial folder listing
+    const listFolderResponse = await dropbox.filesListFolder({
+      path,
+      recursive: true,
+      include_media_info: false,
+      include_deleted: false,
+      include_non_downloadable_files: false,
+    });
+
+    // Process files from initial response
+    let files = listFolderResponse.result.entries
+      .filter((entry) => entry['.tag'] === 'file')
+      .map((file) => ({
+        name: file.name,
+        path: file.path_display,
+        size: file.size,
+        sizeFormatted: formatFileSize(file.size),
+      }));
+
+    // If there are more files, handle pagination
+    if (listFolderResponse.result.has_more) {
+      files = await listFolderContinue(files, listFolderResponse.result.cursor);
+    }
+
+    return [null, files];
+  } catch (error) {
+    // Check if it's a "not found" error, which is fine (empty folder)
+    if (
+      error.status === 409 &&
+      error.error.error_summary.includes('path/not_found')
+    ) {
+      log.info('Folder not found or empty', { path });
+      return [null, []];
+    }
+
+    log.error('Error getting files recursively', { path, error });
+    return [error, null];
+  }
+};
+
+// Helper function to format file size
+const formatFileSize = (bytes) => {
+  if (!+bytes) return '0 Bytes';
+
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+
 // vaultController: return a share link to the correct folder given a shortName
 
 // 1. get dataset id from short name
@@ -229,6 +315,85 @@ const getShareLinkController = async (req, res) => {
   return res.json(payload);
 };
 
+// New controller to get detailed file information for a dataset
+const getVaultFilesController = async (req, res) => {
+  const log = moduleLogger.setReqId(req.reqId);
+
+  // Get the dataset short name from request
+  const shortName = req.params.shortName;
+
+  if (!shortName) {
+    log.warn('No short name provided', { params: req.params });
+    return res.status(400).json({ error: 'Dataset short name is required' });
+  }
+
+  // 1. Get dataset ID from short name
+  const datasetId = await getDatasetId(shortName, log);
+
+  if (!datasetId) {
+    log.error('No dataset id found for short name', { shortName });
+    return res.status(404).json({ error: 'Dataset not found' });
+  }
+
+  // 2. Get vault record for this dataset
+  const qs = `select top 1 * from tblDataset_Vault where Dataset_ID=${datasetId};`;
+  const [err, vaultResp] = await directQuery(qs, undefined, log);
+
+  if (err) {
+    log.error('Error retrieving vault record', {
+      shortName,
+      datasetId,
+      error: err,
+    });
+    return res
+      .status(500)
+      .json({ error: 'Error retrieving vault information' });
+  }
+
+  const result = safePath(['recordset', 0])(vaultResp);
+  if (!result) {
+    log.error('No vault record found', { shortName, datasetId });
+    return res.status(404).json({ error: 'No vault record found for dataset' });
+  }
+
+  // 3. Get file information from the vault folders
+  const vaultPath = ensureTrailingSlash(result.Vault_Path);
+  const repPath = `/vault/${vaultPath}rep`;
+  const nrtPath = `/vault/${vaultPath}nrt`;
+  const rawPath = `/vault/${vaultPath}raw`;
+
+  // Get files from each folder
+  const [repErr, repFiles] = await getFilesRecursively(repPath, log);
+  const [nrtErr, nrtFiles] = await getFilesRecursively(nrtPath, log);
+  const [rawErr, rawFiles] = await getFilesRecursively(rawPath, log);
+
+  // Combine file information
+  const filesByFolder = {
+    rep: repErr ? [] : repFiles,
+    nrt: nrtErr ? [] : nrtFiles,
+    raw: rawErr ? [] : rawFiles,
+  };
+
+  // 4. Return the payload with file information
+  const payload = {
+    shortName,
+    datasetId,
+    files: filesByFolder,
+    summary: {
+      repCount: filesByFolder.rep.length,
+      nrtCount: filesByFolder.nrt.length,
+      rawCount: filesByFolder.raw.length,
+      totalCount:
+        filesByFolder.rep.length +
+        filesByFolder.nrt.length +
+        filesByFolder.raw.length,
+    },
+  };
+
+  return res.json(payload);
+};
+
 module.exports = {
   getShareLinkController,
+  getVaultFilesController,
 };
