@@ -19,6 +19,7 @@ const namedDataController = require('./namedDataController');
 const {
   getShareLinkController,
   getVaultFilesInfo,
+  downloadDropboxVaultFiles,
 } = require('./dropbox-vault/vaultController');
 
 const moduleLogger = initializeLogger('controllers/data');
@@ -524,4 +525,5 @@ module.exports = {
   trajectoryPointCounts,
   getShareLinkController,
   getVaultFilesInfo,
+  downloadDropboxVaultFiles,
 };

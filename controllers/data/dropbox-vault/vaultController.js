@@ -392,8 +392,14 @@ const getVaultFilesInfo = async (req, res) => {
 
   return res.json(payload);
 };
+const downloadDropboxVaultFiles = async (req, res) => {
+  const log = moduleLogger.setReqId(req.reqId);
+  log.info('downloadDropboxVaultFiles', { req: req.body });
+  return res.json({ message: 'downloadDropboxVaultFiles' });
+};
 
 module.exports = {
   getShareLinkController,
   getVaultFilesInfo,
+  downloadDropboxVaultFiles,
 };
