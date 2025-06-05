@@ -9,7 +9,7 @@ const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
 const { URL } = require('url');
 
-const moduleLogger = initLog('controllers/dropbox');
+const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
