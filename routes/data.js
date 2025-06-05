@@ -107,7 +107,7 @@ router.get(
 );
 
 router.get(
-  '/dropbox-vault/get-files/:shortName',
+  '/dropbox-vault/get-files-info/:shortName',
   asyncControllerWrapper(dataController.getVaultFilesController),
 );
 
