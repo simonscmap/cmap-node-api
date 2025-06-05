@@ -1,12 +1,5 @@
 // NOTE: this module is for accessing files in the vault, not the submissions app
 // these require different dropbox credentials
-
-const dbx = require('../../../utility/DropboxVault');
-const { getDatasetId } = require('../../../queries/datasetId');
-const directQuery = require('../../../utility/directQuery');
-const { safePath, safePathOr } = require('../../../utility/objectUtils');
-const initLog = require('../../../log-service');
-const getVaultFolderMetadata = require('../getVaultInfo');
 const { URL } = require('url');
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +7,13 @@ const os = require('os');
 const archiver = require('archiver');
 const { promisify } = require('util');
 const mkdtemp = promisify(fs.mkdtemp);
+
+const dbx = require('../../../utility/DropboxVault');
+const { getDatasetId } = require('../../../queries/datasetId');
+const directQuery = require('../../../utility/directQuery');
+const { safePath, safePathOr } = require('../../../utility/objectUtils');
+const initLog = require('../../../log-service');
+const getVaultFolderMetadata = require('../getVaultInfo');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 
