@@ -316,7 +316,7 @@ const getShareLinkController = async (req, res) => {
 };
 
 // New controller to get detailed file information for a dataset
-const getVaultFilesController = async (req, res) => {
+const getVaultFilesInfo = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
 
   // Get the dataset short name from request
@@ -395,5 +395,5 @@ const getVaultFilesController = async (req, res) => {
 
 module.exports = {
   getShareLinkController,
-  getVaultFilesController,
+  getVaultFilesInfo,
 };

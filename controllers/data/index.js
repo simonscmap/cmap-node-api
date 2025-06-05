@@ -16,7 +16,10 @@ const { expandIfSelectStar } = require('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
 const { bulkDownloadController } = require('./bulk-download');
 const namedDataController = require('./namedDataController');
-const vaultController = require('./dropbox-vault/vaultController');
+const {
+  getShareLinkController,
+  getVaultFilesInfo,
+} = require('./dropbox-vault/vaultController');
 
 const moduleLogger = initializeLogger('controllers/data');
 
@@ -519,6 +522,6 @@ module.exports = {
   storedProcedure,
   tableStats,
   trajectoryPointCounts,
-  getShareLinkController: vaultController.getShareLinkController,
-  getVaultFilesController: vaultController.getVaultFilesController,
+  getShareLinkController,
+  getVaultFilesInfo,
 };

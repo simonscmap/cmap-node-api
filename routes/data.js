@@ -108,7 +108,12 @@ router.get(
 
 router.get(
   '/dropbox-vault/get-files-info/:shortName',
-  asyncControllerWrapper(dataController.getVaultFilesController),
+  asyncControllerWrapper(dataController.getVaultFilesInfo),
+);
+
+router.post(
+  '/dropbox-vault/download-files',
+  asyncControllerWrapper(dataController.downloadDropboxVaultFiles),
 );
 
 module.exports = router;
