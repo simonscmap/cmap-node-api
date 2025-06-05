@@ -5,8 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const archiver = require('archiver');
-const { promisify } = require('util');
-const mkdtemp = promisify(fs.mkdtemp);
+// const { promisify } = require('util');
+// const mkdtemp = promisify(fs.mkdtemp);
 
 const dbx = require('../../../utility/DropboxVault');
 const { getDatasetId } = require('../../../queries/datasetId');
@@ -413,7 +413,9 @@ const downloadDropboxVaultFiles = async (req, res) => {
 
   let tempDir;
   try {
-    tempDir = await mkdtemp(path.join(os.tmpdir(), 'cmap-vault-download-'));
+    tempDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'cmap-vault-download-'),
+    );
     log.info('Created temporary directory', { tempDir });
   } catch (error) {
     log.error('Failed to create temporary directory', { error });
@@ -422,7 +424,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
 
   // Download each file from Dropbox
   const downloadPromises = files.map(async (file) => {
-    const { path: filePath, name } = file;
+    const { filePath, name } = file;
     log.info('Downloading file', { filePath, name });
 
     try {
