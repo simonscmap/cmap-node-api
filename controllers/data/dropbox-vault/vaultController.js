@@ -392,9 +392,23 @@ const getVaultFilesInfo = async (req, res) => {
 
   return res.json(payload);
 };
+
 const downloadDropboxVaultFiles = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
-  log.info('downloadDropboxVaultFiles', { req: req.body });
+  const { shortName, datasetId, files } = req.body;
+  log.info('downloadDropboxVaultFiles', { shortName, datasetId, files });
+  files.forEach((file) => {
+    const { path, name, folder } = file;
+    log.info('downloading file', { path, name, folder });
+    //   {
+    // message: 'downloading file',
+    // data: {
+    //   path: '/vault/observation/in-situ/cruise/tblMOSAiC_FCM_CTD_leg1_5/rep/tblMOSAiC_FCM_CTD_leg1_5_data.parquet',
+    //   name: 'tblMOSAiC_FCM_CTD_leg1_5_data.parquet',
+    //     folder: 'REP',
+    //   },
+    // };
+  });
   return res.json({ message: 'downloadDropboxVaultFiles' });
 };
 
