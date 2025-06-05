@@ -8,6 +8,12 @@ const { safePath, safePathOr } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
 const { URL } = require('url');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const archiver = require('archiver');
+const { promisify } = require('util');
+const mkdtemp = promisify(fs.mkdtemp);
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 
@@ -397,19 +403,104 @@ const downloadDropboxVaultFiles = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
   const { shortName, datasetId, files } = req.body;
   log.info('downloadDropboxVaultFiles', { shortName, datasetId, files });
-  files.forEach((file) => {
-    const { path, name, folder } = file;
-    log.info('downloading file', { path, name, folder });
-    //   {
-    // message: 'downloading file',
-    // data: {
-    //   path: '/vault/observation/in-situ/cruise/tblMOSAiC_FCM_CTD_leg1_5/rep/tblMOSAiC_FCM_CTD_leg1_5_data.parquet',
-    //   name: 'tblMOSAiC_FCM_CTD_leg1_5_data.parquet',
-    //     folder: 'REP',
-    //   },
-    // };
+
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    log.warn('No files provided for download', { shortName, datasetId });
+    return res.status(400).json({ error: 'No files provided for download' });
+  }
+
+  // Create a temporary directory to store the files
+
+  let tempDir;
+  try {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), 'cmap-vault-download-'));
+    log.info('Created temporary directory', { tempDir });
+  } catch (error) {
+    log.error('Failed to create temporary directory', { error });
+    return res.status(500).json({ error: 'Failed to prepare download' });
+  }
+
+  // Download each file from Dropbox
+  const downloadPromises = files.map(async (file) => {
+    const { path: filePath, name } = file;
+    log.info('Downloading file', { filePath, name });
+
+    try {
+      // Download the file from Dropbox
+      const response = await dbx.filesDownload({ path: filePath });
+
+      // All files go directly in the temp directory
+      const targetPath = path.join(tempDir, name);
+
+      // Write the file to disk
+      await fs.promises.writeFile(targetPath, response.result.fileBinary);
+
+      log.info('File downloaded successfully', { filePath, targetPath });
+      return { success: true, filePath, targetPath };
+    } catch (error) {
+      log.error('Failed to download file', { filePath, error });
+      return { success: false, filePath, error };
+    }
   });
-  return res.json({ message: 'downloadDropboxVaultFiles' });
+
+  // Wait for all downloads to complete
+  const downloadResults = await Promise.all(downloadPromises);
+
+  // Check if any downloads failed
+  const failedDownloads = downloadResults.filter((result) => !result.success);
+  if (failedDownloads.length > 0) {
+    log.warn('Some files failed to download', {
+      failedCount: failedDownloads.length,
+    });
+  }
+
+  // Create a zip file with all the downloaded files
+  try {
+    // Set the appropriate headers for file download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${shortName}_vault_files.zip"`,
+    );
+
+    // Create a zip archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 }, // Maximum compression
+    });
+
+    // Pipe the archive to the response
+    archive.pipe(res);
+
+    // Get all files from the temp directory
+    const files = await fs.promises.readdir(tempDir);
+
+    // Add each file directly to the root of the archive
+    for (const file of files) {
+      const filePath = path.join(tempDir, file);
+      archive.file(filePath, { name: file }); // Use the filename as the name in the archive
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+    log.info('Archive sent successfully', {
+      shortName,
+      fileCount: files.length,
+    });
+
+    // Clean up: Delete the temporary directory after response is sent
+    fs.promises
+      .rmdir(tempDir, { recursive: true })
+      .then(() => log.info('Temporary directory cleaned up', { tempDir }))
+      .catch((error) =>
+        log.error('Failed to clean up temporary directory', { tempDir, error }),
+      );
+
+    return;
+  } catch (error) {
+    log.error('Failed to create zip archive', { error });
+    return res.status(500).json({ error: 'Failed to create download archive' });
+  }
 };
 
 module.exports = {
