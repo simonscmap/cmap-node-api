@@ -68,6 +68,11 @@ const cruisesForDatasetList = async (datasetIds, reqId) => {
 };
 
 const fetchDatasetsForCruises = async (cruiseIds, reqId) => {
+  const log = moduleLogger.setReqId(reqId);
+  log.info('fetchDatasetsForCruises', { cruiseIds });
+  if (!cruiseIds || cruiseIds.length === 0) {
+    return [null, {}];
+  }
   const queryString = `
     SELECT Dataset_ID, Cruise_ID FROM tblDataset_Cruises
     WHERE Cruise_ID IN (${cruiseIds.join(', ')})
@@ -322,6 +327,9 @@ const assembleTrajectories = (cIds = [], tPts = [], options) => {
 };
 
 const fetchAllTrajectories = async (cruiseIds, reqId, options = {}) => {
+  if (!cruiseIds || cruiseIds.length === 0) {
+    return [null, {}];
+  }
   const timer = debugTimer('fetch trajectories', { mergeSimilar: true });
   timer.start();
   options.timer = timer;
@@ -336,7 +344,7 @@ const fetchAllTrajectories = async (cruiseIds, reqId, options = {}) => {
         [Cruise_ID] IN (${cruiseIds.join(',')})
     ORDER BY [Cruise_ID], [time], [lat], [lon]`;
   const operationName = 'fetch cruise trajectories';
-
+  log.info('fetchAllTrajectories', { cruiseIds });
   const [error, result] = await makeDataQuery(queryString, reqId, {
     operationName,
   });

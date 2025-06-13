@@ -127,11 +127,14 @@ const getAllDatasetShortNames = async (datasetIds, reqId) => {
     log.error('received wrong argument to getAllDatasetShortNames');
     return [new Error('wrong argument type')];
   }
-
+  if (datasetIds.length === 0) {
+    return [null, {}];
+  }
   const pool = await pools.dataReadOnlyPool;
   const request = new sql.Request(pool);
 
   let response;
+  log.info('getAllDatasetShortNames', { datasetIds });
   try {
     response = await request.query(`
       SELECT ID, Dataset_Name FROM tblDatasets
