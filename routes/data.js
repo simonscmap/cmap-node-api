@@ -100,9 +100,15 @@ router.get(
   asyncControllerWrapper(dataController.namedDataController),
 );
 
+// Dropbox vault
 router.get(
   '/share/:shortName',
   asyncControllerWrapper(dataController.getShareLinkController),
+);
+
+router.get(
+  '/dropbox-vault/get-files-info/:shortName',
+  asyncControllerWrapper(dataController.getVaultFilesController),
 );
 
 module.exports = router;
