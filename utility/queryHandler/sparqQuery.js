@@ -1,7 +1,7 @@
 const { DBSQLClient } = require('@databricks/sql');
 const initializeLogger = require('../../log-service');
-const moduleLogger = initializeLogger('queryHandler/sparqQuery');
 const { tsqlToHiveTransforms } = require('../router/pure');
+const moduleLogger = initializeLogger('utility/queryHandler/sparqQuery');
 
 const connOptions = {
   host: process.env.CLUSTER_HOST,
@@ -33,7 +33,7 @@ const queryCluster = async (query = '', requestId) => {
 
   let log = moduleLogger.setReqId(requestId).addContext(['query', query]);
 
-  log.debug('hive sql transform', { originalQuery, transformedQuery: query });
+  log.info('hive sql transform', { originalQuery, transformedQuery: query });
 
   const client = new DBSQLClient();
 
@@ -58,13 +58,13 @@ const queryCluster = async (query = '', requestId) => {
         .catch((e) => reject(e));
     });
 
-    log.trace('executing query');
+    log.info('executing query');
     const queryOperation = await session.executeStatement(query, {
       runAsync: true,
       maxRows: 10000,
     });
 
-    log.trace('fetching result');
+    log.info('fetching result');
     result = await queryOperation.fetchAll();
 
     log.trace('closing operation');
