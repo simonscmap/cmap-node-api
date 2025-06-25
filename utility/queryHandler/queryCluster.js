@@ -25,7 +25,13 @@ const headers = {
 };
 
 const executeQueryOnCluster = async (req, res, next, query) => {
-  const log = moduleLogger.setReqId(req.requestId).addContext(['query', query]);
+  const startTime = Date.now();
+  const originalQuery = query;
+  const transformedQuery = tsqlToHiveTransforms(query);
+
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', transformedQuery]);
 
   const endRespWithError = (e) => {
     if (!res.headersSent) {
@@ -57,11 +63,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.trace('opening session');
   const session = await client.openSession();
 
-  let clusterQuery = query;
-  clusterQuery = tsqlToHiveTransforms(clusterQuery);
-
-  log.info('sending query to cluster', { hiveSql: clusterQuery });
-  const queryOperation = await session.executeStatement(clusterQuery, {
+  log.info('sending query to cluster', { hiveSql: transformedQuery });
+  const queryOperation = await session.executeStatement(transformedQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,
   });
@@ -82,7 +85,15 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
   csvStream.on('error', async (e) => {
     hasError = true;
-    log.error('streaming error', { error: e });
+    log.error('streaming error', {
+      requestId: req.requestId,
+      functionName: 'executeQueryOnCluster',
+      originalQuery,
+      transformedQuery,
+      error: e.message,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
     endRespWithError(e);
   });
 
@@ -153,6 +164,17 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   await queryOperation.close();
   await session.close();
   await client.close();
+
+  log.info('query completed', {
+    requestId: req.requestId,
+    functionName: 'executeQueryOnCluster',
+    originalQuery,
+    transformedQuery,
+    rowCount,
+    chunks: pages,
+    durationMs: Date.now() - startTime,
+    success: !hasError,
+  });
 
   return null;
 };
