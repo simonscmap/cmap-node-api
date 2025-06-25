@@ -13,7 +13,7 @@ const {
   logWarnings,
 } = require('../../log-service/log-helpers');
 const { getCandidateList } = require('./queryToDatabaseTarget');
-const clusterQuery = require('../queryHandler/sparqQuery');
+const runClusterQuery = require('../queryHandler/sparqQuery');
 const internalQueryOnPrem = require('../queryHandler/internalQueryOnPrem');
 const { assertPriority, isSproc } = require('./pure');
 
@@ -50,7 +50,7 @@ async function delegateExecution(query, candidates, requestId, attempts = 0) {
   if (targetIsCluster && !queryIsExecutingSproc) {
     // there are no retries when targeting the cluster, so just return the result
     log.trace('delegating to cluster query [internal]');
-    return await clusterQuery(query, requestId);
+    return await runClusterQuery(query, requestId);
   } else {
     // if the query is a sproc with no candidates, we will still hit this execute on prem,
     // and without a candidate, it will default to rainier (but if it fails on rainier, it will not run again)
