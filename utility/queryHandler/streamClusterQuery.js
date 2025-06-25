@@ -8,7 +8,9 @@ const { Readable } = require('stream');
 const { tsqlToHiveTransforms } = require('../router/pure');
 const generateError = require('../../errorHandling/generateError');
 
-const moduleLogger = initializeLogger('utility/queryHandler/queryCluster');
+const moduleLogger = initializeLogger(
+  'utility/queryHandler/streamClusterQuery',
+);
 
 const MAX_ROWS = process.env.CLUSTER_CHUNK_MAX_ROWS || CLUSTER_CHUNK_MAX_ROWS;
 
