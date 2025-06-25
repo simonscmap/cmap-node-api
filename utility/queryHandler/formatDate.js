@@ -5,4 +5,13 @@ const formatDate = (date) => {
   return date.toISOString();
 };
 
-module.exports = formatDate;
+// Utility function to extract table name from SQL query
+const extractTableName = (query) => {
+  const match = query.match(/\bfrom\s+(\[?tbl\w+\]?)/i);
+  return match ? match[1].replace(/\[|\]/g, '') : 'unknown';
+};
+
+module.exports = {
+  formatDate,
+  extractTableName,
+};
