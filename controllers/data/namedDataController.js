@@ -1,6 +1,6 @@
 const initializeLogger = require('../../log-service');
 const moduleLogger = initializeLogger('controllers/namedData');
-const runClusterQuery = require('../../utility/queryHandler/sparqQuery');
+const runClusterQuery = require('../../utility/queryHandler/runClusterQuery');
 const preWarmCacheAsync = require('../../utility/preWarmCacheAsync');
 const cacheAsync = require('../../utility/cacheAsync');
 

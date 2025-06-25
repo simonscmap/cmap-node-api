@@ -13,7 +13,7 @@ const {
   logWarnings,
 } = require('../../log-service/log-helpers');
 const { getCandidateList } = require('./queryToDatabaseTarget');
-const runClusterQuery = require('../queryHandler/sparqQuery');
+const runClusterQuery = require('../queryHandler/runClusterQuery');
 const internalQueryOnPrem = require('../queryHandler/internalQueryOnPrem');
 const { assertPriority, isSproc } = require('./pure');
 
