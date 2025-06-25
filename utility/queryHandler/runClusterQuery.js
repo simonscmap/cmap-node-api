@@ -2,7 +2,7 @@ const { DBSQLClient } = require('@databricks/sql');
 const initializeLogger = require('../../log-service');
 const { tsqlToHiveTransforms } = require('../router/pure');
 const { extractTableName } = require('./formatDate');
-const moduleLogger = initializeLogger('utility/queryHandler/sparqQuery');
+const moduleLogger = initializeLogger('utility/queryHandler/runClusterQuery');
 
 const connOptions = {
   host: process.env.CLUSTER_HOST,
@@ -27,7 +27,7 @@ const makeConnection = async (client, retry, log) => {
   }
 };
 
-// queryCluster :: Query String -> Request Id -> [ Error?, Result ]
+// runClusterQuery :: Query String -> Request Id -> [ Error?, Result ]
 
 const runClusterQuery = async (query = '', requestId) => {
   const startTime = Date.now();
