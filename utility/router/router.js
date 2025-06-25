@@ -5,7 +5,7 @@ const {
   logWarnings,
 } = require('../../log-service/log-helpers');
 const { getCandidateList } = require('./queryToDatabaseTarget');
-const { executeQueryOnCluster } = require('../queryHandler/queryCluster');
+const { executeQueryOnCluster } = require('../queryHandler/streamClusterQuery');
 const { executeQueryOnPrem } = require('../queryHandler/queryOnPrem');
 const { assertPriority, isSproc } = require('./pure');
 
