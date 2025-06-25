@@ -1,7 +1,7 @@
 const { DBSQLClient } = require('@databricks/sql');
 const initializeLogger = require('../../log-service');
 const { tsqlToHiveTransforms } = require('../router/pure');
-const { extractTableName } = require('./formatDate');
+const { extractTableName } = require('./utility');
 const moduleLogger = initializeLogger('utility/queryHandler/sparqQuery');
 
 const connOptions = {
