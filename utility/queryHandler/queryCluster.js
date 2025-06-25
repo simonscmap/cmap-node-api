@@ -87,6 +87,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     hasError = true;
     log.error('streaming error', {
       requestId: req.requestId,
+      userId: req?.user?.id ?? 'unknown',
       functionName: 'executeQueryOnCluster',
       originalQuery,
       transformedQuery,
@@ -167,6 +168,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
   log.info('query completed', {
     requestId: req.requestId,
+    userId: req?.user?.id ?? 'unknown',
     functionName: 'executeQueryOnCluster',
     originalQuery,
     transformedQuery,
