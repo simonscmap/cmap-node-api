@@ -5,7 +5,7 @@ const {
   logWarnings,
 } = require('../../log-service/log-helpers');
 const { getCandidateList } = require('./queryToDatabaseTarget');
-const { executeQueryOnCluster } = require('../queryHandler/streamClusterQuery');
+const streamClusterQuery = require('../queryHandler/streamClusterQuery');
 const { executeQueryOnPrem } = require('../queryHandler/queryOnPrem');
 const { assertPriority, isSproc } = require('./pure');
 
@@ -53,7 +53,7 @@ async function delegateExecution(
 
   // don't allow sprocs to execute on cluster
   if (targetIsCluster && !queryIsExecutingSproc) {
-    remainingCandidatesAfterFailure = await executeQueryOnCluster(
+    remainingCandidatesAfterFailure = await streamClusterQuery(
       req,
       res,
       next,

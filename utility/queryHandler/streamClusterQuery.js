@@ -24,7 +24,7 @@ const headers = {
   'Cache-Control': 'max-age=86400',
 };
 
-const executeQueryOnCluster = async (req, res, next, query) => {
+const streamClusterQuery = async (req, res, next, query) => {
   const startTime = Date.now();
   const originalQuery = query;
   const transformedQuery = tsqlToHiveTransforms(query);
@@ -89,7 +89,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     log.error('streaming error', {
       requestId: req.requestId,
       userId: req?.user?.id ?? 'unknown',
-      functionName: 'executeQueryOnCluster',
+      functionName: 'streamClusterQuery',
       originalQuery,
       transformedQuery,
       tableName,
@@ -171,7 +171,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.info('query completed', {
     requestId: req.requestId,
     userId: req?.user?.id ?? 'unknown',
-    functionName: 'executeQueryOnCluster',
+    functionName: 'streamClusterQuery',
     originalQuery,
     transformedQuery,
     tableName,
@@ -184,6 +184,4 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   return null;
 };
 
-module.exports = {
-  executeQueryOnCluster,
-};
+module.exports = streamClusterQuery;
