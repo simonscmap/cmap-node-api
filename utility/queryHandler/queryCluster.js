@@ -28,6 +28,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   const startTime = Date.now();
   const originalQuery = query;
   const transformedQuery = tsqlToHiveTransforms(query);
+  const tableName = extractTableName(transformedQuery);
 
   const log = moduleLogger
     .setReqId(req.requestId)
@@ -91,6 +92,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
       functionName: 'executeQueryOnCluster',
       originalQuery,
       transformedQuery,
+      tableName,
       error: e.message,
       durationMs: Date.now() - startTime,
       success: false,
@@ -172,6 +174,7 @@ const executeQueryOnCluster = async (req, res, next, query) => {
     functionName: 'executeQueryOnCluster',
     originalQuery,
     transformedQuery,
+    tableName,
     rowCount,
     chunks: pages,
     durationMs: Date.now() - startTime,
