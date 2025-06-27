@@ -1,6 +1,6 @@
 const initializeLogger = require('../../log-service');
 const moduleLogger = initializeLogger('controllers/namedData');
-const sparqQuery = require('../../utility/queryHandler/sparqQuery');
+const runClusterQuery = require('../../utility/queryHandler/runClusterQuery');
 const preWarmCacheAsync = require('../../utility/preWarmCacheAsync');
 const cacheAsync = require('../../utility/cacheAsync');
 
@@ -38,7 +38,7 @@ const fetchSSTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery(query);
+  const [e, result] = await runClusterQuery(query);
   moduleLogger.debug('sst query time', { duration: Date.now() - startQuery });
 
   if (e) {
@@ -81,7 +81,7 @@ const fetchAvgSSTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery(query);
+  const [e, result] = await runClusterQuery(query);
 
   moduleLogger.debug('sst query time', { duration: Date.now() - startQuery });
 
@@ -127,7 +127,7 @@ const fetchADTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery(query);
+  const [e, result] = await runClusterQuery(query);
   moduleLogger.debug('adt query time', { duration: Date.now() - startQuery });
 
   if (e) {
@@ -168,7 +168,7 @@ const fetchAvgADTAnomalyData = async () => {
     ORDER BY year desc, month desc`;
 
   const startQuery = Date.now();
-  const [e, result] = await sparqQuery(query);
+  const [e, result] = await runClusterQuery(query);
   moduleLogger.debug('adt query time', { duration: Date.now() - startQuery });
 
   if (e) {

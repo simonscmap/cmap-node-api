@@ -3,12 +3,14 @@ const initializeLogger = require('../../log-service');
 const stringify = require('csv-stringify');
 const AccumulatorStream = require('./AccumulatorStream');
 const { CLUSTER_CHUNK_MAX_ROWS } = require('../constants');
-const formatDate = require('./formatDate');
+const { formatDate, extractTableName } = require('./utility');
 const { Readable } = require('stream');
 const { tsqlToHiveTransforms } = require('../router/pure');
 const generateError = require('../../errorHandling/generateError');
 
-const moduleLogger = initializeLogger('utility/queryHandler/queryCluster');
+const moduleLogger = initializeLogger(
+  'utility/queryHandler/streamClusterQuery',
+);
 
 const MAX_ROWS = process.env.CLUSTER_CHUNK_MAX_ROWS || CLUSTER_CHUNK_MAX_ROWS;
 
@@ -24,8 +26,15 @@ const headers = {
   'Cache-Control': 'max-age=86400',
 };
 
-const executeQueryOnCluster = async (req, res, next, query) => {
-  const log = moduleLogger.setReqId(req.requestId).addContext(['query', query]);
+const streamClusterQuery = async (req, res, next, query) => {
+  const startTime = Date.now();
+  const originalQuery = query;
+  const transformedQuery = tsqlToHiveTransforms(query);
+  const tableName = extractTableName(transformedQuery);
+
+  const log = moduleLogger
+    .setReqId(req.requestId)
+    .addContext(['query', transformedQuery]);
 
   const endRespWithError = (e) => {
     if (!res.headersSent) {
@@ -57,11 +66,8 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   log.trace('opening session');
   const session = await client.openSession();
 
-  let clusterQuery = query;
-  clusterQuery = tsqlToHiveTransforms(clusterQuery);
-
-  log.info('sending query to cluster', { hiveSql: clusterQuery });
-  const queryOperation = await session.executeStatement(clusterQuery, {
+  log.info('sending query to cluster', { hiveSql: transformedQuery });
+  const queryOperation = await session.executeStatement(transformedQuery, {
     runAsync: true,
     maxRows: MAX_ROWS,
   });
@@ -82,7 +88,17 @@ const executeQueryOnCluster = async (req, res, next, query) => {
 
   csvStream.on('error', async (e) => {
     hasError = true;
-    log.error('streaming error', { error: e });
+    log.error('streaming error', {
+      requestId: req.requestId,
+      userId: req.user && req.user.id ? req.user.id : 'unknown',
+      functionName: 'streamClusterQuery',
+      originalQuery,
+      transformedQuery,
+      tableName,
+      error: e.message,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
     endRespWithError(e);
   });
 
@@ -154,9 +170,20 @@ const executeQueryOnCluster = async (req, res, next, query) => {
   await session.close();
   await client.close();
 
+  log.info('query completed', {
+    requestId: req.requestId,
+    userId: req.user && req.user.id ? req.user.id : 'unknown',
+    functionName: 'streamClusterQuery',
+    originalQuery,
+    transformedQuery,
+    tableName,
+    rowCount,
+    chunks: pages,
+    durationMs: Date.now() - startTime,
+    success: !hasError,
+  });
+
   return null;
 };
 
-module.exports = {
-  executeQueryOnCluster,
-};
+module.exports = streamClusterQuery;

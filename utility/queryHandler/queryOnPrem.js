@@ -4,7 +4,7 @@ const Accumulator = require('./AccumulatorStream');
 const generateError = require('../../errorHandling/generateError');
 const initializeLogger = require('../../log-service');
 const { getPool } = require('./getPool');
-const formatDate = require('./formatDate');
+const { formatDate } = require('./utility');
 const moduleLogger = initializeLogger('router queryOnPrem');
 
 // headers for streamed response
