@@ -90,7 +90,7 @@ const streamClusterQuery = async (req, res, next, query) => {
     hasError = true;
     log.error('streaming error', {
       requestId: req.requestId,
-      userId: req?.user?.id ?? 'unknown',
+      userId: req.user && req.user.id ? req.user.id : 'unknown',
       functionName: 'streamClusterQuery',
       originalQuery,
       transformedQuery,
@@ -172,7 +172,7 @@ const streamClusterQuery = async (req, res, next, query) => {
 
   log.info('query completed', {
     requestId: req.requestId,
-    userId: req?.user?.id ?? 'unknown',
+    userId: req.user && req.user.id ? req.user.id : 'unknown',
     functionName: 'streamClusterQuery',
     originalQuery,
     transformedQuery,

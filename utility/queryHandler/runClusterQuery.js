@@ -1,7 +1,7 @@
 const { DBSQLClient } = require('@databricks/sql');
 const initializeLogger = require('../../log-service');
 const { tsqlToHiveTransforms } = require('../router/pure');
-const { extractTableName } = require('./formatDate');
+const { extractTableName } = require('./utility');
 const moduleLogger = initializeLogger('utility/queryHandler/runClusterQuery');
 
 const connOptions = {
@@ -79,7 +79,7 @@ const runClusterQuery = async (query = '', requestId) => {
       originalQuery,
       transformedQuery,
       tableName,
-      rowCount: result?.length ?? 0,
+      rowCount: result && result.length ? result.length : 0,
       durationMs: Date.now() - startTime,
       success: true,
     });
