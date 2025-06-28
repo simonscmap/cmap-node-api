@@ -50,3 +50,4 @@ config/UNSAFE_jwtConfig.js
 .sentryclirc
 
 .vscode/
+.nvmrc
