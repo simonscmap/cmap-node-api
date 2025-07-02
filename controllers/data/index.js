@@ -16,7 +16,11 @@ const { expandIfSelectStar } = require('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
 const { bulkDownloadController } = require('./bulk-download');
 const namedDataController = require('./namedDataController');
-const vaultController = require('./vaultController');
+const {
+  getShareLinkController,
+  getVaultFilesInfo,
+  downloadDropboxVaultFiles,
+} = require('./dropbox-vault/vaultController');
 
 const moduleLogger = initializeLogger('controllers/data');
 
@@ -222,8 +226,9 @@ const queryModification = async (req, res, next) => {
   }
 
   // if 'select * ...', replace '*' with columns
-  let [errorMsg, updatedQuery, queryWasModified] =
-    await expandIfSelectStar(query);
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar(
+    query,
+  );
 
   if (errorMsg) {
     log.warn(errorMsg, { query });
@@ -518,5 +523,7 @@ module.exports = {
   storedProcedure,
   tableStats,
   trajectoryPointCounts,
-  getShareLinkController: vaultController.getShareLinkController,
+  getShareLinkController,
+  getVaultFilesInfo,
+  downloadDropboxVaultFiles,
 };
