@@ -1,10 +1,11 @@
 // NOTE: this module is for accessing files in the vault, not the submissions app
 // these require different dropbox credentials
 const { URL } = require('url');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const archiver = require('archiver');
+const { setTimeout } = require('timers');
+// const fs = require('fs');
+// const path = require('path');
+// const os = require('os');
+// const archiver = require('archiver');
 // const { promisify } = require('util');
 // const mkdtemp = promisify(fs.mkdtemp);
 
@@ -440,109 +441,276 @@ const getVaultFilesInfo = async (req, res) => {
   return res.json(payload);
 };
 
+// Helper function to validate download request
+const validateDownloadRequest = (files, shortName, datasetId, log) => {
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    log.warn('No files provided for download', { shortName, datasetId });
+    return { error: 'No files provided for download', status: 400 };
+  }
+
+  if (files.length > 1000) {
+    log.warn('Too many files requested for batch operation', {
+      shortName,
+      datasetId,
+      fileCount: files.length,
+    });
+    return {
+      error: 'Maximum 1000 files can be downloaded at once',
+      status: 400,
+    };
+  }
+
+  return { valid: true };
+};
+
+// Helper function to generate temporary folder path
+const generateTempFolderPath = (shortName) => {
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const tempFolderName = `temp-download-${shortName}-${timestamp}-${randomSuffix}`;
+  return `/vault/temp-downloads/${tempFolderName}`;
+};
+
+// Helper function to create temporary folder
+const createTempFolder = async (dropbox, tempFolderPath, log) => {
+  log.info('Creating temporary folder', { tempFolderPath });
+
+  try {
+    // Ensure parent directory exists
+    await dropbox.filesCreateFolderV2({ path: '/vault/temp-downloads' });
+  } catch (parentDirError) {
+    // Ignore error if directory already exists
+    if (
+      parentDirError.status !== 409 ||
+      !(
+        parentDirError.error &&
+        parentDirError.error.error_summary &&
+        parentDirError.error.error_summary.includes('path/conflict')
+      )
+    ) {
+      throw parentDirError;
+    }
+  }
+
+  await dropbox.filesCreateFolderV2({ path: tempFolderPath });
+};
+
+// Helper function to prepare batch copy entries
+const prepareBatchCopyEntries = (files, tempFolderPath) => {
+  return files.map((file) => ({
+    from_path: file.filePath,
+    to_path: `${tempFolderPath}/${file.name}`,
+  }));
+};
+
+// Helper function to execute batch copy
+const executeBatchCopy = async (dropbox, copyEntries, log) => {
+  log.info('Starting batch copy operation', {
+    entryCount: copyEntries.length,
+  });
+
+  const copyBatchResult = await dropbox.filesCopyBatch({
+    entries: copyEntries,
+    autorename: true, // Rename if conflicts occur
+  });
+
+  if (copyBatchResult.result['.tag'] === 'complete') {
+    log.info('Batch copy completed immediately');
+    return { completed: true };
+  } else if (copyBatchResult.result['.tag'] === 'in_progress') {
+    const batchJobId = copyBatchResult.result.async_job_id;
+    log.info('Batch copy started as async job', { batchJobId });
+    return { completed: false, batchJobId };
+  } else {
+    throw new Error(
+      `Unexpected batch copy result: ${copyBatchResult.result['.tag']}`,
+    );
+  }
+};
+
+// Helper function to wait for batch copy completion
+const waitForBatchCopyCompletion = async (dropbox, batchJobId, log) => {
+  const maxWaitTime = 60000; // 60 seconds
+  const pollInterval = 2000; // 2 seconds
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWaitTime) {
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+    const checkResult = await dropbox.filesCopyBatchCheck({
+      async_job_id: batchJobId,
+    });
+
+    if (checkResult.result['.tag'] === 'complete') {
+      log.info('Batch copy completed', { batchJobId });
+      return;
+    } else if (checkResult.result['.tag'] === 'failed') {
+      throw new Error(
+        `Batch copy failed: ${JSON.stringify(checkResult.result)}`,
+      );
+    }
+    // If still in_progress, continue polling
+  }
+
+  throw new Error('Batch copy operation timed out');
+};
+
+// Helper function to create download link
+const createDownloadLink = async (dropbox, tempFolderPath, log) => {
+  log.info('Creating shared link for temporary folder', { tempFolderPath });
+
+  const shareLinkResult = await dropbox.sharingCreateSharedLinkWithSettings({
+    path: tempFolderPath,
+    settings: {
+      require_password: false,
+      allow_download: true,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Expires in 24 hours
+    },
+  });
+
+  const shareLink = shareLinkResult.result.url;
+  // Force download by changing dl=0 to dl=1
+  const downloadLink = shareLink.replace('dl=0', 'dl=1');
+
+  log.info('Download link created successfully', {
+    tempFolderPath,
+    downloadLink,
+  });
+
+  return downloadLink;
+};
+
+// Helper function to schedule cleanup
+const scheduleCleanup = (dropbox, tempFolderPath, log) => {
+  const cleanupDelayMs = 2 * 60 * 60 * 1000; // 2 hours
+  setTimeout(async () => {
+    try {
+      await dropbox.filesDeleteV2({ path: tempFolderPath });
+      log.info('Temporary folder cleaned up successfully', {
+        tempFolderPath,
+      });
+    } catch (cleanupError) {
+      log.error('Failed to clean up temporary folder', {
+        tempFolderPath,
+        error: cleanupError,
+      });
+    }
+  }, cleanupDelayMs);
+};
+
+// Helper function to handle cleanup after error
+const cleanupAfterError = async (dropbox, tempFolderPath, log) => {
+  try {
+    await dropbox.filesDeleteV2({ path: tempFolderPath });
+    log.info('Cleaned up temporary folder after error', { tempFolderPath });
+  } catch (cleanupError) {
+    log.error('Failed to clean up temporary folder after error', {
+      tempFolderPath,
+      cleanupError,
+    });
+  }
+};
+
+// Helper function to handle specific Dropbox errors
+const handleDropboxError = (error, log) => {
+  log.error('Error in downloadDropboxVaultFiles', {
+    error: error.message,
+    stack: error.stack,
+  });
+
+  // Handle specific Dropbox API errors
+  if (
+    error.status === 409 &&
+    error.error &&
+    error.error.error_summary &&
+    error.error.error_summary.includes('too_many_write_operations')
+  ) {
+    return {
+      status: 429,
+      json: {
+        error: 'Too many operations in progress. Please try again in a moment.',
+        retryAfter: 30,
+      },
+    };
+  }
+
+  if (
+    error.status === 409 &&
+    error.error &&
+    error.error.error_summary &&
+    error.error.error_summary.includes('insufficient_space')
+  ) {
+    return {
+      status: 507,
+      json: {
+        error: 'Insufficient storage space in Dropbox account.',
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    json: {
+      error: 'Failed to prepare download. Please try again.',
+      details:
+        process.env.NODE_ENV === 'development' ? error.message : undefined,
+    },
+  };
+};
+
 const downloadDropboxVaultFiles = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
   const { shortName, datasetId, files } = req.body;
-  log.info('downloadDropboxVaultFiles', { shortName, datasetId, files });
 
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    log.warn('No files provided for download', { shortName, datasetId });
-    return res.status(400).json({ error: 'No files provided for download' });
-  }
-
-  // Create a temporary directory to store the files
-
-  let tempDir;
-  try {
-    tempDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'cmap-vault-download-'),
-    );
-    log.info('Created temporary directory', { tempDir });
-  } catch (error) {
-    log.error('Failed to create temporary directory', { error });
-    return res.status(500).json({ error: 'Failed to prepare download' });
-  }
-
-  // Download each file from Dropbox
-  const downloadPromises = files.map(async (file) => {
-    const { filePath, name } = file;
-    log.info('Downloading file', { filePath, name });
-
-    try {
-      // Download the file from Dropbox
-      const response = await dbx.filesDownload({ path: filePath });
-
-      // All files go directly in the temp directory
-      const targetPath = path.join(tempDir, name);
-
-      // Write the file to disk
-      await fs.promises.writeFile(targetPath, response.result.fileBinary);
-
-      log.info('File downloaded successfully', { filePath, targetPath });
-      return { success: true, filePath, targetPath };
-    } catch (error) {
-      log.error('Failed to download file', { filePath, error });
-      return { success: false, filePath, error };
-    }
+  log.info('downloadDropboxVaultFiles - using Dropbox batch copy', {
+    shortName,
+    datasetId,
+    fileCount: files ? files.length : undefined,
   });
 
-  // Wait for all downloads to complete
-  const downloadResults = await Promise.all(downloadPromises);
-
-  // Check if any downloads failed
-  const failedDownloads = downloadResults.filter((result) => !result.success);
-  if (failedDownloads.length > 0) {
-    log.warn('Some files failed to download', {
-      failedCount: failedDownloads.length,
-    });
+  // Step 1: Validate input
+  const validation = validateDownloadRequest(files, shortName, datasetId, log);
+  if (!validation.valid) {
+    return res.status(validation.status).json({ error: validation.error });
   }
 
-  // Create a zip file with all the downloaded files
+  const dropbox = dbx;
+  const tempFolderPath = generateTempFolderPath(shortName);
+
   try {
-    // Set the appropriate headers for file download
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${shortName}_vault_files.zip"`,
-    );
+    // Step 2: Create temporary folder
+    await createTempFolder(dropbox, tempFolderPath, log);
 
-    // Create a zip archive
-    const archive = archiver('zip', {
-      zlib: { level: 9 }, // Maximum compression
-    });
+    // Step 3: Prepare and execute batch copy
+    const copyEntries = prepareBatchCopyEntries(files, tempFolderPath);
+    const copyResult = await executeBatchCopy(dropbox, copyEntries, log);
 
-    // Pipe the archive to the response
-    archive.pipe(res);
-
-    // Get all files from the temp directory
-    const files = await fs.promises.readdir(tempDir);
-
-    // Add each file directly to the root of the archive
-    for (const file of files) {
-      const filePath = path.join(tempDir, file);
-      archive.file(filePath, { name: file }); // Use the filename as the name in the archive
+    // Step 4: Wait for completion if async
+    if (!copyResult.completed) {
+      await waitForBatchCopyCompletion(dropbox, copyResult.batchJobId, log);
     }
 
-    // Finalize the archive
-    await archive.finalize();
+    // Step 5: Create download link
+    const downloadLink = await createDownloadLink(dropbox, tempFolderPath, log);
 
-    log.info('Archive sent successfully', {
-      shortName,
+    // Step 6: Schedule cleanup
+    scheduleCleanup(dropbox, tempFolderPath, log);
+
+    // Step 7: Return success response
+    return res.json({
+      success: true,
+      downloadLink,
+      message: 'Files copied to temporary folder. Download will begin shortly.',
       fileCount: files.length,
+      expiresIn: '24 hours',
     });
-
-    // Clean up: Delete the temporary directory after response is sent
-    fs.promises
-      .rmdir(tempDir, { recursive: true })
-      .then(() => log.info('Temporary directory cleaned up', { tempDir }))
-      .catch((error) =>
-        log.error('Failed to clean up temporary directory', { tempDir, error }),
-      );
-
-    return;
   } catch (error) {
-    log.error('Failed to create zip archive', { error });
-    return res.status(500).json({ error: 'Failed to create download archive' });
+    // Cleanup after error
+    await cleanupAfterError(dropbox, tempFolderPath, log);
+
+    // Handle and return error response
+    const errorResponse = handleDropboxError(error, log);
+    return res.status(errorResponse.status).json(errorResponse.json);
   }
 };
 
