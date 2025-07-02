@@ -362,37 +362,78 @@ const getVaultFilesInfo = async (req, res) => {
     return res.status(404).json({ error: 'No vault record found for dataset' });
   }
 
-  // 3. Get file information from the vault folders
+  // 3. Get file information from the vault folders (sequential priority: REP -> NRT -> RAW)
   const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = `/vault/${vaultPath}rep`;
-  const nrtPath = `/vault/${vaultPath}nrt`;
-  const rawPath = `/vault/${vaultPath}raw`;
+  const parentVaultPath = `/vault/${vaultPath}`;
+  const repPath = `${parentVaultPath}rep`;
+  const nrtPath = `${parentVaultPath}nrt`;
+  const rawPath = `${parentVaultPath}raw`;
 
-  // Get files from each folder
-  const [repErr, repFiles] = await getFilesRecursively(repPath, log);
-  const [nrtErr, nrtFiles] = await getFilesRecursively(nrtPath, log);
-  const [rawErr, rawFiles] = await getFilesRecursively(rawPath, log);
+  // Get all files from the vault directory in one async call
+  const [vaultErr, allFiles] = await getFilesRecursively(parentVaultPath, log);
 
-  // Combine file information
+  if (vaultErr) {
+    log.error('Error retrieving vault files', {
+      parentVaultPath,
+      error: vaultErr,
+    });
+    return res.status(500).json({ error: 'Error retrieving vault files' });
+  }
+
+  // Synchronously group files by folder
   const filesByFolder = {
-    rep: repErr ? [] : repFiles,
-    nrt: nrtErr ? [] : nrtFiles,
-    raw: rawErr ? [] : rawFiles,
+    rep: allFiles.filter((file) => file.path.startsWith(repPath)),
+    nrt: allFiles.filter((file) => file.path.startsWith(nrtPath)),
+    raw: allFiles.filter((file) => file.path.startsWith(rawPath)),
   };
 
-  // 4. Return the payload with file information
+  // Apply priority logic: REP -> NRT -> RAW
+  let selectedFolder = null;
+  let selectedFiles = [];
+  let selectedPath = null;
+
+  if (filesByFolder.rep.length > 0) {
+    selectedFolder = 'rep';
+    selectedFiles = filesByFolder.rep;
+    selectedPath = repPath;
+  } else if (filesByFolder.nrt.length > 0) {
+    selectedFolder = 'nrt';
+    selectedFiles = filesByFolder.nrt;
+    selectedPath = nrtPath;
+  } else if (filesByFolder.raw.length > 0) {
+    selectedFolder = 'raw';
+    selectedFiles = filesByFolder.raw;
+    selectedPath = rawPath;
+  } else {
+    log.warn('No files found in any vault folder', {
+      parentVaultPath,
+      repPath,
+      nrtPath,
+      rawPath,
+      totalFiles: allFiles.length,
+    });
+    return res.status(404).json({ error: 'No files found in vault folders' });
+  }
+
+  // Log once at the end with the selected folder info
+  log.info('Selected vault folder for dataset', {
+    shortName,
+    selectedFolder,
+    selectedPath,
+    fileCount: selectedFiles.length,
+    totalVaultFiles: allFiles.length,
+  });
+
+  // 4. Return the payload with file information from selected folder only
   const payload = {
     shortName,
     datasetId,
-    files: filesByFolder,
+    selectedFolder,
+    files: selectedFiles,
     summary: {
-      repCount: filesByFolder.rep.length,
-      nrtCount: filesByFolder.nrt.length,
-      rawCount: filesByFolder.raw.length,
-      totalCount:
-        filesByFolder.rep.length +
-        filesByFolder.nrt.length +
-        filesByFolder.raw.length,
+      folderUsed: selectedFolder,
+      fileCount: selectedFiles.length,
+      totalSize: selectedFiles.reduce((sum, file) => sum + file.size, 0),
     },
   };
 
