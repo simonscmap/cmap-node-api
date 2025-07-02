@@ -123,6 +123,36 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+// Safe deletion function that guards against deleting vault files
+const safeDropboxDelete = async (dropbox, path, log) => {
+  // Guard against deleting anything with 'vault' in the path
+  if (path.toLowerCase().includes('vault')) {
+    const error = new Error(
+      `SAFETY GUARD: Attempted to delete path containing 'vault': ${path}`,
+    );
+    log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
+      path,
+      error: error.message,
+    });
+    throw error;
+  }
+
+  // Additional safety check for empty or root paths
+  if (!path || path === '/' || path.trim() === '') {
+    const error = new Error(
+      `SAFETY GUARD: Attempted to delete empty or root path: ${path}`,
+    );
+    log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
+      path,
+      error: error.message,
+    });
+    throw error;
+  }
+
+  log.info('Safe deletion proceeding', { path });
+  return await dropbox.filesDeleteV2({ path });
+};
+
 // vaultController: return a share link to the correct folder given a shortName
 
 // 1. get dataset id from short name
@@ -468,7 +498,7 @@ const generateTempFolderPath = (shortName) => {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const tempFolderName = `temp-download-${shortName}-${timestamp}-${randomSuffix}`;
-  return `/vault/temp-downloads/${tempFolderName}`;
+  return `/temp-downloads/${tempFolderName}`;
 };
 
 // Helper function to create temporary folder
@@ -477,7 +507,7 @@ const createTempFolder = async (dropbox, tempFolderPath, log) => {
 
   try {
     // Ensure parent directory exists
-    await dropbox.filesCreateFolderV2({ path: '/vault/temp-downloads' });
+    await dropbox.filesCreateFolderV2({ path: '/temp-downloads' });
   } catch (parentDirError) {
     // Ignore error if directory already exists
     if (
@@ -585,7 +615,7 @@ const scheduleCleanup = (dropbox, tempFolderPath, log) => {
   const cleanupDelayMs = 2 * 60 * 60 * 1000; // 2 hours
   setTimeout(async () => {
     try {
-      await dropbox.filesDeleteV2({ path: tempFolderPath });
+      await safeDropboxDelete(dropbox, tempFolderPath, log);
       log.info('Temporary folder cleaned up successfully', {
         tempFolderPath,
       });
@@ -601,7 +631,7 @@ const scheduleCleanup = (dropbox, tempFolderPath, log) => {
 // Helper function to handle cleanup after error
 const cleanupAfterError = async (dropbox, tempFolderPath, log) => {
   try {
-    await dropbox.filesDeleteV2({ path: tempFolderPath });
+    await safeDropboxDelete(dropbox, tempFolderPath, log);
     log.info('Cleaned up temporary folder after error', { tempFolderPath });
   } catch (cleanupError) {
     log.error('Failed to clean up temporary folder after error', {
@@ -718,4 +748,5 @@ module.exports = {
   getShareLinkController,
   getVaultFilesInfo,
   downloadDropboxVaultFiles,
+  safeDropboxDelete,
 };
