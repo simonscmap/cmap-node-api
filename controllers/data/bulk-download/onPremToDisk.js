@@ -3,7 +3,7 @@ const sql = require('mssql');
 const stringify = require('csv-stringify');
 const Accumulator = require('../../../utility/queryHandler/AccumulatorStream');
 const { getPool } = require('../../../utility/queryHandler/getPool');
-const formatDate = require('../../../utility/queryHandler/formatDate');
+const { formatDate } = require('../../../utility/queryHandler/utility');
 
 const initializeLogger = require('../../../log-service');
 const moduleLogger = initializeLogger('router onPremToDisk');

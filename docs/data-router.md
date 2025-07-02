@@ -8,7 +8,7 @@ The on-prem servers are named `rainier`, `rossby`, and `mariana`. The initial sp
 
 The Distributed Datasets Router manages incoming queries on the `api/data/query` route (also the "custom query route"), detecting which datasets an incoming query will visit and routes the query to a valid database.
 
-Additional functionality has been added to complement the routing feature: (1) select _ expansion, (2) automatic retries. Select _ expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
+Additional functionality has been added to complement the routing feature: (1) select _expansion, (2) automatic retries. Select_ expansion detects `select *` queries and converts the asterix into a named list of all columns; this allows for datasets with many variables to be stored in column sets. Automatic retries are made in the event a query fails, as long as there remain untried candidate servers.
 
 ## Phases of the Query Route as Middleware
 
@@ -42,7 +42,9 @@ Here is a synoptic view of the sequence of function calls that make up the route
 ### Preparation
 
 - When a route controller delegates to the `queryHandler` in engages the router; the entry point is [/queryHandler/index.js](/utility/queryHandler/index.js) which calls [/router/router.js::routeQuery](/utility/router/router.js).
-- The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and then delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/queryCluster.js](/utility/queryHandler/queryCluster.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
+- The `routeQuery` function calls [/router/queryToDatabaseTarget::getCandidateList](/utility/router/queryToDatabaseTarget.js), in order to determine which server to target, and then delegates the execution of the query and handling of the response to either [/queryHandler/queryOnPrem.js](/utility/queryHandler/queryOnPrem.js) or [/queryHandler/streamClusterQuery
+.js](/utility/queryHandler/streamClusterQuery
+.js) based on whether `getCandidateList` determined that the query should be run on-prem or on a cluster node.
 - `getCandidateList` contains the core function of the router, which includes analyzing the query to identify which datasets are requested, determining where those datasets are available, and calculating a viable server that has all required datasets.
 
 ### Execution

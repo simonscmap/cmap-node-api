@@ -1,7 +1,8 @@
 const { DBSQLClient } = require('@databricks/sql');
 const initializeLogger = require('../../log-service');
 const { tsqlToHiveTransforms } = require('../router/pure');
-const moduleLogger = initializeLogger('utility/queryHandler/sparqQuery');
+const { extractTableName } = require('./utility');
+const moduleLogger = initializeLogger('utility/queryHandler/runClusterQuery');
 
 const connOptions = {
   host: process.env.CLUSTER_HOST,
@@ -26,14 +27,19 @@ const makeConnection = async (client, retry, log) => {
   }
 };
 
-// queryCluster :: Query String -> Request Id -> [ Error?, Result ]
-const queryCluster = async (query = '', requestId) => {
+// runClusterQuery :: Query String -> Request Id -> [ Error?, Result ]
+
+const runClusterQuery = async (query = '', requestId) => {
+  const startTime = Date.now();
   const originalQuery = query;
-  query = tsqlToHiveTransforms(query);
+  const transformedQuery = tsqlToHiveTransforms(query);
+  const tableName = extractTableName(transformedQuery);
 
-  let log = moduleLogger.setReqId(requestId).addContext(['query', query]);
+  let log = moduleLogger
+    .setReqId(requestId)
+    .addContext(['query', transformedQuery]);
 
-  log.info('hive sql transform', { originalQuery, transformedQuery: query });
+  log.info('hive sql transform', { originalQuery, transformedQuery });
 
   const client = new DBSQLClient();
 
@@ -59,7 +65,7 @@ const queryCluster = async (query = '', requestId) => {
     });
 
     log.info('executing query');
-    const queryOperation = await session.executeStatement(query, {
+    const queryOperation = await session.executeStatement(transformedQuery, {
       runAsync: true,
       maxRows: 10000,
     });
@@ -67,16 +73,36 @@ const queryCluster = async (query = '', requestId) => {
     log.info('fetching result');
     result = await queryOperation.fetchAll();
 
+    log.info('query completed', {
+      requestId,
+      functionName: 'queryCluster',
+      originalQuery,
+      transformedQuery,
+      tableName,
+      rowCount: result && result.length ? result.length : 0,
+      durationMs: Date.now() - startTime,
+      success: true,
+    });
+
     log.trace('closing operation');
     await queryOperation.close();
     await session.close();
     await client.close();
   } catch (e) {
-    log.error('error querrying cluster', { error: e });
+    log.error('query failed', {
+      requestId,
+      functionName: 'queryCluster',
+      originalQuery,
+      transformedQuery,
+      tableName,
+      error: e.message,
+      durationMs: Date.now() - startTime,
+      success: false,
+    });
     return [e];
   }
 
   return [null, result];
 };
 
-module.exports = queryCluster;
+module.exports = runClusterQuery;
