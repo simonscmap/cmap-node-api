@@ -502,12 +502,12 @@ const generateTempFolderPath = (shortName) => {
 };
 
 // Helper function to create temporary folder
-const createTempFolder = async (dropbox, tempFolderPath, log) => {
+const createTempFolder = async (tempFolderPath, log) => {
   log.info('Creating temporary folder', { tempFolderPath });
 
   try {
     // Ensure parent directory exists
-    await dropbox.filesCreateFolderV2({ path: '/temp-downloads' });
+    await dbx.filesCreateFolderV2({ path: '/temp-downloads' });
   } catch (parentDirError) {
     // Ignore error if directory already exists
     if (
@@ -522,7 +522,7 @@ const createTempFolder = async (dropbox, tempFolderPath, log) => {
     }
   }
 
-  await dropbox.filesCreateFolderV2({ path: tempFolderPath });
+  await dbx.filesCreateFolderV2({ path: tempFolderPath });
 };
 
 // Helper function to prepare batch copy entries
@@ -534,12 +534,12 @@ const prepareBatchCopyEntries = (files, tempFolderPath) => {
 };
 
 // Helper function to execute batch copy
-const executeBatchCopy = async (dropbox, copyEntries, log) => {
+const executeBatchCopy = async (copyEntries, log) => {
   log.info('Starting batch copy operation', {
     entryCount: copyEntries.length,
   });
 
-  const copyBatchResult = await dropbox.filesCopyBatch({
+  const copyBatchResult = await dbx.filesCopyBatch({
     entries: copyEntries,
     autorename: true, // Rename if conflicts occur
   });
@@ -559,7 +559,7 @@ const executeBatchCopy = async (dropbox, copyEntries, log) => {
 };
 
 // Helper function to wait for batch copy completion
-const waitForBatchCopyCompletion = async (dropbox, batchJobId, log) => {
+const waitForBatchCopyCompletion = async (batchJobId, log) => {
   const maxWaitTime = 60000; // 60 seconds
   const pollInterval = 2000; // 2 seconds
   const startTime = Date.now();
@@ -567,7 +567,7 @@ const waitForBatchCopyCompletion = async (dropbox, batchJobId, log) => {
   while (Date.now() - startTime < maxWaitTime) {
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
-    const checkResult = await dropbox.filesCopyBatchCheck({
+    const checkResult = await dbx.filesCopyBatchCheck({
       async_job_id: batchJobId,
     });
 
@@ -586,10 +586,10 @@ const waitForBatchCopyCompletion = async (dropbox, batchJobId, log) => {
 };
 
 // Helper function to create download link
-const createDownloadLink = async (dropbox, tempFolderPath, log) => {
+const createDownloadLink = async (tempFolderPath, log) => {
   log.info('Creating shared link for temporary folder', { tempFolderPath });
 
-  const shareLinkResult = await dropbox.sharingCreateSharedLinkWithSettings({
+  const shareLinkResult = await dbx.sharingCreateSharedLinkWithSettings({
     path: tempFolderPath,
     settings: {
       require_password: false,
@@ -611,11 +611,11 @@ const createDownloadLink = async (dropbox, tempFolderPath, log) => {
 };
 
 // Helper function to schedule cleanup
-const scheduleCleanup = (dropbox, tempFolderPath, log) => {
+const scheduleCleanup = (tempFolderPath, log) => {
   const cleanupDelayMs = 2 * 60 * 60 * 1000; // 2 hours
   setTimeout(async () => {
     try {
-      await safeDropboxDelete(dropbox, tempFolderPath, log);
+      await safeDropboxDelete(dbx, tempFolderPath, log);
       log.info('Temporary folder cleaned up successfully', {
         tempFolderPath,
       });
@@ -629,9 +629,9 @@ const scheduleCleanup = (dropbox, tempFolderPath, log) => {
 };
 
 // Helper function to handle cleanup after error
-const cleanupAfterError = async (dropbox, tempFolderPath, log) => {
+const cleanupAfterError = async (tempFolderPath, log) => {
   try {
-    await safeDropboxDelete(dropbox, tempFolderPath, log);
+    await safeDropboxDelete(dbx, tempFolderPath, log);
     log.info('Cleaned up temporary folder after error', { tempFolderPath });
   } catch (cleanupError) {
     log.error('Failed to clean up temporary folder after error', {
@@ -704,27 +704,26 @@ const downloadDropboxVaultFiles = async (req, res) => {
     return res.status(validation.status).json({ error: validation.error });
   }
 
-  const dropbox = dbx;
   const tempFolderPath = generateTempFolderPath(shortName);
 
   try {
     // Step 2: Create temporary folder
-    await createTempFolder(dropbox, tempFolderPath, log);
+    await createTempFolder(tempFolderPath, log);
 
     // Step 3: Prepare and execute batch copy
     const copyEntries = prepareBatchCopyEntries(files, tempFolderPath);
-    const copyResult = await executeBatchCopy(dropbox, copyEntries, log);
+    const copyResult = await executeBatchCopy(copyEntries, log);
 
     // Step 4: Wait for completion if async
     if (!copyResult.completed) {
-      await waitForBatchCopyCompletion(dropbox, copyResult.batchJobId, log);
+      await waitForBatchCopyCompletion(copyResult.batchJobId, log);
     }
 
     // Step 5: Create download link
-    const downloadLink = await createDownloadLink(dropbox, tempFolderPath, log);
+    const downloadLink = await createDownloadLink(tempFolderPath, log);
 
     // Step 6: Schedule cleanup
-    scheduleCleanup(dropbox, tempFolderPath, log);
+    scheduleCleanup(tempFolderPath, log);
 
     // Step 7: Return success response
     return res.json({
@@ -736,7 +735,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
     });
   } catch (error) {
     // Cleanup after error
-    await cleanupAfterError(dropbox, tempFolderPath, log);
+    await cleanupAfterError(tempFolderPath, log);
 
     // Handle and return error response
     const errorResponse = handleDropboxError(error, log);
