@@ -500,7 +500,7 @@ const generateTempFolderPath = (shortName) => {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const tempFolderName = `temp-download-${shortName}-${timestamp}-${randomSuffix}`;
-  return `/vault/temp-downloads/${tempFolderName}`;
+  return `/temp-downloads/${tempFolderName}`;
 };
 
 // Helper function to create temporary folder
@@ -549,7 +549,7 @@ const executeBatchCopy = async (copyEntries, log) => {
   if (copyBatchResult.result['.tag'] === 'complete') {
     log.info('Batch copy completed immediately');
     return { completed: true };
-  } else if (copyBatchResult.result['.tag'] === 'in_progress') {
+  } else if (copyBatchResult.result['.tag'] === 'async_job_id') {
     const batchJobId = copyBatchResult.result.async_job_id;
     log.info('Batch copy started as async job', { batchJobId });
     return { completed: false, batchJobId };
@@ -591,25 +591,38 @@ const waitForBatchCopyCompletion = async (batchJobId, log) => {
 const createDownloadLink = async (tempFolderPath, log) => {
   log.info('Creating shared link for temporary folder', { tempFolderPath });
 
-  const shareLinkResult = await dbx.sharingCreateSharedLinkWithSettings({
-    path: tempFolderPath,
-    settings: {
-      require_password: false,
-      allow_download: true,
-      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Expires in 24 hours
-    },
-  });
+  try {
+    // First verify the folder exists
+    await dbx.filesGetMetadata({ path: tempFolderPath });
 
-  const shareLink = shareLinkResult.result.url;
-  // Force download by changing dl=0 to dl=1
-  const downloadLink = shareLink.replace('dl=0', 'dl=1');
+    const shareLinkResult = await dbx.sharingCreateSharedLinkWithSettings({
+      path: tempFolderPath,
+      settings: {
+        require_password: false,
+        allow_download: true,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Expires in 24 hours
+      },
+    });
 
-  log.info('Download link created successfully', {
-    tempFolderPath,
-    downloadLink,
-  });
+    const shareLink = shareLinkResult.result.url;
+    // Force download by changing dl=0 to dl=1
+    const downloadLink = shareLink.replace('dl=0', 'dl=1');
 
-  return downloadLink;
+    log.info('Download link created successfully', {
+      tempFolderPath,
+      downloadLink,
+    });
+
+    return downloadLink;
+  } catch (error) {
+    log.error('Failed to create shared link', {
+      tempFolderPath,
+      error: error.message,
+      status: error.status,
+      errorSummary: error.error && error.error.error_summary,
+    });
+    throw error;
+  }
 };
 
 // Helper function to schedule cleanup
@@ -651,6 +664,20 @@ const handleDropboxError = (error, log) => {
   });
 
   // Handle specific Dropbox API errors
+  if (error.status === 400) {
+    return {
+      status: 400,
+      json: {
+        error:
+          'Invalid request. The temporary folder may not exist or may be inaccessible.',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.error && error.error.error_summary
+            : undefined,
+      },
+    };
+  }
+
   if (
     error.status === 409 &&
     error.error &&
@@ -750,4 +777,6 @@ module.exports = {
   getVaultFilesInfo,
   downloadDropboxVaultFiles,
   safeDropboxDelete,
+  scheduleCleanup,
+  cleanupAfterError,
 };
