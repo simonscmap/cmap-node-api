@@ -600,7 +600,6 @@ const createDownloadLink = async (tempFolderPath, log) => {
       settings: {
         require_password: false,
         allow_download: true,
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Expires in 24 hours
       },
     });
 
@@ -760,7 +759,6 @@ const downloadDropboxVaultFiles = async (req, res) => {
       downloadLink,
       message: 'Files copied to temporary folder. Download will begin shortly.',
       fileCount: files.length,
-      expiresIn: '24 hours',
     });
   } catch (error) {
     // Cleanup after error
