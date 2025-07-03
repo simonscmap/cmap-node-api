@@ -539,7 +539,7 @@ const executeBatchCopy = async (copyEntries, log) => {
     entryCount: copyEntries.length,
   });
 
-  const copyBatchResult = await dbx.filesCopyBatch({
+  const copyBatchResult = await dbx.filesCopyBatchV2({
     entries: copyEntries,
     autorename: true, // Rename if conflicts occur
   });
@@ -567,7 +567,7 @@ const waitForBatchCopyCompletion = async (batchJobId, log) => {
   while (Date.now() - startTime < maxWaitTime) {
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
-    const checkResult = await dbx.filesCopyBatchCheck({
+    const checkResult = await dbx.filesCopyBatchCheckV2({
       async_job_id: batchJobId,
     });
 
