@@ -123,12 +123,12 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-// Safe deletion function that guards against deleting vault files
+// Safe deletion function that only allows deletion of temp-download folders within vault
 const safeDropboxDelete = async (dropbox, path, log) => {
-  // Guard against deleting anything with 'vault' in the path
-  if (path.toLowerCase().includes('vault')) {
+  // Guard against deleting anything outside of /vault/temp-downloads
+  if (!path || path === '/' || path.trim() === '') {
     const error = new Error(
-      `SAFETY GUARD: Attempted to delete path containing 'vault': ${path}`,
+      `SAFETY GUARD: Attempted to delete empty or root path: ${path}`,
     );
     log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
       path,
@@ -137,10 +137,11 @@ const safeDropboxDelete = async (dropbox, path, log) => {
     throw error;
   }
 
-  // Additional safety check for empty or root paths
-  if (!path || path === '/' || path.trim() === '') {
+  // Only allow deletion of paths within /vault/temp-downloads
+  const normalizedPath = path.toLowerCase();
+  if (!normalizedPath.startsWith('/vault/temp-downloads/')) {
     const error = new Error(
-      `SAFETY GUARD: Attempted to delete empty or root path: ${path}`,
+      `SAFETY GUARD: Attempted to delete path outside /vault/temp-downloads/: ${path}`,
     );
     log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
       path,
@@ -498,7 +499,7 @@ const generateTempFolderPath = (shortName) => {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const tempFolderName = `temp-download-${shortName}-${timestamp}-${randomSuffix}`;
-  return `/temp-downloads/${tempFolderName}`;
+  return `/vault/temp-downloads/${tempFolderName}`;
 };
 
 // Helper function to create temporary folder
@@ -507,7 +508,7 @@ const createTempFolder = async (tempFolderPath, log) => {
 
   try {
     // Ensure parent directory exists
-    await dbx.filesCreateFolderV2({ path: '/temp-downloads' });
+    await dbx.filesCreateFolderV2({ path: '/vault/temp-downloads' });
   } catch (parentDirError) {
     // Ignore error if directory already exists
     if (
