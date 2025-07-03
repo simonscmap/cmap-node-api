@@ -721,9 +721,9 @@ const downloadDropboxVaultFiles = async (req, res) => {
 
     // Step 5: Create download link
     const downloadLink = await createDownloadLink(tempFolderPath, log);
-
+    log.info('downloadLink', { downloadLink });
     // Step 6: Schedule cleanup
-    scheduleCleanup(tempFolderPath, log);
+    // scheduleCleanup(tempFolderPath, log);
 
     // Step 7: Return success response
     return res.json({
@@ -735,7 +735,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
     });
   } catch (error) {
     // Cleanup after error
-    await cleanupAfterError(tempFolderPath, log);
+    // await cleanupAfterError(tempFolderPath, log);
 
     // Handle and return error response
     const errorResponse = handleDropboxError(error, log);
