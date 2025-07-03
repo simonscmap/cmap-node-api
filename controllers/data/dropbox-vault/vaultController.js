@@ -125,7 +125,7 @@ const formatFileSize = (bytes) => {
 
 // Safe deletion function that only allows deletion of temp-download folders within vault
 const safeDropboxDelete = async (dropbox, path, log) => {
-  // Guard against deleting anything outside of /vault/temp-downloads
+  // Additional safety check for empty or root paths
   if (!path || path === '/' || path.trim() === '') {
     const error = new Error(
       `SAFETY GUARD: Attempted to delete empty or root path: ${path}`,
@@ -139,19 +139,20 @@ const safeDropboxDelete = async (dropbox, path, log) => {
 
   // Only allow deletion of paths within /vault/temp-downloads
   const normalizedPath = path.toLowerCase();
-  if (!normalizedPath.startsWith('/vault/temp-downloads/')) {
-    const error = new Error(
-      `SAFETY GUARD: Attempted to delete path outside /vault/temp-downloads/: ${path}`,
-    );
-    log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
-      path,
-      error: error.message,
-    });
-    throw error;
+  if (normalizedPath.startsWith('/vault/temp-downloads/')) {
+    log.info('Safe deletion proceeding', { path });
+    return await dropbox.filesDeleteV2({ path });
   }
 
-  log.info('Safe deletion proceeding', { path });
-  return await dropbox.filesDeleteV2({ path });
+  // If we get here, the path is not allowed
+  const error = new Error(
+    `SAFETY GUARD: Attempted to delete path outside /vault/temp-downloads/: ${path}`,
+  );
+  log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
+    path,
+    error: error.message,
+  });
+  throw error;
 };
 
 // vaultController: return a share link to the correct folder given a shortName
