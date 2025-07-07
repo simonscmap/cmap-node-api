@@ -126,9 +126,9 @@ const formatFileSize = (bytes) => {
 // Safe deletion function that only allows deletion of temp-download folders in /temp-downloads (sibling to /vault)
 const safeDropboxDelete = async (dropbox, path, log) => {
   // Additional safety check for empty or root paths
-  if (!path || path === '/' || path.trim() === '') {
+  if (!path || path === '/' || path.trim() === '' || path.includes('/vault')) {
     const error = new Error(
-      `SAFETY GUARD: Attempted to delete empty or root path: ${path}`,
+      `SAFETY GUARD: Attempted to delete empty, root path, or vault path: ${path}`,
     );
     log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
       path,
@@ -751,7 +751,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
     const downloadLink = await createDownloadLink(tempFolderPath, log);
     log.info('downloadLink', { downloadLink });
     // Step 6: Schedule cleanup
-    // scheduleCleanup(tempFolderPath, log);
+    scheduleCleanup(tempFolderPath, log);
 
     // Step 7: Return success response
     return res.json({
@@ -762,7 +762,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
     });
   } catch (error) {
     // Cleanup after error
-    // await cleanupAfterError(tempFolderPath, log);
+    await cleanupAfterError(tempFolderPath, log);
 
     // Handle and return error response
     const errorResponse = handleDropboxError(error, log);
