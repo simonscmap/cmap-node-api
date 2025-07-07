@@ -626,7 +626,7 @@ const createDownloadLink = async (tempFolderPath, log) => {
 
 // Helper function to schedule cleanup
 const scheduleCleanup = (tempFolderPath, log) => {
-  const cleanupDelayMs = 10 * 60 * 1000; // 10 minutes
+  const cleanupDelayMs = 90 * 60 * 1000; //  90 minutes
   setTimeout(async () => {
     try {
       await safeDropboxDelete(dbx, tempFolderPath, log);
