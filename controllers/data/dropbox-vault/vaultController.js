@@ -33,12 +33,10 @@ function forceDropboxFolderDownload(dropboxLink) {
 
 // Function to recursively get all files in a folder including subfolders
 const getFilesRecursively = async (path, log) => {
-  const dropbox = dbx;
-
   // Helper function to handle pagination
   const listFolderContinue = async (files, cursor) => {
     try {
-      const response = await dropbox.filesListFolderContinue({ cursor });
+      const response = await dbx.filesListFolderContinue({ cursor });
 
       // Process files from this batch
       const newFiles = response.result.entries
@@ -67,7 +65,7 @@ const getFilesRecursively = async (path, log) => {
 
   try {
     // Initial folder listing
-    const listFolderResponse = await dropbox.filesListFolder({
+    const listFolderResponse = await dbx.filesListFolder({
       path,
       recursive: true,
       include_media_info: false,
