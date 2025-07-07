@@ -14,13 +14,6 @@ const directQuery = require('../../utility/directQuery');
 const cacheAsync = require('../../utility/cacheAsync');
 const { expandIfSelectStar } = require('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
-const { bulkDownloadController } = require('./bulk-download');
-const namedDataController = require('./namedDataController');
-const {
-  getShareLinkController,
-  getVaultFilesInfo,
-  downloadDropboxVaultFiles,
-} = require('./dropbox-vault/vaultController');
 
 const moduleLogger = initializeLogger('controllers/data');
 
@@ -511,19 +504,17 @@ const trajectoryPointCounts = async (req, res, next) => {
 
 module.exports = {
   ancillaryDatasets,
-  bulkDownloadController,
   ciDatasets,
   cruiseList,
   cruiseTrajectories,
   cruiseTrajectory,
   customQuery,
   datasetFeatures,
-  namedDataController,
   queryModification,
   storedProcedure,
   tableStats,
   trajectoryPointCounts,
-  getShareLinkController,
-  getVaultFilesInfo,
-  downloadDropboxVaultFiles,
+  ...require('./bulk-download'),
+  ...require('./namedDataController'),
+  ...require('./dropbox-vault/vaultController'),
 };
