@@ -2,12 +2,6 @@
 // these require different dropbox credentials
 const { URL } = require('url');
 const { setTimeout } = require('timers');
-// const fs = require('fs');
-// const path = require('path');
-// const os = require('os');
-// const archiver = require('archiver');
-// const { promisify } = require('util');
-// const mkdtemp = promisify(fs.mkdtemp);
 
 const dbx = require('../../../utility/DropboxVault');
 const { getDatasetId } = require('../../../queries/datasetId');
