@@ -760,7 +760,4 @@ module.exports = {
   getShareLinkController,
   getVaultFilesInfo,
   downloadDropboxVaultFiles,
-  safeDropboxDelete,
-  scheduleCleanup,
-  cleanupAfterError,
 };
