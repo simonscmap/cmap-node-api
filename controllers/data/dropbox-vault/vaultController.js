@@ -31,8 +31,8 @@ function forceDropboxFolderDownload(dropboxLink) {
   return url.toString();
 }
 
-// Function to recursively get all files in a folder including subfolders
-const getFilesRecursively = async (path, log) => {
+// Function to get all files in a folder (no subfolders expected)
+const getFilesFromFolder = async (path, log) => {
   // Helper function to handle pagination
   const listFolderContinue = async (files, cursor) => {
     try {
@@ -64,10 +64,10 @@ const getFilesRecursively = async (path, log) => {
   };
 
   try {
-    // Initial folder listing
+    // Initial folder listing (no recursive flag needed)
     const listFolderResponse = await dbx.filesListFolder({
       path,
-      recursive: true,
+      recursive: false, // No subfolders expected
       include_media_info: false,
       include_deleted: false,
       include_non_downloadable_files: false,
@@ -99,7 +99,7 @@ const getFilesRecursively = async (path, log) => {
       return [null, []];
     }
 
-    log.error('Error getting files recursively', { path, error });
+    log.error('Error getting files from folder', { path, error });
     return [error, null];
   }
 };
@@ -389,53 +389,48 @@ const getVaultFilesInfo = async (req, res) => {
 
   // 3. Get file information from the vault folders (sequential priority: REP -> NRT -> RAW)
   const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const parentVaultPath = `/vault/${vaultPath}`;
-  const repPath = `${parentVaultPath}rep`;
-  const nrtPath = `${parentVaultPath}nrt`;
-  const rawPath = `${parentVaultPath}raw`;
+  const repPath = `/vault/${vaultPath}rep`;
+  const nrtPath = `/vault/${vaultPath}nrt`;
+  const rawPath = `/vault/${vaultPath}raw`;
 
-  // Get all files from the vault directory in one async call
-  const [vaultErr, allFiles] = await getFilesRecursively(parentVaultPath, log);
+  // Check folders in priority order: REP -> NRT -> RAW
+  const folderConfigs = [
+    { name: 'rep', path: repPath },
+    { name: 'nrt', path: nrtPath },
+    { name: 'raw', path: rawPath },
+  ];
 
-  if (vaultErr) {
-    log.error('Error retrieving vault files', {
-      parentVaultPath,
-      error: vaultErr,
-    });
-    return res.status(500).json({ error: 'Error retrieving vault files' });
-  }
-
-  // Synchronously group files by folder
-  const filesByFolder = {
-    rep: allFiles.filter((file) => file.path.startsWith(repPath)),
-    nrt: allFiles.filter((file) => file.path.startsWith(nrtPath)),
-    raw: allFiles.filter((file) => file.path.startsWith(rawPath)),
-  };
-
-  // Apply priority logic: REP -> NRT -> RAW
   let selectedFolder = null;
   let selectedFiles = [];
   let selectedPath = null;
 
-  if (filesByFolder.rep.length > 0) {
-    selectedFolder = 'rep';
-    selectedFiles = filesByFolder.rep;
-    selectedPath = repPath;
-  } else if (filesByFolder.nrt.length > 0) {
-    selectedFolder = 'nrt';
-    selectedFiles = filesByFolder.nrt;
-    selectedPath = nrtPath;
-  } else if (filesByFolder.raw.length > 0) {
-    selectedFolder = 'raw';
-    selectedFiles = filesByFolder.raw;
-    selectedPath = rawPath;
-  } else {
+  for (const folderConfig of folderConfigs) {
+    const [folderErr, folderFiles] = await getFilesFromFolder(
+      folderConfig.path,
+      log,
+    );
+
+    if (folderErr) {
+      log.error(`Error checking ${folderConfig.name.toUpperCase()} folder`, {
+        path: folderConfig.path,
+        error: folderErr,
+      });
+      return res.status(500).json({ error: 'Error checking vault folders' });
+    }
+
+    if (folderFiles.length > 0) {
+      selectedFolder = folderConfig.name;
+      selectedFiles = folderFiles;
+      selectedPath = folderConfig.path;
+      break; // Found a folder with files, stop checking
+    }
+  }
+
+  if (!selectedFolder) {
     log.warn('No files found in any vault folder', {
-      parentVaultPath,
       repPath,
       nrtPath,
       rawPath,
-      totalFiles: allFiles.length,
     });
     return res.status(404).json({ error: 'No files found in vault folders' });
   }
@@ -446,7 +441,6 @@ const getVaultFilesInfo = async (req, res) => {
     selectedFolder,
     selectedPath,
     fileCount: selectedFiles.length,
-    totalVaultFiles: allFiles.length,
   });
 
   // 4. Return the payload with file information from selected folder only
