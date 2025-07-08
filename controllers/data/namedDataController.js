@@ -203,7 +203,7 @@ const avgAdtAnomalyPlotData = async (req, res, next) => {
   next();
 };
 
-const namedData = async (req, res, next) => {
+const namedDataController = async (req, res, next) => {
   const name = req.params.name;
   switch (name) {
     case 'sst':
@@ -225,4 +225,4 @@ const namedData = async (req, res, next) => {
   next();
 };
 
-module.exports = namedData;
+module.exports = { namedDataController };

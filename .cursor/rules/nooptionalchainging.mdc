@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Do not use optional chaining (?.) — it is not supported in Node.js v12. Use traditional null checks instead.
