@@ -14,9 +14,6 @@ const directQuery = require('../../utility/directQuery');
 const cacheAsync = require('../../utility/cacheAsync');
 const { expandIfSelectStar } = require('../../utility/download/expandSelect');
 const { transformFeatureResults } = require('./transforms');
-const { bulkDownloadController } = require('./bulk-download');
-const namedDataController = require('./namedDataController');
-const vaultController = require('./vaultController');
 
 const moduleLogger = initializeLogger('controllers/data');
 
@@ -222,8 +219,9 @@ const queryModification = async (req, res, next) => {
   }
 
   // if 'select * ...', replace '*' with columns
-  let [errorMsg, updatedQuery, queryWasModified] =
-    await expandIfSelectStar(query);
+  let [errorMsg, updatedQuery, queryWasModified] = await expandIfSelectStar(
+    query,
+  );
 
   if (errorMsg) {
     log.warn(errorMsg, { query });
@@ -506,17 +504,17 @@ const trajectoryPointCounts = async (req, res, next) => {
 
 module.exports = {
   ancillaryDatasets,
-  bulkDownloadController,
   ciDatasets,
   cruiseList,
   cruiseTrajectories,
   cruiseTrajectory,
   customQuery,
   datasetFeatures,
-  namedDataController,
   queryModification,
   storedProcedure,
   tableStats,
   trajectoryPointCounts,
-  getShareLinkController: vaultController.getShareLinkController,
+  ...require('./bulk-download'),
+  ...require('./namedDataController'),
+  ...require('./dropbox-vault/vaultController'),
 };

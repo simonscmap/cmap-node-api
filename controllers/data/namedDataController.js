@@ -101,7 +101,7 @@ const fetchAvgSSTAnomalyData = async () => {
 
 const avgSSTCacheKey = 'AVG_SST_ANOM_PROCESSED';
 const avgSSTCacheOptions = { ttl: oneMonthInSeconds };
-preWarmCacheAsync(avgSSTCacheKey, fetchAvgSSTAnomalyData, avgSSTCacheOptions);
+// preWarmCacheAsync(avgSSTCacheKey, fetchAvgSSTAnomalyData, avgSSTCacheOptions);
 
 const avgSSTAnomalyPlotData = async (req, res, next) => {
   moduleLogger.trace('executing named route: avg sst anomaly data', null);
@@ -143,6 +143,7 @@ const fetchADTAnomalyData = async () => {
 };
 const adtCacheKey = 'ADT_ANOM_PROCESSED';
 const adtCacheOptions = { ttl: oneMonthInSeconds };
+// TODO: uncomment when databricks experiment is completed
 // preWarmCacheAsync (adtCacheKey, fetchADTAnomalyData, adtCacheOptions);
 
 const adtAnomalyPlotData = async (req, res, next) => {
@@ -186,7 +187,8 @@ const fetchAvgADTAnomalyData = async () => {
 };
 const avgAdtCacheKey = 'AVG_ADT_ANOM_PROCESSED';
 const avgAdtCacheOptions = { ttl: oneMonthInSeconds };
-preWarmCacheAsync(avgAdtCacheKey, fetchAvgADTAnomalyData, avgAdtCacheOptions);
+// TODO: uncomment when databricks experiment is completed
+// preWarmCacheAsync(avgAdtCacheKey, fetchAvgADTAnomalyData, avgAdtCacheOptions);
 
 const avgAdtAnomalyPlotData = async (req, res, next) => {
   moduleLogger.trace('executing named route: avg adt anomaly data', null);
@@ -203,7 +205,7 @@ const avgAdtAnomalyPlotData = async (req, res, next) => {
   next();
 };
 
-const namedData = async (req, res, next) => {
+const namedDataController = async (req, res, next) => {
   const name = req.params.name;
   switch (name) {
     case 'sst':
@@ -225,4 +227,4 @@ const namedData = async (req, res, next) => {
   next();
 };
 
-module.exports = namedData;
+module.exports = { namedDataController };
