@@ -13,12 +13,11 @@ const dataRetrievalRoutes = require('./routes/dataRetrieval');
 const ApiCallDetails = require('./models/ApiCallDetail');
 const { v4: uuidv4 } = require('uuid');
 
-const { monitor } = require('./mail-service/checkBouncedMail');
+const { runStartupTasks } = require('./startup');
 const env = require('./config/environment');
 
-// on startup, check for bounced mail
-monitor();
-monitor();
+// Execute all startup tasks
+runStartupTasks();
 
 const log = createNewLogger()
   .setModule('app.js')
