@@ -12,6 +12,9 @@ const getVaultFolderMetadata = require('../getVaultInfo');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 
+// Constants for cleanup management
+const CLEANUP_DELAY_MS = 90 * 60 * 1000; // 90 minutes
+
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
 );
@@ -610,9 +613,9 @@ const createDownloadLink = async (tempFolderPath, log) => {
   }
 };
 
-// Helper function to schedule cleanup
+// Helper function to schedule cleanup (keeping existing functionality as fallback)
 const scheduleCleanup = (tempFolderPath, log) => {
-  const cleanupDelayMs = 90 * 60 * 1000; //  90 minutes
+  const cleanupDelayMs = CLEANUP_DELAY_MS;
   setTimeout(async () => {
     try {
       await safeDropboxDelete(dbx, tempFolderPath, log);
@@ -756,8 +759,61 @@ const downloadDropboxVaultFiles = async (req, res) => {
   }
 };
 
+// Generic function to schedule cleanup for all folders in temp-downloads
+const scheduleCleanupForAllTempFolders = async () => {
+  const log = moduleLogger.addContext(['temp_folder_cleanup']);
+
+  try {
+    // List all folders in /temp-downloads
+    const listResult = await dbx.filesListFolder({
+      path: '/temp-downloads',
+      recursive: false,
+    });
+
+    const tempFolders = listResult.result.entries.filter(
+      (entry) => entry['.tag'] === 'folder',
+    );
+
+    log.info('Found temporary folders - scheduling cleanup for all', {
+      folderCount: tempFolders.length,
+    });
+
+    // Schedule cleanup for all folders
+    tempFolders.forEach((folder) => {
+      log.debug('Scheduling cleanup for temporary folder', {
+        folderName: folder.name,
+        folderPath: folder.path_display,
+      });
+
+      // Reset the 90-minute timer for this folder
+      scheduleCleanup(folder.path_display, log);
+    });
+
+    log.info('Cleanup scheduled for all temporary folders', {
+      totalFolders: tempFolders.length,
+    });
+  } catch (error) {
+    // Handle case where /temp-downloads doesn't exist or other errors
+    if (
+      error.status === 409 &&
+      error.error &&
+      error.error.error_summary &&
+      error.error.error_summary.includes('path/not_found')
+    ) {
+      log.info('No temp-downloads folder found, nothing to clean up');
+    } else {
+      log.error('Error scheduling cleanup for temporary folders', {
+        error: error.message,
+        status: error.status,
+        errorSummary: error.error && error.error.error_summary,
+      });
+    }
+  }
+};
+
 module.exports = {
   getShareLinkController,
   getVaultFilesInfo,
   downloadDropboxVaultFiles,
+  scheduleCleanupForAllTempFolders,
 };
