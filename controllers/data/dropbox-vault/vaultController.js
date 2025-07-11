@@ -32,63 +32,54 @@ function forceDropboxFolderDownload(dropboxLink) {
 }
 
 // Function to get all files in a folder (no subfolders expected)
-const getFilesFromFolder = async (path, log) => {
-  // Helper function to handle pagination
-  const listFolderContinue = async (files, cursor) => {
-    try {
-      const response = await dbx.filesListFolderContinue({ cursor });
-
-      // Process files from this batch
-      const newFiles = response.result.entries
-        .filter((entry) => entry['.tag'] === 'file')
-        .map((file) => ({
-          name: file.name,
-          path: file.path_display,
-          size: file.size,
-          sizeFormatted: formatFileSize(file.size),
-        }));
-
-      const allFiles = [...files, ...newFiles];
-
-      // If there are more files, continue pagination
-      if (response.result.has_more) {
-        return await listFolderContinue(allFiles, response.result.cursor);
-      }
-
-      return allFiles;
-    } catch (error) {
-      log.error('Error in pagination', { cursor, error });
-      // Return files collected so far even if pagination fails
-      return files;
-    }
-  };
+const getFilesFromFolder = async (path, options = {}, log) => {
+  const {
+    limit = 100,        // Default page size
+    cursor = null,      // For fetching specific page
+    includeTotal = true // Whether to include total count
+  } = options;
 
   try {
-    // Initial folder listing (no recursive flag needed)
-    const listFolderResponse = await dbx.filesListFolder({
-      path,
-      recursive: false, // No subfolders expected
-      include_media_info: false,
-      include_deleted: false,
-      include_non_downloadable_files: false,
-    });
+    let response;
+    let entries = [];
+    let totalCount = null;
 
-    // Process files from initial response
-    let files = listFolderResponse.result.entries
-      .filter((entry) => entry['.tag'] === 'file')
-      .map((file) => ({
+    if (cursor) {
+      // Continue from previous cursor
+      response = await dbx.filesListFolderContinue({ cursor });
+    } else {
+      // Initial request
+      response = await dbx.filesListFolder({
+        path,
+        recursive: false,
+        include_media_info: false,
+        include_deleted: false,
+        include_non_downloadable_files: false,
+        limit
+      });
+    }
+
+    // Process entries
+    entries = response.result.entries
+      .filter(entry => entry['.tag'] === 'file')
+      .map(file => ({
         name: file.name,
         path: file.path_display,
         size: file.size,
-        sizeFormatted: formatFileSize(file.size),
+        sizeFormatted: formatFileSize(file.size)
       }));
 
-    // If there are more files, handle pagination
-    if (listFolderResponse.result.has_more) {
-      files = await listFolderContinue(files, listFolderResponse.result.cursor);
+    // Get total count if requested (requires full traversal)
+    if (includeTotal && !cursor) {
+      totalCount = await getTotalFileCount(path, log);
     }
 
-    return [null, files];
+    return [null, {
+      files: entries,
+      cursor: response.result.has_more ? response.result.cursor : null,
+      hasMore: response.result.has_more,
+      totalCount
+    }];
   } catch (error) {
     // Check if it's a "not found" error, which is fine (empty folder)
     if (
@@ -96,12 +87,36 @@ const getFilesFromFolder = async (path, log) => {
       error.error.error_summary.includes('path/not_found')
     ) {
       log.info('Folder not found or empty', { path });
-      return [null, []];
+      return [null, {
+        files: [],
+        cursor: null,
+        hasMore: false,
+        totalCount: 0
+      }];
     }
 
     log.error('Error getting files from folder', { path, error });
     return [error, null];
   }
+};
+
+// Helper to get total file count
+const getTotalFileCount = async (path, log) => {
+  let count = 0;
+  let cursor = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = cursor
+      ? await dbx.filesListFolderContinue({ cursor })
+      : await dbx.filesListFolder({ path, recursive: false });
+    
+    count += response.result.entries.filter(e => e['.tag'] === 'file').length;
+    cursor = response.result.cursor;
+    hasMore = response.result.has_more;
+  }
+
+  return count;
 };
 
 // Helper function to format file size
@@ -346,12 +361,27 @@ const getShareLinkController = async (req, res) => {
   return res.json(payload);
 };
 
+// Helper function to validate pagination parameters
+const validatePaginationParams = (query) => {
+  const page = parseInt(query.page) || 1;
+  const pageSize = Math.min(Math.max(parseInt(query.pageSize) || 100, 10), 1000);
+  
+  return { page, pageSize, cursor: query.cursor || null };
+};
+
 // New controller to get detailed file information for a dataset
 const getVaultFilesInfo = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
 
   // Get the dataset short name from request
   const shortName = req.params.shortName;
+  
+  // Pagination parameters from query
+  const {
+    page,
+    pageSize,
+    cursor
+  } = validatePaginationParams(req.query);
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
@@ -403,10 +433,16 @@ const getVaultFilesInfo = async (req, res) => {
   let selectedFolder = null;
   let selectedFiles = [];
   let selectedPath = null;
+  let paginationInfo = null;
 
   for (const folderConfig of folderConfigs) {
-    const [folderErr, folderFiles] = await getFilesFromFolder(
+    const [folderErr, result] = await getFilesFromFolder(
       folderConfig.path,
+      { 
+        limit: pageSize, 
+        cursor,
+        includeTotal: !cursor // Only get total on first page
+      },
       log,
     );
 
@@ -418,10 +454,20 @@ const getVaultFilesInfo = async (req, res) => {
       return res.status(500).json({ error: 'Error checking vault folders' });
     }
 
-    if (folderFiles.length > 0) {
+    if (result.files.length > 0 || (result.totalCount && result.totalCount > 0)) {
       selectedFolder = folderConfig.name;
-      selectedFiles = folderFiles;
+      selectedFiles = result.files;
       selectedPath = folderConfig.path;
+      paginationInfo = {
+        page: cursor ? null : page, // Only show page number when not using cursor
+        pageSize: pageSize,
+        hasMore: result.hasMore,
+        cursor: result.cursor,
+        totalCount: result.totalCount,
+        totalPages: result.totalCount 
+          ? Math.ceil(result.totalCount / pageSize) 
+          : null
+      };
       break; // Found a folder with files, stop checking
     }
   }
@@ -440,7 +486,8 @@ const getVaultFilesInfo = async (req, res) => {
     shortName,
     selectedFolder,
     selectedPath,
-    fileCount: selectedFiles.length,
+    currentPageCount: selectedFiles.length,
+    pagination: paginationInfo
   });
 
   // 4. Return the payload with file information from selected folder only
@@ -449,10 +496,11 @@ const getVaultFilesInfo = async (req, res) => {
     datasetId,
     selectedFolder,
     files: selectedFiles,
+    pagination: paginationInfo,
     summary: {
       folderUsed: selectedFolder,
-      fileCount: selectedFiles.length,
-      totalSize: selectedFiles.reduce((sum, file) => sum + file.size, 0),
+      currentPageCount: selectedFiles.length,
+      currentPageSize: selectedFiles.reduce((sum, file) => sum + file.size, 0)
     },
   };
 
