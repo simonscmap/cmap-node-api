@@ -34,7 +34,7 @@ function forceDropboxFolderDownload(dropboxLink) {
 // Function to get all files in a folder (no subfolders expected)
 const getFilesFromFolder = async (path, options = {}, log) => {
   const {
-    limit = 200, // Default page size
+    limit = 2000, // Default page size
     cursor = null, // For fetching specific page
     includeTotal = true, // Whether to include total count
   } = options;
