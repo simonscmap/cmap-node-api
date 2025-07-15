@@ -9,6 +9,7 @@ SimonsCMAPAPI is the Node.js API layer supporting Simons CMAP Web App and SDKs. 
 ## Common Development Commands
 
 ### Setup and Development
+
 ```bash
 # Install dependencies
 npm install
@@ -21,15 +22,12 @@ npm start
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 npm test
 
-# Run specific test file
-npm test test/controllers/catalog/tablestats.js
 
-# Tests use AVA framework with 2-minute timeout
-```
 
 ### Deployment
 ```bash
@@ -42,6 +40,7 @@ npm test test/controllers/catalog/tablestats.js
 ## Architecture Overview
 
 ### Core Technologies
+
 - **Framework**: Express.js with middleware pattern
 - **Authentication**: Passport.js with JWT, API keys, and Google OAuth
 - **Database**: MS SQL Server with connection pooling
@@ -99,6 +98,7 @@ npm test test/controllers/catalog/tablestats.js
 ### Database Configuration
 
 Database connections are configured per environment with these servers:
+
 - **Rainier**: Primary production server
 - **Rossby**: Secondary server
 - **Mariana**: Specialized datasets
@@ -119,19 +119,3 @@ Connection strings use environment variables prefixed with server names.
 5. **Data Formats**: Supports JSON, CSV, and custom formats. Format transformations in `/controllers/data/retrieval/transforms/`.
 
 6. **File Storage**: Uses Dropbox for user-submitted files and temporary download storage.
-
-### Testing Guidelines
-
-- Tests are in `/test` mirroring source structure
-- Use AVA's async capabilities for database tests
-- Mock external services (Dropbox, email) in tests
-- Query fixtures in `/test/fixtures/`
-
-### Environment Variables
-
-Key environment variables to configure:
-- `NODE_ENV`: production, staging, or development
-- Database connections: `{SERVER}_DB_*` pattern
-- `JWT_SECRET`: For token authentication
-- `DROPBOX_ACCESS_TOKEN`: For file storage
-- `SENTRY_DSN`: Error tracking
