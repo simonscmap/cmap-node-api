@@ -367,16 +367,6 @@ const getShareLinkController = async (req, res) => {
   return res.json(payload);
 };
 
-// Helper function to validate pagination parameters
-const validatePaginationParams = (query) => {
-  const chunkSize = Math.min(
-    Math.max(parseInt(query.chunkSize) || 200, 10),
-    4000,
-  );
-
-  return { chunkSize, cursor: query.cursor || null };
-};
-
 // New controller to get detailed file information for a dataset
 const getVaultFilesInfo = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
@@ -385,7 +375,8 @@ const getVaultFilesInfo = async (req, res) => {
   const shortName = req.params.shortName;
 
   // Pagination parameters from query
-  const { chunkSize, cursor } = validatePaginationParams(req.query);
+  const chunkSize = req.query.chunkSize || CHUNK_SIZE;
+  const cursor = req.query.cursor || null;
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
