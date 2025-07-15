@@ -136,6 +136,39 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+// Helper function to get folder path based on folder type
+const getFolderPath = (folderType, vaultPath) => {
+  return `/vault/${vaultPath}${folderType}`;
+};
+
+// Helper function to check all folders for availability
+const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
+  try {
+    const results = await Promise.all([
+      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log)
+    ]);
+
+    return {
+      hasRep: results[0][1]?.totalCount > 0,
+      hasNrt: results[1][1]?.totalCount > 0,
+      hasRaw: results[2][1]?.totalCount > 0
+    };
+  } catch (error) {
+    log.error('Error checking folder availability', { error });
+    throw error;
+  }
+};
+
+// Helper function to determine main folder based on priority
+const determineMainFolder = (availableFolders) => {
+  if (availableFolders.hasRep) return 'rep';
+  if (availableFolders.hasNrt) return 'nrt';
+  if (availableFolders.hasRaw) return 'raw';
+  return null; // No files found
+};
+
 // Safe deletion function that only allows deletion of temp-download folders in /temp-downloads (sibling to /vault)
 const safeDropboxDelete = async (dropbox, path, log) => {
   // Additional safety check for empty or root paths
@@ -374,13 +407,20 @@ const getVaultFilesInfo = async (req, res) => {
   // Get the dataset short name from request
   const shortName = req.params.shortName;
 
-  // Pagination parameters from query
+  // Parse query parameters
+  const folderType = req.query.folderType; // 'rep', 'nrt', 'raw', or undefined
   const chunkSize = req.query.chunkSize || CHUNK_SIZE;
   const cursor = req.query.cursor || null;
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
     return res.status(400).json({ error: 'Dataset short name is required' });
+  }
+
+  // Validate folderType parameter if provided
+  if (folderType && !['rep', 'nrt', 'raw'].includes(folderType)) {
+    log.warn('Invalid folderType parameter', { folderType });
+    return res.status(400).json({ error: 'Invalid folderType. Must be one of: rep, nrt, raw' });
   }
 
   // 1. Get dataset ID from short name
@@ -412,27 +452,48 @@ const getVaultFilesInfo = async (req, res) => {
     return res.status(404).json({ error: 'No vault record found for dataset' });
   }
 
-  // 3. Get file information from the vault folders (sequential priority: REP -> NRT -> RAW)
+  // 3. Set up folder paths
   const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = `/vault/${vaultPath}rep`;
-  const nrtPath = `/vault/${vaultPath}nrt`;
-  const rawPath = `/vault/${vaultPath}raw`;
+  const repPath = getFolderPath('rep', vaultPath);
+  const nrtPath = getFolderPath('nrt', vaultPath);
+  const rawPath = getFolderPath('raw', vaultPath);
 
-  // Check folders in priority order: REP -> NRT -> RAW
-  const folderConfigs = [
-    { name: 'rep', path: repPath },
-    { name: 'nrt', path: nrtPath },
-    { name: 'raw', path: rawPath },
-  ];
+  try {
+    // 4. Check all folders for availability
+    const availableFolders = await checkAllFolders(repPath, nrtPath, rawPath, log);
 
-  let selectedFolder = null;
-  let selectedFiles = [];
-  let selectedPath = null;
-  let paginationInfo = null;
+    // 5. Determine main folder based on priority
+    const mainFolder = determineMainFolder(availableFolders);
 
-  for (const folderConfig of folderConfigs) {
-    const [folderErr, result] = await getFilesFromFolder(
-      folderConfig.path,
+    if (!mainFolder) {
+      log.warn('No files found in any vault folder', {
+        repPath,
+        nrtPath,
+        rawPath,
+        availableFolders,
+      });
+      return res.status(404).json({ error: 'No files found in vault folders' });
+    }
+
+    // 6. Determine which folder to fetch files from
+    const targetFolder = folderType || mainFolder;
+
+    // 7. Validate that requested folder exists if folderType was specified
+    if (folderType) {
+      const folderKey = `has${folderType.charAt(0).toUpperCase() + folderType.slice(1)}`;
+      if (!availableFolders[folderKey]) {
+        log.warn('Requested folder type has no files', { folderType, availableFolders });
+        return res.status(404).json({ 
+          error: `No files found in ${folderType.toUpperCase()} folder`,
+          availableFolders 
+        });
+      }
+    }
+
+    // 8. Fetch files from target folder
+    const targetPath = getFolderPath(targetFolder, vaultPath);
+    const [folderErr, folderResult] = await getFilesFromFolder(
+      targetPath,
       {
         limit: chunkSize,
         cursor,
@@ -442,66 +503,64 @@ const getVaultFilesInfo = async (req, res) => {
     );
 
     if (folderErr) {
-      log.error(`Error checking ${folderConfig.name.toUpperCase()} folder`, {
-        path: folderConfig.path,
+      log.error(`Error fetching files from ${targetFolder.toUpperCase()} folder`, {
+        path: targetPath,
         error: folderErr,
       });
-      return res.status(500).json({ error: 'Error checking vault folders' });
+      return res.status(500).json({ error: 'Error fetching vault files' });
     }
 
-    if (
-      result.files.length > 0 ||
-      (result.totalCount && result.totalCount > 0)
-    ) {
-      selectedFolder = folderConfig.name;
-      selectedFiles = result.files;
-      selectedPath = folderConfig.path;
-      paginationInfo = {
-        chunkSize: chunkSize,
-        hasMore: result.hasMore,
-        cursor: result.cursor,
-        totalCount: result.totalCount,
-        totalChunks: result.totalCount
-          ? Math.ceil(result.totalCount / chunkSize)
-          : null,
-      };
-      break; // Found a folder with files, stop checking
-    }
-  }
+    // 9. Build pagination info
+    const paginationInfo = {
+      chunkSize: chunkSize,
+      hasMore: folderResult.hasMore,
+      cursor: folderResult.cursor,
+      totalCount: folderResult.totalCount,
+      totalChunks: folderResult.totalCount
+        ? Math.ceil(folderResult.totalCount / chunkSize)
+        : null,
+    };
 
-  if (!selectedFolder) {
-    log.warn('No files found in any vault folder', {
-      repPath,
-      nrtPath,
-      rawPath,
+    // Log the operation
+    log.info('Retrieved vault files for dataset', {
+      shortName,
+      availableFolders,
+      mainFolder,
+      targetFolder,
+      currentPageCount: folderResult.files.length,
+      pagination: paginationInfo,
     });
-    return res.status(404).json({ error: 'No files found in vault folders' });
+
+    // 10. Return enhanced response with folder availability info
+    const payload = {
+      shortName,
+      datasetId,
+      availableFolders,
+      mainFolder,
+      files: folderResult.files,
+      pagination: paginationInfo,
+      summary: {
+        folderUsed: targetFolder,
+        currentPageCount: folderResult.files.length,
+        currentPageSize: folderResult.files.reduce((sum, file) => sum + file.size, 0),
+      },
+      folderType: targetFolder,
+      // Keep selectedFolder for backwards compatibility
+      selectedFolder: targetFolder,
+    };
+
+    return res.json(payload);
+
+  } catch (error) {
+    log.error('Error in getVaultFilesInfo', {
+      shortName,
+      datasetId,
+      folderType,
+      error: error.message,
+      stack: error.stack,
+    });
+    return res.status(500).json({ error: 'Error retrieving vault information' });
   }
-
-  // Log once at the end with the selected folder info
-  log.info('Selected vault folder for dataset', {
-    shortName,
-    selectedFolder,
-    selectedPath,
-    currentPageCount: selectedFiles.length,
-    pagination: paginationInfo,
-  });
-
-  // 4. Return the payload with file information from selected folder only
-  const payload = {
-    shortName,
-    datasetId,
-    selectedFolder,
-    files: selectedFiles,
-    pagination: paginationInfo,
-    summary: {
-      folderUsed: selectedFolder,
-      currentPageCount: selectedFiles.length,
-      currentPageSize: selectedFiles.reduce((sum, file) => sum + file.size, 0),
-    },
-  };
-
-  return res.json(payload);
 };
 
 // Helper function to validate download request
