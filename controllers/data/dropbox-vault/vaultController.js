@@ -11,7 +11,7 @@ const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-
+const CHUNK_SIZE = 2000;
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
 );
@@ -34,7 +34,7 @@ function forceDropboxFolderDownload(dropboxLink) {
 // Function to get all files in a folder (no subfolders expected)
 const getFilesFromFolder = async (path, options = {}, log) => {
   const {
-    limit = 2000, // Default page size
+    limit = CHUNK_SIZE, // Default chunk size
     cursor = null, // For fetching specific page
     includeTotal = true, // Whether to include total count
   } = options;
@@ -369,13 +369,12 @@ const getShareLinkController = async (req, res) => {
 
 // Helper function to validate pagination parameters
 const validatePaginationParams = (query) => {
-  const page = parseInt(query.page) || 1;
-  const pageSize = Math.min(
-    Math.max(parseInt(query.pageSize) || 100, 10),
-    1000,
+  const chunkSize = Math.min(
+    Math.max(parseInt(query.chunkSize) || 200, 10),
+    4000,
   );
 
-  return { page, pageSize, cursor: query.cursor || null };
+  return { chunkSize, cursor: query.cursor || null };
 };
 
 // New controller to get detailed file information for a dataset
@@ -386,7 +385,7 @@ const getVaultFilesInfo = async (req, res) => {
   const shortName = req.params.shortName;
 
   // Pagination parameters from query
-  const { page, pageSize, cursor } = validatePaginationParams(req.query);
+  const { chunkSize, cursor } = validatePaginationParams(req.query);
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
@@ -444,7 +443,7 @@ const getVaultFilesInfo = async (req, res) => {
     const [folderErr, result] = await getFilesFromFolder(
       folderConfig.path,
       {
-        limit: pageSize,
+        limit: chunkSize,
         cursor,
         includeTotal: !cursor, // Only get total on first page
       },
@@ -467,13 +466,12 @@ const getVaultFilesInfo = async (req, res) => {
       selectedFiles = result.files;
       selectedPath = folderConfig.path;
       paginationInfo = {
-        page: cursor ? null : page, // Only show page number when not using cursor
-        pageSize: pageSize,
+        chunkSize: chunkSize,
         hasMore: result.hasMore,
         cursor: result.cursor,
         totalCount: result.totalCount,
-        totalPages: result.totalCount
-          ? Math.ceil(result.totalCount / pageSize)
+        totalChunks: result.totalCount
+          ? Math.ceil(result.totalCount / chunkSize)
           : null,
       };
       break; // Found a folder with files, stop checking
