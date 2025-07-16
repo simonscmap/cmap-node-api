@@ -147,13 +147,13 @@ const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
     const results = await Promise.all([
       getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
       getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log)
+      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
     ]);
 
     return {
-      hasRep: results[0][1]?.totalCount > 0,
-      hasNrt: results[1][1]?.totalCount > 0,
-      hasRaw: results[2][1]?.totalCount > 0
+      hasRep: results[0][1] && results[0][1].totalCount > 0,
+      hasNrt: results[1][1] && results[1][1].totalCount > 0,
+      hasRaw: results[2][1] && results[2][1].totalCount > 0,
     };
   } catch (error) {
     log.error('Error checking folder availability', { error });
@@ -420,7 +420,9 @@ const getVaultFilesInfo = async (req, res) => {
   // Validate folderType parameter if provided
   if (folderType && !['rep', 'nrt', 'raw'].includes(folderType)) {
     log.warn('Invalid folderType parameter', { folderType });
-    return res.status(400).json({ error: 'Invalid folderType. Must be one of: rep, nrt, raw' });
+    return res
+      .status(400)
+      .json({ error: 'Invalid folderType. Must be one of: rep, nrt, raw' });
   }
 
   // 1. Get dataset ID from short name
@@ -460,7 +462,12 @@ const getVaultFilesInfo = async (req, res) => {
 
   try {
     // 4. Check all folders for availability
-    const availableFolders = await checkAllFolders(repPath, nrtPath, rawPath, log);
+    const availableFolders = await checkAllFolders(
+      repPath,
+      nrtPath,
+      rawPath,
+      log,
+    );
 
     // 5. Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);
@@ -480,12 +487,17 @@ const getVaultFilesInfo = async (req, res) => {
 
     // 7. Validate that requested folder exists if folderType was specified
     if (folderType) {
-      const folderKey = `has${folderType.charAt(0).toUpperCase() + folderType.slice(1)}`;
+      const folderKey = `has${
+        folderType.charAt(0).toUpperCase() + folderType.slice(1)
+      }`;
       if (!availableFolders[folderKey]) {
-        log.warn('Requested folder type has no files', { folderType, availableFolders });
-        return res.status(404).json({ 
+        log.warn('Requested folder type has no files', {
+          folderType,
+          availableFolders,
+        });
+        return res.status(404).json({
           error: `No files found in ${folderType.toUpperCase()} folder`,
-          availableFolders 
+          availableFolders,
         });
       }
     }
@@ -503,10 +515,13 @@ const getVaultFilesInfo = async (req, res) => {
     );
 
     if (folderErr) {
-      log.error(`Error fetching files from ${targetFolder.toUpperCase()} folder`, {
-        path: targetPath,
-        error: folderErr,
-      });
+      log.error(
+        `Error fetching files from ${targetFolder.toUpperCase()} folder`,
+        {
+          path: targetPath,
+          error: folderErr,
+        },
+      );
       return res.status(500).json({ error: 'Error fetching vault files' });
     }
 
@@ -542,7 +557,10 @@ const getVaultFilesInfo = async (req, res) => {
       summary: {
         folderUsed: targetFolder,
         currentPageCount: folderResult.files.length,
-        currentPageSize: folderResult.files.reduce((sum, file) => sum + file.size, 0),
+        currentPageSize: folderResult.files.reduce(
+          (sum, file) => sum + file.size,
+          0,
+        ),
       },
       folderType: targetFolder,
       // Keep selectedFolder for backwards compatibility
@@ -550,7 +568,6 @@ const getVaultFilesInfo = async (req, res) => {
     };
 
     return res.json(payload);
-
   } catch (error) {
     log.error('Error in getVaultFilesInfo', {
       shortName,
@@ -559,7 +576,9 @@ const getVaultFilesInfo = async (req, res) => {
       error: error.message,
       stack: error.stack,
     });
-    return res.status(500).json({ error: 'Error retrieving vault information' });
+    return res
+      .status(500)
+      .json({ error: 'Error retrieving vault information' });
   }
 };
 
