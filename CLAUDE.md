@@ -119,3 +119,7 @@ Connection strings use environment variables prefixed with server names.
 5. **Data Formats**: Supports JSON, CSV, and custom formats. Format transformations in `/controllers/data/retrieval/transforms/`.
 
 6. **File Storage**: Uses Dropbox for user-submitted files and temporary download storage.
+
+### Other Rules
+
+- Do not use optional chaining (?.) — it is not supported in Node.js v12. Use traditional null checks instead.
