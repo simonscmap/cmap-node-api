@@ -11,7 +11,7 @@ const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-
+const CHUNK_SIZE = 2000;
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
 );
@@ -32,49 +32,35 @@ function forceDropboxFolderDownload(dropboxLink) {
 }
 
 // Function to get all files in a folder (no subfolders expected)
-const getFilesFromFolder = async (path, log) => {
-  // Helper function to handle pagination
-  const listFolderContinue = async (files, cursor) => {
-    try {
-      const response = await dbx.filesListFolderContinue({ cursor });
-
-      // Process files from this batch
-      const newFiles = response.result.entries
-        .filter((entry) => entry['.tag'] === 'file')
-        .map((file) => ({
-          name: file.name,
-          path: file.path_display,
-          size: file.size,
-          sizeFormatted: formatFileSize(file.size),
-        }));
-
-      const allFiles = [...files, ...newFiles];
-
-      // If there are more files, continue pagination
-      if (response.result.has_more) {
-        return await listFolderContinue(allFiles, response.result.cursor);
-      }
-
-      return allFiles;
-    } catch (error) {
-      log.error('Error in pagination', { cursor, error });
-      // Return files collected so far even if pagination fails
-      return files;
-    }
-  };
+const getFilesFromFolder = async (path, options = {}, log) => {
+  const {
+    limit = CHUNK_SIZE, // Default chunk size
+    cursor = null, // For fetching specific page
+    includeTotal = true, // Whether to include total count
+  } = options;
 
   try {
-    // Initial folder listing (no recursive flag needed)
-    const listFolderResponse = await dbx.filesListFolder({
-      path,
-      recursive: false, // No subfolders expected
-      include_media_info: false,
-      include_deleted: false,
-      include_non_downloadable_files: false,
-    });
+    let response;
+    let entries = [];
+    let totalCount = null;
 
-    // Process files from initial response
-    let files = listFolderResponse.result.entries
+    if (cursor) {
+      // Continue from previous cursor
+      response = await dbx.filesListFolderContinue({ cursor });
+    } else {
+      // Initial request
+      response = await dbx.filesListFolder({
+        path,
+        recursive: false,
+        include_media_info: false,
+        include_deleted: false,
+        include_non_downloadable_files: false,
+        limit,
+      });
+    }
+
+    // Process entries
+    entries = response.result.entries
       .filter((entry) => entry['.tag'] === 'file')
       .map((file) => ({
         name: file.name,
@@ -83,12 +69,20 @@ const getFilesFromFolder = async (path, log) => {
         sizeFormatted: formatFileSize(file.size),
       }));
 
-    // If there are more files, handle pagination
-    if (listFolderResponse.result.has_more) {
-      files = await listFolderContinue(files, listFolderResponse.result.cursor);
+    // Get total count if requested (requires full traversal)
+    if (includeTotal && !cursor) {
+      totalCount = await getTotalFileCount(path, log);
     }
 
-    return [null, files];
+    return [
+      null,
+      {
+        files: entries,
+        cursor: response.result.has_more ? response.result.cursor : null,
+        hasMore: response.result.has_more,
+        totalCount,
+      },
+    ];
   } catch (error) {
     // Check if it's a "not found" error, which is fine (empty folder)
     if (
@@ -96,12 +90,39 @@ const getFilesFromFolder = async (path, log) => {
       error.error.error_summary.includes('path/not_found')
     ) {
       log.info('Folder not found or empty', { path });
-      return [null, []];
+      return [
+        null,
+        {
+          files: [],
+          cursor: null,
+          hasMore: false,
+          totalCount: 0,
+        },
+      ];
     }
 
     log.error('Error getting files from folder', { path, error });
     return [error, null];
   }
+};
+
+// Helper to get total file count
+const getTotalFileCount = async (path, log) => {
+  let count = 0;
+  let cursor = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = cursor
+      ? await dbx.filesListFolderContinue({ cursor })
+      : await dbx.filesListFolder({ path, recursive: false });
+
+    count += response.result.entries.filter((e) => e['.tag'] === 'file').length;
+    cursor = response.result.cursor;
+    hasMore = response.result.has_more;
+  }
+
+  return count;
 };
 
 // Helper function to format file size
@@ -113,6 +134,39 @@ const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+
+// Helper function to get folder path based on folder type
+const getFolderPath = (folderType, vaultPath) => {
+  return `/vault/${vaultPath}${folderType}`;
+};
+
+// Helper function to check all folders for availability
+const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
+  try {
+    const results = await Promise.all([
+      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
+    ]);
+
+    return {
+      hasRep: results[0][1] && results[0][1].totalCount > 0,
+      hasNrt: results[1][1] && results[1][1].totalCount > 0,
+      hasRaw: results[2][1] && results[2][1].totalCount > 0,
+    };
+  } catch (error) {
+    log.error('Error checking folder availability', { error });
+    throw error;
+  }
+};
+
+// Helper function to determine main folder based on priority
+const determineMainFolder = (availableFolders) => {
+  if (availableFolders.hasRep) return 'rep';
+  if (availableFolders.hasNrt) return 'nrt';
+  if (availableFolders.hasRaw) return 'raw';
+  return null; // No files found
 };
 
 // Safe deletion function that only allows deletion of temp-download folders in /temp-downloads (sibling to /vault)
@@ -353,9 +407,22 @@ const getVaultFilesInfo = async (req, res) => {
   // Get the dataset short name from request
   const shortName = req.params.shortName;
 
+  // Parse query parameters
+  const folderType = req.query.folderType; // 'rep', 'nrt', 'raw', or undefined
+  const chunkSize = req.query.chunkSize || CHUNK_SIZE;
+  const cursor = req.query.cursor || null;
+
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
     return res.status(400).json({ error: 'Dataset short name is required' });
+  }
+
+  // Validate folderType parameter if provided
+  if (folderType && !['rep', 'nrt', 'raw'].includes(folderType)) {
+    log.warn('Invalid folderType parameter', { folderType });
+    return res
+      .status(400)
+      .json({ error: 'Invalid folderType. Must be one of: rep, nrt, raw' });
   }
 
   // 1. Get dataset ID from short name
@@ -387,76 +454,132 @@ const getVaultFilesInfo = async (req, res) => {
     return res.status(404).json({ error: 'No vault record found for dataset' });
   }
 
-  // 3. Get file information from the vault folders (sequential priority: REP -> NRT -> RAW)
+  // 3. Set up folder paths
   const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = `/vault/${vaultPath}rep`;
-  const nrtPath = `/vault/${vaultPath}nrt`;
-  const rawPath = `/vault/${vaultPath}raw`;
+  const repPath = getFolderPath('rep', vaultPath);
+  const nrtPath = getFolderPath('nrt', vaultPath);
+  const rawPath = getFolderPath('raw', vaultPath);
 
-  // Check folders in priority order: REP -> NRT -> RAW
-  const folderConfigs = [
-    { name: 'rep', path: repPath },
-    { name: 'nrt', path: nrtPath },
-    { name: 'raw', path: rawPath },
-  ];
+  try {
+    // 4. Check all folders for availability
+    const availableFolders = await checkAllFolders(
+      repPath,
+      nrtPath,
+      rawPath,
+      log,
+    );
 
-  let selectedFolder = null;
-  let selectedFiles = [];
-  let selectedPath = null;
+    // 5. Determine main folder based on priority
+    const mainFolder = determineMainFolder(availableFolders);
 
-  for (const folderConfig of folderConfigs) {
-    const [folderErr, folderFiles] = await getFilesFromFolder(
-      folderConfig.path,
+    if (!mainFolder) {
+      log.warn('No files found in any vault folder', {
+        repPath,
+        nrtPath,
+        rawPath,
+        availableFolders,
+      });
+      return res.status(404).json({ error: 'No files found in vault folders' });
+    }
+
+    // 6. Determine which folder to fetch files from
+    const targetFolder = folderType || mainFolder;
+
+    // 7. Validate that requested folder exists if folderType was specified
+    if (folderType) {
+      const folderKey = `has${
+        folderType.charAt(0).toUpperCase() + folderType.slice(1)
+      }`;
+      if (!availableFolders[folderKey]) {
+        log.warn('Requested folder type has no files', {
+          folderType,
+          availableFolders,
+        });
+        return res.status(404).json({
+          error: `No files found in ${folderType.toUpperCase()} folder`,
+          availableFolders,
+        });
+      }
+    }
+
+    // 8. Fetch files from target folder
+    const targetPath = getFolderPath(targetFolder, vaultPath);
+    const [folderErr, folderResult] = await getFilesFromFolder(
+      targetPath,
+      {
+        limit: chunkSize,
+        cursor,
+        includeTotal: !cursor, // Only get total on first page
+      },
       log,
     );
 
     if (folderErr) {
-      log.error(`Error checking ${folderConfig.name.toUpperCase()} folder`, {
-        path: folderConfig.path,
-        error: folderErr,
-      });
-      return res.status(500).json({ error: 'Error checking vault folders' });
+      log.error(
+        `Error fetching files from ${targetFolder.toUpperCase()} folder`,
+        {
+          path: targetPath,
+          error: folderErr,
+        },
+      );
+      return res.status(500).json({ error: 'Error fetching vault files' });
     }
 
-    if (folderFiles.length > 0) {
-      selectedFolder = folderConfig.name;
-      selectedFiles = folderFiles;
-      selectedPath = folderConfig.path;
-      break; // Found a folder with files, stop checking
-    }
-  }
+    // 9. Build pagination info
+    const paginationInfo = {
+      chunkSize: chunkSize,
+      hasMore: folderResult.hasMore,
+      cursor: folderResult.cursor,
+      totalCount: folderResult.totalCount,
+      totalChunks: folderResult.totalCount
+        ? Math.ceil(folderResult.totalCount / chunkSize)
+        : null,
+    };
 
-  if (!selectedFolder) {
-    log.warn('No files found in any vault folder', {
-      repPath,
-      nrtPath,
-      rawPath,
+    // Log the operation
+    log.info('Retrieved vault files for dataset', {
+      shortName,
+      availableFolders,
+      mainFolder,
+      targetFolder,
+      currentPageCount: folderResult.files.length,
+      pagination: paginationInfo,
     });
-    return res.status(404).json({ error: 'No files found in vault folders' });
+
+    // 10. Return enhanced response with folder availability info
+    const payload = {
+      shortName,
+      datasetId,
+      availableFolders,
+      mainFolder,
+      files: folderResult.files,
+      pagination: paginationInfo,
+      summary: {
+        folderUsed: targetFolder,
+        currentPageCount: folderResult.files.length,
+        currentPageSize: folderResult.files.reduce(
+          (sum, file) => sum + file.size,
+          0,
+        ),
+      },
+      folderType: targetFolder,
+      // Keep selectedFolder for backwards compatibility
+      selectedFolder: targetFolder,
+    };
+
+    return res.json(payload);
+  } catch (error) {
+    log.error('Error in getVaultFilesInfo', {
+      shortName,
+      datasetId,
+      folderType,
+      error: error.message,
+      stack: error.stack,
+    });
+    return res
+      .status(500)
+      .json({ error: 'Error retrieving vault information' });
   }
-
-  // Log once at the end with the selected folder info
-  log.info('Selected vault folder for dataset', {
-    shortName,
-    selectedFolder,
-    selectedPath,
-    fileCount: selectedFiles.length,
-  });
-
-  // 4. Return the payload with file information from selected folder only
-  const payload = {
-    shortName,
-    datasetId,
-    selectedFolder,
-    files: selectedFiles,
-    summary: {
-      folderUsed: selectedFolder,
-      fileCount: selectedFiles.length,
-      totalSize: selectedFiles.reduce((sum, file) => sum + file.size, 0),
-    },
-  };
-
-  return res.json(payload);
 };
 
 // Helper function to validate download request
