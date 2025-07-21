@@ -17,12 +17,14 @@ Create an automated testing system to evaluate different batch configuration com
 ### Dependencies Analysis
 
 **Required by `downloadDropboxVaultFilesWithStagedParallel`:**
+
 - `req.body`: `{ shortName, datasetId, files }` - **✅ Can be mocked easily**
 - `req.reqId`: For logging context - **✅ Can be generated**
 - `res`: Express response object for JSON response - **✅ Can be mocked**
 - Environment variables for Dropbox API - **✅ Already available**
 
 **NOT Required** (used by other controller functions):
+
 - Database Access (`getDatasetId()`, `directQuery()`)  
 - User authentication (`req.user`)
 - HTTP session context
@@ -129,11 +131,12 @@ if (require.main === module) {
 #### 1.4 Phase 1 Execution Plan
 
 1. **Generate test data** with 50 files using pattern-based generation
-2. **Mock HTTP context** (req/res objects) 
+2. **Mock HTTP context** (req/res objects)
 3. **Call function directly** with mock context
 4. **Verify success** - function completes without server dependency
 
-**Success Criteria**: 
+**Success Criteria**:
+
 - ✅ Function executes without HTTP server
 - ✅ Dropbox operations complete successfully  
 - ✅ Performance metrics logged to CSV
@@ -155,13 +158,30 @@ if (require.main === module) {
     "WAVE_DELAY": [1000],
     "BATCH_STAGGER": [100],
     "FILE_COUNT": [10, 50, 100]
-  },
-  "testMetadata": {
-    "totalCombinations": 48,
-    "estimatedDuration": "60-90 minutes"
   }
 }
 ```
+
+#### Parameter Definitions
+
+- **BATCH_SIZE**: Number of files included in each Dropbox batch copy operation
+  - Controls how many files are copied together in a single batch request
+
+- **PARALLEL_COUNT**: Number of batches that run simultaneously in each wave
+  - Controls concurrency level - how many batch operations execute at the same time
+  - Higher values = faster overall completion but more API pressure
+
+- **BATCH_STAGGER**: Delay (in milliseconds) between starting each batch within the same wave
+  - 0 = All parallel batches start simultaneously
+  - 100 = 100ms delay between each batch start in the same wave
+  - Prevents simultaneous API calls to reduce rate limit risk
+
+- **WAVE_DELAY**: Time (in milliseconds) to wait between waves of parallel batches
+  - Once all batches in a wave complete, wait this long before starting the next wave
+  - Provides breathing room for the API between waves of activity
+
+- **FILE_COUNT**: Total number of test files to generate for each test run
+  - Used by test data generator to create the appropriate number of mock files
 
 #### 2.2 Configuration Override System (`/batch-test/config-override.js`)
 
@@ -283,12 +303,14 @@ const runTestSuite = async (testConfig) => {
 ## Usage Examples
 
 ### Phase 1 Feasibility Test
+
 ```bash
 cd batch-test
 node phase1-feasibility-test.js
 ```
 
 ### Phase 2 Full Test Suite  
+
 ```bash
 node batch-test-runner.js
 ```
@@ -296,8 +318,9 @@ node batch-test-runner.js
 ## Risk Assessment: LOW RISK ✅
 
 Since `downloadDropboxVaultFilesWithStagedParallel` only requires:
+
 - Simple request body data (easily mocked)
-- Request ID for logging (easily generated) 
+- Request ID for logging (easily generated)
 - Response object for JSON output (easily mocked)
 
 **This approach should work without any server infrastructure!**

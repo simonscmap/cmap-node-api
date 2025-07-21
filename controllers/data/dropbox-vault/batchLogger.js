@@ -198,7 +198,7 @@ class BatchPerformanceLogger {
 
     try {
       const csvFilePath =
-        '/Users/howardwkim/src/simonscmap/cmap-node-api/notes/batch-performance-metrics.csv';
+        '/Users/howardwkim/src/simonscmap/cmap-node-api/batch-test/batch-performance-metrics.csv';
 
       // Format datetime as MM-DD HH:MM
       const now = new Date();

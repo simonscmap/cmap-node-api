@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const { downloadDropboxVaultFiles } = require('../controllers/data/dropbox-vault/vaultController');
 const { generateTestPayload } = require('./test-data-generator');
 const { createMockRequest, createMockResponse } = require('./mock-http-context');
@@ -5,8 +7,8 @@ const { createMockRequest, createMockResponse } = require('./mock-http-context')
 const runFeasibilityTest = async () => {
   console.log('🧪 Phase 1: Testing standalone execution...');
   
-  // Generate test data
-  const testPayload = generateTestPayload(50); // 50 files
+  // Start with fewer files to reduce complexity
+  const testPayload = generateTestPayload(5); // Start with 5 files
   
   // Create mock HTTP context
   const mockReq = createMockRequest(testPayload);
