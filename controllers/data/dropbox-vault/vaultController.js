@@ -828,12 +828,13 @@ const handleDropboxError = (error, log) => {
 
 const downloadDropboxVaultFiles = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
-  const { shortName, datasetId, files, totalFileSize } = req.body;
+  const { shortName, datasetId, files, totalSize } = req.body;
 
   log.info('downloadDropboxVaultFiles - using Dropbox batch copy', {
     shortName,
     datasetId,
     fileCount: files ? files.length : undefined,
+    totalSize,
   });
 
   // Step 1: Validate input
@@ -868,7 +869,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
       shortName,
       datasetId,
       files,
-      totalFileSize,
+      totalSize,
       success: true,
     });
 
@@ -884,7 +885,7 @@ const downloadDropboxVaultFiles = async (req, res) => {
       shortName,
       datasetId,
       files,
-      totalFileSize,
+      totalSize,
       success: false,
       error,
     });

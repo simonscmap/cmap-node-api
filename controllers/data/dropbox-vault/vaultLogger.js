@@ -3,14 +3,14 @@
 // Helper function to log dropbox vault download operations
 const logDropboxVaultDownload = (
   req,
-  { shortName, datasetId, files, totalFileSize, success = false, error = null },
+  { shortName, datasetId, files, totalSize, success = false, error = null },
 ) => {
   const loggingData = {
     operation: 'dropbox-vault-download',
     shortName,
     datasetId,
     fileCount: files ? files.length : 0,
-    totalFileSizeKB: totalFileSize,
+    totalSize,
     success,
     errorType: null,
     requestSize: null,
