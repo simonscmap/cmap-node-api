@@ -1,7 +1,7 @@
 // NOTE: this module is for accessing files in the vault, not the submissions app
 // these require different dropbox credentials
 const { URL } = require('url');
-const { setTimeout, setImmediate } = require('timers');
+const { setTimeout } = require('timers');
 
 const dbx = require('../../../utility/DropboxVault');
 const { getDatasetId } = require('../../../queries/datasetId');
@@ -9,6 +9,7 @@ const directQuery = require('../../../utility/directQuery');
 const { safePath, safePathOr } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
+const { logDropboxVaultDownload } = require('./vaultLogger');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 const CHUNK_SIZE = 2000;
@@ -762,47 +763,6 @@ const cleanupAfterError = async (tempFolderPath, log) => {
       cleanupError,
     });
   }
-};
-
-// Helper function to log dropbox vault download operations
-const logDropboxVaultDownload = (
-  req,
-  { shortName, datasetId, files, success = false, error = null },
-) => {
-  const loggingData = {
-    operation: 'dropbox-vault-download',
-    shortName,
-    datasetId,
-    fileCount: files ? files.length : 0,
-    totalFileSizeKB: 0,
-    success,
-    errorType: null,
-    requestSize: null,
-  };
-
-  // Calculate total file size in KB from file metadata
-  if (files && files.length > 0) {
-    loggingData.totalFileSizeKB = files.reduce((total, file) => {
-      return total + (file.size ? Math.ceil(file.size / 1024) : 0);
-    }, 0);
-  }
-
-  // Set error type if error occurred
-  if (error) {
-    loggingData.errorType =
-      error.status === 400
-        ? 'validation'
-        : error.status === 429
-        ? 'rate_limit'
-        : error.status === 507
-        ? 'storage'
-        : 'system';
-  }
-
-  // Log asynchronously to avoid blocking response
-  setImmediate(() => {
-    req.cmapApiCallDetails.query = JSON.stringify(loggingData);
-  });
 };
 
 // Helper function to handle specific Dropbox errors
