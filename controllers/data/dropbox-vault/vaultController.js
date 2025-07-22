@@ -9,6 +9,7 @@ const directQuery = require('../../../utility/directQuery');
 const { safePath, safePathOr } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
+const { logDropboxVaultDownload } = require('./vaultLogger');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 const CHUNK_SIZE = 2000;
@@ -827,12 +828,13 @@ const handleDropboxError = (error, log) => {
 
 const downloadDropboxVaultFiles = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
-  const { shortName, datasetId, files } = req.body;
+  const { shortName, datasetId, files, totalSize } = req.body;
 
   log.info('downloadDropboxVaultFiles - using Dropbox batch copy', {
     shortName,
     datasetId,
     fileCount: files ? files.length : undefined,
+    totalSize,
   });
 
   // Step 1: Validate input
@@ -862,7 +864,15 @@ const downloadDropboxVaultFiles = async (req, res) => {
     // Step 6: Schedule cleanup
     scheduleCleanup(tempFolderPath, log);
 
-    // Step 7: Return success response
+    // Step 7: Log success and return response
+    logDropboxVaultDownload(req, {
+      shortName,
+      datasetId,
+      files,
+      totalSize,
+      success: true,
+    });
+
     return res.json({
       success: true,
       downloadLink,
@@ -870,6 +880,16 @@ const downloadDropboxVaultFiles = async (req, res) => {
       fileCount: files.length,
     });
   } catch (error) {
+    // Log error
+    logDropboxVaultDownload(req, {
+      shortName,
+      datasetId,
+      files,
+      totalSize,
+      success: false,
+      error,
+    });
+
     // Cleanup after error
     await cleanupAfterError(tempFolderPath, log);
 
