@@ -28,6 +28,9 @@ let routeMapping = {
   '/api/dataretrieval/query': 301,
   '/api/dataretrieval/sp': 302,
   '/api/dataretrieval/tablestats': 303,
+
+  // 4xx for data operations
+  '/api/data/dropbox-vault/download-files': 401,
 };
 
 module.exports = (path) => {
