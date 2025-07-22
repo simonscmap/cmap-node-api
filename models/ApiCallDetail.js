@@ -124,40 +124,13 @@ module.exports = class ApiCallDetail {
             SELECT SCOPE_IDENTITY() as apiCallId`;
 
     try {
-      // Log pre-execution state for debugging Query null issue
-      if (!isDevelopment && this.query) {
-        log.debug('pre-sql execution debug', {
-          queryValue: this.query,
-          queryType: typeof this.query,
-          requestId: this.requestId,
-        });
-      }
       const result = await request.query(query);
       if (result && result.recordset && result.recordset.length) {
         const apiCallId = result.recordset[0].apiCallId;
         return apiCallId; // return the id of the inserted data
       }
     } catch (e) {
-      log.error('error while making insert into api calls table', {
-        error: e,
-        queryValue: this.query,
-        queryType: typeof this.query,
-        queryLength: this.query ? this.query.length : null,
-        allInputs: {
-          Ip_Address: this.ip,
-          Client_Host_Name: this.clientHostName,
-          Client_OS: this.clientOS,
-          Client_Browser: this.clientBrowser,
-          User_ID: this.userID || 1,
-          Route_ID: this.routeID,
-          Auth_Method: this.authMethod || 0,
-          Query: this.query,
-          Api_Key_ID: this.apiKeyID || null,
-          Request_Duration: requestDuration,
-          URL_Path: this.requestPath,
-        },
-        requestId: this.requestId,
-      });
+      log.error('error while making insert into api calls table', e);
       return null;
     }
   }
