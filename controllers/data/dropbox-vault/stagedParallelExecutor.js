@@ -5,6 +5,11 @@ const BatchPerformanceLogger = require('./batchLogger');
 
 // Utility function to chunk array into smaller arrays
 const chunkArray = (array, chunkSize) => {
+  // Special case: 'infinity' means single batch with all files
+  if (String(chunkSize).toLowerCase() === 'infinity' || chunkSize >= array.length) {
+    return [array]; // Single batch with all files
+  }
+  
   const chunks = [];
   for (let i = 0; i < array.length; i += chunkSize) {
     chunks.push(array.slice(i, i + chunkSize));

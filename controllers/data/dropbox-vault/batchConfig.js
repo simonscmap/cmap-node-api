@@ -1,22 +1,3 @@
-/**
- * Batch Configuration System for Dropbox Operations
- *
- * This configuration system provides three preset configurations optimized for different scenarios:
- *
- * CONSERVATIVE: Safe settings with low parallelism and longer delays
- * - Best for: Initial testing, avoiding rate limits, stable operations
- * - Trade-off: Slower but more reliable
- *
- * AGGRESSIVE: Higher parallelism and shorter delays for maximum speed
- * - Best for: When rate limits are not an issue, maximum performance needed
- * - Trade-off: Higher chance of rate limiting, may need fallback
- *
- * SEQUENTIAL: Minimal parallelism for debugging and fallback scenarios
- * - Best for: Debugging issues, guaranteed success, very slow but safe
- * - Trade-off: Slowest execution but highest reliability
- */
-
-// CHANGE THIS VALUE TO SWITCH CONFIGURATIONS
 const CURRENT_CONFIG = 'conservative'; // Options: 'conservative', 'aggressive', 'sequential'
 
 const BATCH_CONFIGS = {
@@ -81,6 +62,27 @@ const BATCH_CONFIGS = {
     // === RATE LIMIT HANDLING ===
     RATE_LIMIT_BACKOFF: 45000, // Long delays for rate limits (shouldn't hit many)
     JITTER_MAX: 500, // Minimal jitter needed
+  },
+
+  base_case: {
+    // === BATCH EXECUTION SETTINGS ===
+    BATCH_SIZE: 'infinity', // Special case: all files in single batch
+    PARALLEL_COUNT: 1, // Irrelevant but set for clarity
+    WAVE_DELAY: 0, // Irrelevant but set for clarity
+    BATCH_STAGGER: 0, // Irrelevant but set for clarity
+
+    // === RETRY CONFIGURATION ===
+    MAX_RETRIES: 3, // Standard retry attempts
+    RETRY_BASE_DELAY: 2000, // Standard retry delays
+    RETRY_MAX_DELAY: 60000, // Standard max delay
+
+    // === TIMEOUT SETTINGS ===
+    BATCH_TIMEOUT: 600000, // 10 minutes for large single batch
+    POLL_INTERVAL: 5000, // Standard polling frequency
+
+    // === RATE LIMIT HANDLING ===
+    RATE_LIMIT_BACKOFF: 30000, // Standard rate limit delays
+    JITTER_MAX: 1000, // Standard jitter
   },
 };
 
