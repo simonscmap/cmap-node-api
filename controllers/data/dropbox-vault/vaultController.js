@@ -9,6 +9,8 @@ const directQuery = require('../../../utility/directQuery');
 const { safePath, safePathOr } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
 const getVaultFolderMetadata = require('../getVaultInfo');
+const { getCurrentConfig } = require('./batchConfig');
+const { executeStagedParallelBatches } = require('./stagedParallelExecutor');
 const { logDropboxVaultDownload } = require('./vaultLogger');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
@@ -826,11 +828,11 @@ const handleDropboxError = (error, log) => {
   };
 };
 
-const downloadDropboxVaultFiles = async (req, res) => {
+const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
   const { shortName, datasetId, files, totalSize } = req.body;
 
-  log.info('downloadDropboxVaultFiles - using Dropbox batch copy', {
+  log.info('downloadDropboxVaultFiles - using staged parallel execution', {
     shortName,
     datasetId,
     fileCount: files ? files.length : undefined,
@@ -843,24 +845,26 @@ const downloadDropboxVaultFiles = async (req, res) => {
     return res.status(validation.status).json({ error: validation.error });
   }
 
+  // Step 2: Get current configuration
+  const config = getCurrentConfig();
+
+  log.info('Using batch configuration', {
+    configName: config.name,
+    config: config,
+  });
+
   const tempFolderPath = generateTempFolderPath(shortName);
 
   try {
-    // Step 2: Create temporary folder
+    // Step 3: Create temporary folder
     await createTempFolder(tempFolderPath, log);
 
-    // Step 3: Prepare and execute batch copy
-    const copyEntries = prepareBatchCopyEntries(files, tempFolderPath);
-    const copyResult = await executeBatchCopy(copyEntries, log);
-
-    // Step 4: Wait for completion if async
-    if (!copyResult.completed) {
-      await waitForBatchCopyCompletion(copyResult.batchJobId, log);
-    }
+    // Step 4: Execute staged parallel batches
+    await executeStagedParallelBatches(files, tempFolderPath, config, log, dbx);
 
     // Step 5: Create download link
     const downloadLink = await createDownloadLink(tempFolderPath, log);
-    log.info('downloadLink', { downloadLink });
+
     // Step 6: Schedule cleanup
     scheduleCleanup(tempFolderPath, log);
 
@@ -876,8 +880,10 @@ const downloadDropboxVaultFiles = async (req, res) => {
     return res.json({
       success: true,
       downloadLink,
-      message: 'Files copied to temporary folder. Download will begin shortly.',
+      message:
+        'Files copied using staged parallel execution. Download will begin shortly.',
       fileCount: files.length,
+      configUsed: config.name,
     });
   } catch (error) {
     // Log error
@@ -902,5 +908,5 @@ const downloadDropboxVaultFiles = async (req, res) => {
 module.exports = {
   getShareLinkController,
   getVaultFilesInfo,
-  downloadDropboxVaultFiles,
+  downloadDropboxVaultFiles: downloadDropboxVaultFilesWithStagedParallel, // Use new implementation
 };

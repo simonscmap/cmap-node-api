@@ -12,12 +12,10 @@ class BatchPerformanceLogger {
       retriesUsed: 0,
       rateLimitHits: 0,
       config: null,
-      timings: {
-        start: this.startTime,
-        end: null,
-        totalDuration: null,
-        batchTimings: []
-      }
+      start: this.startTime,
+      end: null,
+      totalDuration: null,
+      batchTimings: [],
     };
   }
 
@@ -26,7 +24,7 @@ class BatchPerformanceLogger {
     this.log.info('Batch operation started with config', {
       operationId: this.operationId,
       config: config,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -45,22 +43,22 @@ class BatchPerformanceLogger {
       duration: null,
       retries: 0,
       success: null,
-      error: null
+      error: null,
     };
-    
-    this.metrics.timings.batchTimings[batchIndex] = batchTiming;
-    
+
+    this.metrics.batchTimings[batchIndex] = batchTiming;
+
     this.log.info('Batch started', {
       operationId: this.operationId,
       batchIndex,
       batchSize,
       waveIndex,
-      config: this.metrics.config.name
+      config: this.metrics.config.name,
     });
   }
 
   logBatchComplete(batchIndex, success, error = null, retryCount = 0) {
-    const batchTiming = this.metrics.timings.batchTimings[batchIndex];
+    const batchTiming = this.metrics.batchTimings[batchIndex];
     if (batchTiming) {
       batchTiming.endTime = Date.now();
       batchTiming.duration = batchTiming.endTime - batchTiming.startTime;
@@ -74,7 +72,7 @@ class BatchPerformanceLogger {
     } else {
       this.metrics.failedBatches++;
     }
-    
+
     this.metrics.retriesUsed += retryCount;
 
     this.log.info('Batch completed', {
@@ -84,7 +82,7 @@ class BatchPerformanceLogger {
       retries: retryCount,
       duration: batchTiming ? batchTiming.duration : null,
       error: error ? error.message : null,
-      config: this.metrics.config.name
+      config: this.metrics.config.name,
     });
   }
 
@@ -95,18 +93,20 @@ class BatchPerformanceLogger {
       batchIndex,
       retryAfter,
       rateLimitHits: this.metrics.rateLimitHits,
-      config: this.metrics.config.name
+      config: this.metrics.config.name,
     });
   }
 
   logOperationComplete(success, error = null) {
-    this.metrics.timings.end = Date.now();
-    this.metrics.timings.totalDuration = this.metrics.timings.end - this.metrics.timings.start;
+    this.metrics.end = Date.now();
+    this.metrics.totalDuration = Math.round(
+      (this.metrics.end - this.metrics.start) / 1000,
+    ); // Convert to seconds
 
     const summary = {
       operationId: this.operationId,
       success,
-      totalDuration: this.metrics.timings.totalDuration,
+      totalDuration: this.metrics.totalDuration,
       totalFiles: this.metrics.totalFiles,
       totalBatches: this.metrics.totalBatches,
       completedBatches: this.metrics.completedBatches,
@@ -114,26 +114,61 @@ class BatchPerformanceLogger {
       retriesUsed: this.metrics.retriesUsed,
       rateLimitHits: this.metrics.rateLimitHits,
       averageBatchTime: this.getAverageBatchTime(),
-      config: this.metrics.config,
+      // Flatten config object
+      configName: this.metrics.config ? this.metrics.config.name : null,
+      configMaxConcurrency: this.metrics.config
+        ? this.metrics.config.maxConcurrency
+        : null,
+      configBatchSize: this.metrics.config
+        ? this.metrics.config.batchSize
+        : null,
+      configMaxRetries: this.metrics.config
+        ? this.metrics.config.maxRetries
+        : null,
+      configRetryDelayMs: this.metrics.config
+        ? this.metrics.config.retryDelayMs
+        : null,
       error: error ? error.message : null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.log.info('Batch operation completed', summary);
-    
-    // Also log full metrics for analysis
+
+    // Also log full metrics for analysis with flattened config
+    const flattenedMetrics = {
+      ...this.metrics,
+      // Replace config object with flattened values
+      configName: this.metrics.config ? this.metrics.config.name : null,
+      configMaxConcurrency: this.metrics.config
+        ? this.metrics.config.maxConcurrency
+        : null,
+      configBatchSize: this.metrics.config
+        ? this.metrics.config.batchSize
+        : null,
+      configMaxRetries: this.metrics.config
+        ? this.metrics.config.maxRetries
+        : null,
+      configRetryDelayMs: this.metrics.config
+        ? this.metrics.config.retryDelayMs
+        : null,
+    };
+    // Remove the original config object
+    delete flattenedMetrics.config;
+
     this.log.info('Full operation metrics', {
       operationId: this.operationId,
-      metrics: this.metrics
+      metrics: flattenedMetrics,
     });
 
     return summary;
   }
 
   getAverageBatchTime() {
-    const completedBatches = this.metrics.timings.batchTimings.filter(b => b && b.success);
+    const completedBatches = this.metrics.batchTimings.filter(
+      (b) => b && b.success,
+    );
     if (completedBatches.length === 0) return null;
-    
+
     const totalTime = completedBatches.reduce((sum, b) => sum + b.duration, 0);
     return Math.round(totalTime / completedBatches.length);
   }
