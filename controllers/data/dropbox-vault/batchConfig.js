@@ -23,9 +23,9 @@ const BATCH_CONFIGS = {
   conservative: {
     // === BATCH EXECUTION SETTINGS ===
     BATCH_SIZE: 10, // Files per batch (lower = less strain per operation)
-    PARALLEL_COUNT: 2, // Batches running simultaneously (lower = less API pressure)
-    WAVE_DELAY: 15000, // Milliseconds between waves (higher = more breathing room)
-    BATCH_STAGGER: 3000, // Milliseconds between batch starts in same wave
+    PARALLEL_COUNT: 20, // Batches running simultaneously (lower = less API pressure)
+    WAVE_DELAY: 1000, // Milliseconds between waves (higher = more breathing room)
+    BATCH_STAGGER: 100, // Milliseconds between batch starts in same wave
 
     // === RETRY CONFIGURATION ===
     MAX_RETRIES: 3, // Number of retry attempts per failed operation

@@ -114,19 +114,25 @@ class BatchPerformanceLogger {
       retriesUsed: this.metrics.retriesUsed,
       rateLimitHits: this.metrics.rateLimitHits,
       averageBatchTime: this.getAverageBatchTime(),
-      // Flatten config object
+      // Flatten config object with correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configMaxConcurrency: this.metrics.config
-        ? this.metrics.config.maxConcurrency
-        : null,
       configBatchSize: this.metrics.config
-        ? this.metrics.config.batchSize
+        ? this.metrics.config.BATCH_SIZE
+        : null,
+      configParallelCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_COUNT
+        : null,
+      configWaveDelay: this.metrics.config
+        ? this.metrics.config.WAVE_DELAY
         : null,
       configMaxRetries: this.metrics.config
-        ? this.metrics.config.maxRetries
+        ? this.metrics.config.MAX_RETRIES
         : null,
-      configRetryDelayMs: this.metrics.config
-        ? this.metrics.config.retryDelayMs
+      configRetryBaseDelay: this.metrics.config
+        ? this.metrics.config.RETRY_BASE_DELAY
+        : null,
+      configBatchTimeout: this.metrics.config
+        ? this.metrics.config.BATCH_TIMEOUT
         : null,
       error: error ? error.message : null,
       timestamp: new Date().toISOString(),
@@ -137,19 +143,34 @@ class BatchPerformanceLogger {
     // Also log full metrics for analysis with flattened config
     const flattenedMetrics = {
       ...this.metrics,
-      // Replace config object with flattened values
+      // Replace config object with flattened values using correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configMaxConcurrency: this.metrics.config
-        ? this.metrics.config.maxConcurrency
-        : null,
       configBatchSize: this.metrics.config
-        ? this.metrics.config.batchSize
+        ? this.metrics.config.BATCH_SIZE
+        : null,
+      configParallelCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_COUNT
+        : null,
+      configWaveDelay: this.metrics.config
+        ? this.metrics.config.WAVE_DELAY
         : null,
       configMaxRetries: this.metrics.config
-        ? this.metrics.config.maxRetries
+        ? this.metrics.config.MAX_RETRIES
         : null,
-      configRetryDelayMs: this.metrics.config
-        ? this.metrics.config.retryDelayMs
+      configRetryBaseDelay: this.metrics.config
+        ? this.metrics.config.RETRY_BASE_DELAY
+        : null,
+      configBatchTimeout: this.metrics.config
+        ? this.metrics.config.BATCH_TIMEOUT
+        : null,
+      configPollInterval: this.metrics.config
+        ? this.metrics.config.POLL_INTERVAL
+        : null,
+      configRateLimitBackoff: this.metrics.config
+        ? this.metrics.config.RATE_LIMIT_BACKOFF
+        : null,
+      configJitterMax: this.metrics.config
+        ? this.metrics.config.JITTER_MAX
         : null,
     };
     // Remove the original config object
