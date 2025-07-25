@@ -1,4 +1,7 @@
 // Enhanced logging for batch operations with performance metrics
+const fs = require('fs');
+const path = require('path');
+
 class BatchPerformanceLogger {
   constructor(baseLogger, operationId) {
     this.log = baseLogger;
@@ -181,7 +184,115 @@ class BatchPerformanceLogger {
       metrics: flattenedMetrics,
     });
 
+    // Write to CSV if in development environment
+    this.writeToCsv(flattenedMetrics);
+
     return summary;
+  }
+
+  writeToCsv(metrics) {
+    // Only write to CSV in development environment
+    if (process.env.NODE_ENV !== 'development') {
+      return;
+    }
+
+    try {
+      const csvFilePath =
+        '/Users/howardwkim/src/simonscmap/cmap-node-api/notes/batch-performance-metrics.csv';
+
+      // Format datetime as MM-DD HH:MM
+      const now = new Date();
+      const datetime = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+        now.getDate(),
+      ).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes(),
+      ).padStart(2, '0')}`;
+
+      // Format batchTimings as comma separated list of durations
+      const batchTimingsStr = metrics.batchTimings
+        .filter((timing) => timing && timing.duration !== null)
+        .map((timing) => timing.duration)
+        .join(';'); // Using semicolon since comma is CSV delimiter
+
+      // Prepare CSV row data in the specified order
+      const csvRow = [
+        datetime,
+        metrics.totalDuration || '',
+        metrics.totalFiles || '',
+        metrics.totalBatches || '',
+        metrics.configBatchSize || '',
+        batchTimingsStr,
+        metrics.configParallelCount || '',
+        metrics.configWaveDelay || '',
+        metrics.completedBatches || '',
+        metrics.failedBatches || '',
+        metrics.retriesUsed || '',
+        metrics.rateLimitHits || '',
+        metrics.configMaxRetries || '',
+        metrics.configRetryBaseDelay || '',
+        metrics.configBatchTimeout || '',
+        metrics.configPollInterval || '',
+        metrics.configRateLimitBackoff || '',
+        metrics.configJitterMax || '',
+      ];
+
+      // Check if file exists, if not create with headers
+      if (!fs.existsSync(csvFilePath)) {
+        const headers = [
+          'Datetime',
+          'totalDuration',
+          'totalFiles',
+          'totalBatches',
+          'configBatchSize',
+          'batchTimings',
+          'configParallelCount',
+          'configWaveDelay',
+          'completedBatches',
+          'failedBatches',
+          'retriesUsed',
+          'rateLimitHits',
+          'configMaxRetries',
+          'configRetryBaseDelay',
+          'configBatchTimeout',
+          'configPollInterval',
+          'configRateLimitBackoff',
+          'configJitterMax',
+        ];
+
+        fs.writeFileSync(csvFilePath, headers.join(',') + '\n');
+        this.log.info('Created CSV file for batch metrics', {
+          path: csvFilePath,
+        });
+      }
+
+      // Append the row to CSV
+      const csvLine =
+        csvRow
+          .map((field) => {
+            // Escape fields that contain commas or quotes
+            if (
+              typeof field === 'string' &&
+              (field.includes(',') ||
+                field.includes('"') ||
+                field.includes('\n'))
+            ) {
+              return `"${field.replace(/"/g, '""')}"`;
+            }
+            return field;
+          })
+          .join(',') + '\n';
+
+      fs.appendFileSync(csvFilePath, csvLine);
+      this.log.info('Wrote batch metrics to CSV', {
+        operationId: this.operationId,
+        csvPath: csvFilePath,
+      });
+    } catch (error) {
+      this.log.error('Failed to write batch metrics to CSV', {
+        operationId: this.operationId,
+        error: error.message,
+      });
+    }
   }
 
   getAverageBatchTime() {
