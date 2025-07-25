@@ -294,10 +294,6 @@ const runTestSuite = async (testConfig) => {
 ├── test-data-generator.js           # Pattern-based file generation
 ├── mock-http-context.js             # Mock req/res objects
 ├── config-override.js              # Configuration override utilities
-├── results-analyzer.js             # Performance analysis
-└── results/                         # Generated test results
-    ├── test-run-[timestamp].json
-    └── performance-summary.json
 ```
 
 ## Usage Examples
@@ -305,14 +301,13 @@ const runTestSuite = async (testConfig) => {
 ### Phase 1 Feasibility Test
 
 ```bash
-cd batch-test
-node phase1-feasibility-test.js
+node batch-test/phase1-feasibility-test.js
 ```
 
 ### Phase 2 Full Test Suite  
 
 ```bash
-node batch-test-runner.js
+node batch-test/batch-test-runner.js
 ```
 
 ## Risk Assessment: LOW RISK ✅
