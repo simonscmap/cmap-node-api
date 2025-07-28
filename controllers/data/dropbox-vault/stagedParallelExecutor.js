@@ -115,8 +115,9 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   
   batchLogger.setConfig(config);
   
-  // Split files into batches
-  const allBatches = chunkArray(files, config.BATCH_SIZE);
+  // Split files directly between PARALLEL_COUNT to create single wave
+  const filesPerBatch = Math.ceil(files.length / config.PARALLEL_COUNT);
+  const allBatches = chunkArray(files, filesPerBatch);
   const totalBatches = allBatches.length;
   
   batchLogger.setBatchCount(files.length, totalBatches);
@@ -125,11 +126,12 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
     operationId,
     totalFiles: files.length,
     totalBatches,
+    filesPerBatch,
     config: config.name
   });
   
-  // Split batches into waves
-  const waves = chunkArray(allBatches, config.PARALLEL_COUNT);
+  // All batches fit in a single wave since we split by PARALLEL_COUNT
+  const waves = [allBatches];
   
   let batchIndex = 0;
   const allErrors = [];
@@ -201,7 +203,7 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
     }
     
     // Wait for all waves to complete
-    const allWaveResults = await Promise.all(allWavePromises);
+    await Promise.all(allWavePromises);
     
     // Check if any batches failed
     if (allErrors.length > 0) {

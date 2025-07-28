@@ -6,9 +6,9 @@
   "testParams": {
     "BATCH_SIZE": [10],
     "PARALLEL_COUNT": [20],
-    "WAVE_DELAY": [1000],
-    "BATCH_STAGGER": [0],
+    "WAVE_DELAY": [10000],
+    "BATCH_STAGGER": [500],
     "FILE_COUNT": [500],
-    "REPEAT_COUNT": 3
+    "REPEAT_COUNT": 1
   }
 }

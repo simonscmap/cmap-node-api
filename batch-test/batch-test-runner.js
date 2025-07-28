@@ -1,9 +1,6 @@
 require('dotenv').config();
 const { setTimeout } = require('timers');
-const {
-  generateTestFiles,
-  generateTestPayload,
-} = require('./test-data-generator');
+const { generateTestFiles } = require('./test-data-generator');
 const {
   createMockRequest,
   createMockResponse,

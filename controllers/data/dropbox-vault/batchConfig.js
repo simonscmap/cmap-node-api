@@ -1,69 +1,6 @@
 const CURRENT_CONFIG = 'test'; // Options: 'conservative', 'aggressive', 'sequential'
 
 const BATCH_CONFIGS = {
-  conservative: {
-    // === BATCH EXECUTION SETTINGS ===
-    BATCH_SIZE: 10, // Files per batch (lower = less strain per operation)
-    PARALLEL_COUNT: 20, // Batches running simultaneously (lower = less API pressure)
-    WAVE_DELAY: 1000, // Milliseconds between waves (higher = more breathing room)
-    BATCH_STAGGER: 100, // Milliseconds between batch starts in same wave
-
-    // === RETRY CONFIGURATION ===
-    MAX_RETRIES: 3, // Number of retry attempts per failed operation
-    RETRY_BASE_DELAY: 2000, // Base delay for exponential backoff (milliseconds)
-    RETRY_MAX_DELAY: 60000, // Maximum delay cap for retries
-
-    // === TIMEOUT SETTINGS ===
-    BATCH_TIMEOUT: 300000, // Maximum time to wait for single batch (5 minutes)
-    POLL_INTERVAL: 5000, // How often to check batch status (milliseconds)
-
-    // === RATE LIMIT HANDLING ===
-    RATE_LIMIT_BACKOFF: 30000, // Base delay when hitting 429 errors
-    JITTER_MAX: 1000, // Random jitter to prevent synchronized retries
-  },
-
-  aggressive: {
-    // === BATCH EXECUTION SETTINGS ===
-    BATCH_SIZE: 200, // Larger batches for efficiency
-    PARALLEL_COUNT: 3, // More simultaneous operations
-    WAVE_DELAY: 10000, // Shorter delays between waves
-    BATCH_STAGGER: 2000, // Faster staggered starts
-
-    // === RETRY CONFIGURATION ===
-    MAX_RETRIES: 5, // More retry attempts
-    RETRY_BASE_DELAY: 1000, // Faster initial retries
-    RETRY_MAX_DELAY: 30000, // Lower max delay for speed
-
-    // === TIMEOUT SETTINGS ===
-    BATCH_TIMEOUT: 180000, // Shorter timeout (3 minutes)
-    POLL_INTERVAL: 3000, // More frequent status checks
-
-    // === RATE LIMIT HANDLING ===
-    RATE_LIMIT_BACKOFF: 20000, // Shorter rate limit delays
-    JITTER_MAX: 2000, // Higher jitter for busy periods
-  },
-
-  sequential: {
-    // === BATCH EXECUTION SETTINGS ===
-    BATCH_SIZE: 50, // Small batches for minimal impact
-    PARALLEL_COUNT: 1, // No parallelism - purely sequential
-    WAVE_DELAY: 5000, // Moderate delays between operations
-    BATCH_STAGGER: 0, // No staggering needed with PARALLEL_COUNT=1
-
-    // === RETRY CONFIGURATION ===
-    MAX_RETRIES: 2, // Fewer retries since conflicts less likely
-    RETRY_BASE_DELAY: 3000, // Conservative retry delays
-    RETRY_MAX_DELAY: 30000, // Standard max delay
-
-    // === TIMEOUT SETTINGS ===
-    BATCH_TIMEOUT: 240000, // 4 minutes per batch
-    POLL_INTERVAL: 4000, // Moderate polling frequency
-
-    // === RATE LIMIT HANDLING ===
-    RATE_LIMIT_BACKOFF: 45000, // Long delays for rate limits (shouldn't hit many)
-    JITTER_MAX: 500, // Minimal jitter needed
-  },
-
   base_case: {
     // === BATCH EXECUTION SETTINGS ===
     BATCH_SIZE: 'infinity', // Special case: all files in single batch
