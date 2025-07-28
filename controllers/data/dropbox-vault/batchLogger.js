@@ -81,6 +81,7 @@ class BatchPerformanceLogger {
     this.log.info('Batch completed', {
       operationId: this.operationId,
       batchIndex,
+      waveIndex: batchTiming ? batchTiming.waveIndex : null,
       success,
       retries: retryCount,
       duration: batchTiming ? batchTiming.duration : null,
