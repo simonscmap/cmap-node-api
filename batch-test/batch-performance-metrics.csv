@@ -1,5 +1,0 @@
-Datetime,totalDuration,totalFiles,totalBatches,configBatchSize,batchTimings,configParallelCount,configWaveDelay,completedBatches,failedBatches,retriesUsed,rateLimitHits,configMaxRetries,configRetryBaseDelay,configBatchTimeout,configPollInterval,configRateLimitBackoff,configJitterMax
-07-21 13:42,6,5,1,10,5328,20,1000,1,,,,3,2000,300000,5000,30000,1000
-07-25 15:33,6,5,1,10,5609,20,1000,1,,,,3,2000,300000,5000,30000,1000
-07-25 15:33,7,5,1,10,6324,20,1000,1,,,,3,2000,300000,5000,30000,1000
-07-25 15:34,6,5,1,5,5364,1,1000,1,,,,3,2000,300000,5000,30000,1000
