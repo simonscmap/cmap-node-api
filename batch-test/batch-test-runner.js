@@ -12,34 +12,48 @@ const {
   overrideBatchConfig,
   generateAllCombinations,
 } = require('./config-override');
-const testConfig = require('./test-configurations.json');
+const testConfig = require('./test-configuration-base-case.json');
 
 const validateConfiguration = (testParams) => {
   const warnings = [];
-  
+
   // Validate REPEAT_COUNT
-  if (typeof testParams.REPEAT_COUNT !== 'number' && !Array.isArray(testParams.REPEAT_COUNT)) {
+  if (
+    typeof testParams.REPEAT_COUNT !== 'number' &&
+    !Array.isArray(testParams.REPEAT_COUNT)
+  ) {
     warnings.push('REPEAT_COUNT should be a number or array');
   }
-  
-  if (typeof testParams.REPEAT_COUNT === 'number' && testParams.REPEAT_COUNT <= 0) {
+
+  if (
+    typeof testParams.REPEAT_COUNT === 'number' &&
+    testParams.REPEAT_COUNT <= 0
+  ) {
     warnings.push('REPEAT_COUNT should be greater than 0');
   }
-  
+
   // Validate BATCH_SIZE
-  const batchSizes = Array.isArray(testParams.BATCH_SIZE) ? testParams.BATCH_SIZE : [testParams.BATCH_SIZE];
-  batchSizes.forEach(size => {
-    if (size !== -1 && size !== 'infinity' && (typeof size !== 'number' || size <= 0)) {
-      warnings.push(`Invalid BATCH_SIZE value: ${size}. Should be -1, 'infinity', or positive number`);
+  const batchSizes = Array.isArray(testParams.BATCH_SIZE)
+    ? testParams.BATCH_SIZE
+    : [testParams.BATCH_SIZE];
+  batchSizes.forEach((size) => {
+    if (
+      size !== -1 &&
+      size !== 'infinity' &&
+      (typeof size !== 'number' || size <= 0)
+    ) {
+      warnings.push(
+        `Invalid BATCH_SIZE value: ${size}. Should be -1, 'infinity', or positive number`,
+      );
     }
   });
-  
+
   if (warnings.length > 0) {
     console.log('⚠️  Configuration warnings:');
-    warnings.forEach(warning => console.log(`   - ${warning}`));
+    warnings.forEach((warning) => console.log(`   - ${warning}`));
     console.log('');
   }
-  
+
   return warnings.length === 0;
 };
 
@@ -48,21 +62,55 @@ const runTestSuite = async () => {
   console.log('='.repeat(50));
 
   const { testParams, dataset } = testConfig;
-  
+
   // Validate configuration
   validateConfiguration(testParams);
-  
+
   const combinations = generateAllCombinations(testParams);
-  const repeatCount = typeof testParams.REPEAT_COUNT === 'number' ? 
-    testParams.REPEAT_COUNT : testParams.REPEAT_COUNT[0];
+  const repeatCount =
+    typeof testParams.REPEAT_COUNT === 'number'
+      ? testParams.REPEAT_COUNT
+      : testParams.REPEAT_COUNT[0];
 
   console.log(`📋 Test parameters:`);
-  console.log(`  - BATCH_SIZE: ${Array.isArray(testParams.BATCH_SIZE) ? testParams.BATCH_SIZE.join(', ') : testParams.BATCH_SIZE}`);
-  console.log(`  - PARALLEL_COUNT: ${Array.isArray(testParams.PARALLEL_COUNT) ? testParams.PARALLEL_COUNT.join(', ') : testParams.PARALLEL_COUNT}`);
-  console.log(`  - WAVE_DELAY: ${Array.isArray(testParams.WAVE_DELAY) ? testParams.WAVE_DELAY.join(', ') : testParams.WAVE_DELAY}`);
-  console.log(`  - BATCH_STAGGER: ${Array.isArray(testParams.BATCH_STAGGER) ? testParams.BATCH_STAGGER.join(', ') : testParams.BATCH_STAGGER}`);
-  console.log(`  - FILE_COUNT: ${Array.isArray(testParams.FILE_COUNT) ? testParams.FILE_COUNT.join(', ') : testParams.FILE_COUNT}`);
-  console.log(`  - REPEAT_COUNT: ${repeatCount} (type: ${typeof testParams.REPEAT_COUNT})`);
+  console.log(
+    `  - BATCH_SIZE: ${
+      Array.isArray(testParams.BATCH_SIZE)
+        ? testParams.BATCH_SIZE.join(', ')
+        : testParams.BATCH_SIZE
+    }`,
+  );
+  console.log(
+    `  - PARALLEL_COUNT: ${
+      Array.isArray(testParams.PARALLEL_COUNT)
+        ? testParams.PARALLEL_COUNT.join(', ')
+        : testParams.PARALLEL_COUNT
+    }`,
+  );
+  console.log(
+    `  - WAVE_DELAY: ${
+      Array.isArray(testParams.WAVE_DELAY)
+        ? testParams.WAVE_DELAY.join(', ')
+        : testParams.WAVE_DELAY
+    }`,
+  );
+  console.log(
+    `  - BATCH_STAGGER: ${
+      Array.isArray(testParams.BATCH_STAGGER)
+        ? testParams.BATCH_STAGGER.join(', ')
+        : testParams.BATCH_STAGGER
+    }`,
+  );
+  console.log(
+    `  - FILE_COUNT: ${
+      Array.isArray(testParams.FILE_COUNT)
+        ? testParams.FILE_COUNT.join(', ')
+        : testParams.FILE_COUNT
+    }`,
+  );
+  console.log(
+    `  - REPEAT_COUNT: ${repeatCount} (type: ${typeof testParams.REPEAT_COUNT})`,
+  );
   console.log(`  - Dataset: ${dataset.shortName} (ID: ${dataset.datasetId})`);
   console.log(`  - Total combinations: ${combinations.length}`);
   console.log(`  - Total test runs: ${combinations.length * repeatCount}`);
@@ -79,7 +127,9 @@ const runTestSuite = async () => {
       await new Promise((resolve) => setTimeout(resolve, 60000));
     }
 
-    console.log(`\n🔄 Starting repeat run ${repeatRun}/${repeatCount} (total iterations planned: ${repeatCount})`);
+    console.log(
+      `\n🔄 Starting repeat run ${repeatRun}/${repeatCount} (total iterations planned: ${repeatCount})`,
+    );
     console.log('-'.repeat(40));
 
     for (let i = 0; i < combinations.length; i++) {
