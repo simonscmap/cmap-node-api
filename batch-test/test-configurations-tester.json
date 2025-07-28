@@ -4,9 +4,9 @@
     "datasetId": 771
   },
   "testParams": {
-    "PARALLEL_BATCH_COUNT": [20],
-    "BATCH_STAGGER": [500],
-    "FILE_COUNT": [500],
+    "PARALLEL_BATCH_COUNT": [10, 20],
+    "BATCH_STAGGER": [0, 500],
+    "FILE_COUNT": [10, 50],
     "REPEAT_COUNT": 1
   }
 }

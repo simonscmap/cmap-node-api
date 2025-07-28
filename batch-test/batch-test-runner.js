@@ -9,8 +9,8 @@ const {
   overrideBatchConfig,
   generateAllCombinations,
 } = require('./config-override');
-// const testConfig = require('./test-configurations.json');
-const testConfig = require('./test-configurations-large.json');
+const testConfig = require('./test-configurations.json');
+// const testConfig = require('./test-configurations-tester.json');
 // const testConfig = require('./test-configuration-base-case.json');
 
 const validateConfiguration = (testParams) => {
@@ -130,9 +130,7 @@ const runTestSuite = async () => {
       console.log(
         `   BATCH_SIZE: ${combo.BATCH_SIZE}, PARALLEL_BATCH_COUNT: ${combo.PARALLEL_BATCH_COUNT}`,
       );
-      console.log(
-        `   BATCH_STAGGER: ${combo.BATCH_STAGGER}ms`,
-      );
+      console.log(`   BATCH_STAGGER: ${combo.BATCH_STAGGER}ms`);
       console.log(`   FILE_COUNT: ${combo.FILE_COUNT}`);
 
       // Generate test data for this combination
@@ -268,7 +266,9 @@ const generateSummaryReport = (results, totalDuration) => {
       `   Test #${fastestTest.testNumber} - ${fastestTest.duration}ms`,
     );
     console.log(`   BATCH_SIZE: ${fastestTest.combination.BATCH_SIZE}`);
-    console.log(`   PARALLEL_BATCH_COUNT: ${fastestTest.combination.PARALLEL_BATCH_COUNT}`);
+    console.log(
+      `   PARALLEL_BATCH_COUNT: ${fastestTest.combination.PARALLEL_BATCH_COUNT}`,
+    );
     console.log(`   BATCH_STAGGER: ${fastestTest.combination.BATCH_STAGGER}ms`);
     console.log(`   FILE_COUNT: ${fastestTest.combination.FILE_COUNT}`);
   }
