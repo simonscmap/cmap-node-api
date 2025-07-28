@@ -124,9 +124,9 @@ const runTestSuite = async () => {
   for (let repeatRun = 1; repeatRun <= repeatCount; repeatRun++) {
     if (repeatRun > 1) {
       console.log(
-        `\n⏳ Waiting 15 seconds before repeat run ${repeatRun}/${repeatCount}...`,
+        `\n⏳ Waiting 30 seconds before repeat run ${repeatRun}/${repeatCount}...`,
       );
-      await new Promise((resolve) => setTimeout(resolve, 15000));
+      await new Promise((resolve) => setTimeout(resolve, 30000));
     }
 
     console.log(
