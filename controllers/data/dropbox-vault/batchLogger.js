@@ -220,18 +220,45 @@ class BatchPerformanceLogger {
       // Prepare CSV row data in the specified order
       const csvRow = [
         datetime,
-        metrics.totalDuration || '',
-        metrics.totalFiles || '',
-        metrics.configParallelCount || '',
-        metrics.configBatchSize || '',
-        metrics.totalBatches || '',
-        metrics.configWaveDelay || '',
-        metrics.completedBatches || '',
-        metrics.failedBatches || '',
-        metrics.retriesUsed || '',
-        metrics.rateLimitHits || '',
+        metrics.totalDuration !== null && metrics.totalDuration !== undefined
+          ? metrics.totalDuration
+          : '',
+        metrics.totalFiles !== null && metrics.totalFiles !== undefined
+          ? metrics.totalFiles
+          : '',
+        metrics.configParallelCount !== null &&
+        metrics.configParallelCount !== undefined
+          ? metrics.configParallelCount
+          : '',
+        metrics.configBatchSize !== null &&
+        metrics.configBatchSize !== undefined
+          ? metrics.configBatchSize
+          : '',
+        metrics.totalBatches !== null && metrics.totalBatches !== undefined
+          ? metrics.totalBatches
+          : '',
+        metrics.configWaveDelay !== null &&
+        metrics.configWaveDelay !== undefined
+          ? metrics.configWaveDelay
+          : '',
+        metrics.completedBatches !== null &&
+        metrics.completedBatches !== undefined
+          ? metrics.completedBatches
+          : '',
+        metrics.failedBatches !== null && metrics.failedBatches !== undefined
+          ? metrics.failedBatches
+          : '',
+        metrics.retriesUsed !== null && metrics.retriesUsed !== undefined
+          ? metrics.retriesUsed
+          : '',
+        metrics.rateLimitHits !== null && metrics.rateLimitHits !== undefined
+          ? metrics.rateLimitHits
+          : '',
         batchTimingsStr,
-        metrics.configBatchStagger || '',
+        metrics.configBatchStagger !== null &&
+        metrics.configBatchStagger !== undefined
+          ? metrics.configBatchStagger
+          : '',
       ];
 
       // Check if file exists, if not create with headers
