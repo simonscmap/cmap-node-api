@@ -12,7 +12,8 @@ const {
   overrideBatchConfig,
   generateAllCombinations,
 } = require('./config-override');
-const testConfig = require('./test-configuration-base-case.json');
+const testConfig = require('./test-configurations.json');
+// const testConfig = require('./test-configuration-base-case.json');
 
 const validateConfiguration = (testParams) => {
   const warnings = [];
