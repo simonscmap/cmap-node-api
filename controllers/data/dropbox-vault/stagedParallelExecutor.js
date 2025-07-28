@@ -134,69 +134,74 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   let batchIndex = 0;
   const allErrors = [];
   
+  // Start all waves with proper delays but don't wait for completion
+  const allWavePromises = [];
+  
   try {
     for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
       const wave = waves[waveIndex];
       
-      baseLogger.info('Starting wave', {
-        operationId,
-        waveIndex,
-        batchCount: wave.length,
-        config: config.name
-      });
+      // Calculate delay for this wave (first wave starts immediately)
+      const waveDelay = waveIndex * config.WAVE_DELAY;
       
-      // Execute batches in this wave with staggered starts
-      const wavePromises = wave.map((batch, batchInWaveIndex) => {
-        return new Promise((resolve) => {
-          const jitter = Math.random() * config.JITTER_MAX;
-          const delay = (batchInWaveIndex * config.BATCH_STAGGER) + jitter;
+      const wavePromise = new Promise((resolve) => {
+        setTimeout(async () => {
+          baseLogger.info('Starting wave', {
+            operationId,
+            waveIndex,
+            batchCount: wave.length,
+            config: config.name
+          });
           
-          setTimeout(async () => {
-            try {
-              await executeSingleBatch(
-                batch, 
-                tempFolderPath, 
-                config, 
-                batchLogger, 
-                batchIndex + batchInWaveIndex, 
-                dbx
-              );
-              resolve({ success: true, batchIndex: batchIndex + batchInWaveIndex });
-            } catch (error) {
-              allErrors.push({
-                batchIndex: batchIndex + batchInWaveIndex,
-                error
-              });
-              resolve({ success: false, batchIndex: batchIndex + batchInWaveIndex, error });
-            }
-          }, delay);
-        });
+          // Execute batches in this wave with staggered starts
+          const batchPromises = wave.map((batch, batchInWaveIndex) => {
+            return new Promise((batchResolve) => {
+              const jitter = Math.random() * config.JITTER_MAX;
+              const delay = (batchInWaveIndex * config.BATCH_STAGGER) + jitter;
+              
+              setTimeout(async () => {
+                try {
+                  await executeSingleBatch(
+                    batch, 
+                    tempFolderPath, 
+                    config, 
+                    batchLogger, 
+                    batchIndex + batchInWaveIndex, 
+                    dbx
+                  );
+                  batchResolve({ success: true, batchIndex: batchIndex + batchInWaveIndex });
+                } catch (error) {
+                  allErrors.push({
+                    batchIndex: batchIndex + batchInWaveIndex,
+                    error
+                  });
+                  batchResolve({ success: false, batchIndex: batchIndex + batchInWaveIndex, error });
+                }
+              }, delay);
+            });
+          });
+          
+          // Wait for all batches in this wave to complete
+          const waveResults = await Promise.all(batchPromises);
+          
+          baseLogger.info('Wave completed', {
+            operationId,
+            waveIndex,
+            successCount: waveResults.filter(r => r.success).length,
+            failureCount: waveResults.filter(r => !r.success).length,
+            config: config.name
+          });
+          
+          resolve(waveResults);
+        }, waveDelay);
       });
       
-      // Wait for this wave to complete
-      const waveResults = await Promise.all(wavePromises);
-      
-      // Update batch index for next wave
+      allWavePromises.push(wavePromise);
       batchIndex += wave.length;
-      
-      baseLogger.info('Wave completed', {
-        operationId,
-        waveIndex,
-        successCount: waveResults.filter(r => r.success).length,
-        failureCount: waveResults.filter(r => !r.success).length,
-        config: config.name
-      });
-      
-      // Delay before next wave (except for last wave)
-      if (waveIndex < waves.length - 1) {
-        baseLogger.info('Waiting between waves', {
-          operationId,
-          delay: config.WAVE_DELAY,
-          config: config.name
-        });
-        await new Promise(resolve => setTimeout(resolve, config.WAVE_DELAY));
-      }
     }
+    
+    // Wait for all waves to complete
+    const allWaveResults = await Promise.all(allWavePromises);
     
     // Check if any batches failed
     if (allErrors.length > 0) {
