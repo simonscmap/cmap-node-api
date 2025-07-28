@@ -40,7 +40,7 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
     to_path: `${tempFolderPath}/${file.name}`,
   }));
 
-  batchLogger.logBatchStart(batchIndex, batch.length, Math.floor(batchIndex / config.PARALLEL_COUNT));
+  batchLogger.logBatchStart(batchIndex, batch.length);
 
   try {
     const result = await executeWithRetry(
@@ -115,14 +115,14 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   
   batchLogger.setConfig(config);
   
-  // Split files directly between PARALLEL_COUNT to create single wave
-  const filesPerBatch = Math.ceil(files.length / config.PARALLEL_COUNT);
-  const allBatches = chunkArray(files, filesPerBatch);
-  const totalBatches = allBatches.length;
+  // Create batches directly for parallel execution
+  const filesPerBatch = Math.ceil(files.length / config.PARALLEL_BATCH_COUNT);
+  const batches = chunkArray(files, filesPerBatch);
+  const totalBatches = batches.length;
   
   batchLogger.setBatchCount(files.length, totalBatches);
   
-  baseLogger.info('Starting staged parallel execution', {
+  baseLogger.info('Starting parallel batch execution', {
     operationId,
     totalFiles: files.length,
     totalBatches,
@@ -130,80 +130,39 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
     config: config.name
   });
   
-  // All batches fit in a single wave since we split by PARALLEL_COUNT
-  const waves = [allBatches];
-  
-  let batchIndex = 0;
   const allErrors = [];
   
-  // Start all waves with proper delays but don't wait for completion
-  const allWavePromises = [];
-  
   try {
-    for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
-      const wave = waves[waveIndex];
-      
-      // Calculate delay for this wave (first wave starts immediately)
-      const waveDelay = waveIndex * config.WAVE_DELAY;
-      
-      const wavePromise = new Promise((resolve) => {
+    // Execute all batches directly with staggered starts
+    const batchPromises = batches.map((batch, batchIndex) => {
+      return new Promise((batchResolve) => {
+        const jitter = Math.random() * config.JITTER_MAX;
+        const delay = (batchIndex * config.BATCH_STAGGER) + jitter;
+        
         setTimeout(async () => {
-          baseLogger.info('Starting wave', {
-            operationId,
-            waveIndex,
-            batchCount: wave.length,
-            config: config.name
-          });
-          
-          // Execute batches in this wave with staggered starts
-          const batchPromises = wave.map((batch, batchInWaveIndex) => {
-            return new Promise((batchResolve) => {
-              const jitter = Math.random() * config.JITTER_MAX;
-              const delay = (batchInWaveIndex * config.BATCH_STAGGER) + jitter;
-              
-              setTimeout(async () => {
-                try {
-                  await executeSingleBatch(
-                    batch, 
-                    tempFolderPath, 
-                    config, 
-                    batchLogger, 
-                    batchIndex + batchInWaveIndex, 
-                    dbx
-                  );
-                  batchResolve({ success: true, batchIndex: batchIndex + batchInWaveIndex });
-                } catch (error) {
-                  allErrors.push({
-                    batchIndex: batchIndex + batchInWaveIndex,
-                    error
-                  });
-                  batchResolve({ success: false, batchIndex: batchIndex + batchInWaveIndex, error });
-                }
-              }, delay);
+          try {
+            await executeSingleBatch(
+              batch, 
+              tempFolderPath, 
+              config, 
+              batchLogger, 
+              batchIndex, 
+              dbx
+            );
+            batchResolve({ success: true, batchIndex });
+          } catch (error) {
+            allErrors.push({
+              batchIndex,
+              error
             });
-          });
-          
-          // Wait for all batches in this wave to complete
-          const waveResults = await Promise.all(batchPromises);
-          
-          baseLogger.info('Wave completed', {
-            operationId,
-            waveIndex,
-            successCount: waveResults.filter(r => r.success).length,
-            failureCount: waveResults.filter(r => !r.success).length,
-            config: config.name
-          });
-          
-          resolve(waveResults);
-        }, waveDelay);
+            batchResolve({ success: false, batchIndex, error });
+          }
+        }, delay);
       });
-      
-      allWavePromises.push(wavePromise);
-      batchIndex += wave.length;
-    }
+    });
     
-    // Wait for all waves to complete
-    await Promise.all(allWavePromises);
+    // Wait for all batches to complete
+    await Promise.all(batchPromises);
     
     // Check if any batches failed
     if (allErrors.length > 0) {

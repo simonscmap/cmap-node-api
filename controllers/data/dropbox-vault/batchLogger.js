@@ -36,11 +36,10 @@ class BatchPerformanceLogger {
     this.metrics.totalBatches = totalBatches;
   }
 
-  logBatchStart(batchIndex, batchSize, waveIndex) {
+  logBatchStart(batchIndex, batchSize) {
     const batchTiming = {
       batchIndex,
       batchSize,
-      waveIndex,
       startTime: Date.now(),
       endTime: null,
       duration: null,
@@ -55,7 +54,6 @@ class BatchPerformanceLogger {
       operationId: this.operationId,
       batchIndex,
       batchSize,
-      waveIndex,
       config: this.metrics.config.name,
     });
   }
@@ -81,7 +79,6 @@ class BatchPerformanceLogger {
     this.log.info('Batch completed', {
       operationId: this.operationId,
       batchIndex,
-      waveIndex: batchTiming ? batchTiming.waveIndex : null,
       success,
       retries: retryCount,
       duration: batchTiming ? batchTiming.duration : null,
@@ -123,11 +120,8 @@ class BatchPerformanceLogger {
       configBatchSize: this.metrics.config
         ? this.metrics.config.BATCH_SIZE
         : null,
-      configParallelCount: this.metrics.config
-        ? this.metrics.config.PARALLEL_COUNT
-        : null,
-      configWaveDelay: this.metrics.config
-        ? this.metrics.config.WAVE_DELAY
+      configParallelBatchCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,
       configMaxRetries: this.metrics.config
         ? this.metrics.config.MAX_RETRIES
@@ -152,11 +146,8 @@ class BatchPerformanceLogger {
       configBatchSize: this.metrics.config
         ? this.metrics.config.BATCH_SIZE
         : null,
-      configParallelCount: this.metrics.config
-        ? this.metrics.config.PARALLEL_COUNT
-        : null,
-      configWaveDelay: this.metrics.config
-        ? this.metrics.config.WAVE_DELAY
+      configParallelBatchCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,
       configMaxRetries: this.metrics.config
         ? this.metrics.config.MAX_RETRIES
@@ -227,21 +218,14 @@ class BatchPerformanceLogger {
         metrics.totalFiles !== null && metrics.totalFiles !== undefined
           ? metrics.totalFiles
           : '',
-        metrics.configParallelCount !== null &&
-        metrics.configParallelCount !== undefined
-          ? metrics.configParallelCount
-          : '',
-        metrics.configBatchSize !== null &&
-        metrics.configBatchSize !== undefined
-          ? metrics.configBatchSize
+        metrics.configParallelBatchCount !== null &&
+        metrics.configParallelBatchCount !== undefined
+          ? metrics.configParallelBatchCount
           : '',
         metrics.totalBatches !== null && metrics.totalBatches !== undefined
           ? metrics.totalBatches
           : '',
-        metrics.configWaveDelay !== null &&
-        metrics.configWaveDelay !== undefined
-          ? metrics.configWaveDelay
-          : '',
+        Math.ceil(metrics.totalFiles / (metrics.configParallelBatchCount || 1)),  // FILES_PER_BATCH
         metrics.completedBatches !== null &&
         metrics.completedBatches !== undefined
           ? metrics.completedBatches
@@ -268,10 +252,9 @@ class BatchPerformanceLogger {
           'Datetime',
           'totalDuration (sec)',
           'FILE_COUNT',
-          'PARALLEL_COUNT',
-          'BATCH_SIZE',
+          'PARALLEL_BATCH_COUNT',
           'totalBatches',
-          'WAVE_DELAY',
+          'FILES_PER_BATCH',
           'completedBatches',
           'failedBatches',
           'retriesUsed',
