@@ -238,7 +238,7 @@ class BatchPerformanceLogger {
       if (!fs.existsSync(csvFilePath)) {
         const headers = [
           'Datetime',
-          'totalDuration',
+          'totalDuration (sec)',
           'FILE_COUNT',
           'PARALLEL_COUNT',
           'BATCH_SIZE',
@@ -248,7 +248,7 @@ class BatchPerformanceLogger {
           'failedBatches',
           'retriesUsed',
           'rateLimitHits',
-          'batchTimings',
+          'batchTimings (ms)',
           'BATCH_STAGGER',
         ];
 

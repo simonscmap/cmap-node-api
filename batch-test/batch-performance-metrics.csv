@@ -1,0 +1,5 @@
+Datetime,totalDuration (sec),FILE_COUNT,PARALLEL_COUNT,BATCH_SIZE,totalBatches,WAVE_DELAY,completedBatches,failedBatches,retriesUsed,rateLimitHits,batchTimings (ms),BATCH_STAGGER
+07-28 13:09,11,10,1,-1,1,,1,,,,10565,
+07-28 13:10,53,100,1,-1,1,,1,,,,52494,
+07-28 13:11,6,10,1,-1,1,1,1,,,,5368,1
+07-28 13:12,52,100,1,-1,1,1,1,,,,52395,1
