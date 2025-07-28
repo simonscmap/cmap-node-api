@@ -8,6 +8,7 @@
     "PARALLEL_COUNT": [1, 2, 3, 5], 
     "WAVE_DELAY": [1000],
     "BATCH_STAGGER": [100],
-    "FILE_COUNT": [10, 50, 100]
+    "FILE_COUNT": [10, 50, 100],
+    "REPEAT_COUNT": [1]
   }
 }
