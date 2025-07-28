@@ -175,6 +175,9 @@ class BatchPerformanceLogger {
       configJitterMax: this.metrics.config
         ? this.metrics.config.JITTER_MAX
         : null,
+      configBatchStagger: this.metrics.config
+        ? this.metrics.config.BATCH_STAGGER
+        : null,
     };
     // Remove the original config object
     delete flattenedMetrics.config;
@@ -219,21 +222,16 @@ class BatchPerformanceLogger {
         datetime,
         metrics.totalDuration || '',
         metrics.totalFiles || '',
-        metrics.totalBatches || '',
-        metrics.configBatchSize || '',
-        batchTimingsStr,
         metrics.configParallelCount || '',
+        metrics.configBatchSize || '',
+        metrics.totalBatches || '',
         metrics.configWaveDelay || '',
         metrics.completedBatches || '',
         metrics.failedBatches || '',
         metrics.retriesUsed || '',
         metrics.rateLimitHits || '',
-        metrics.configMaxRetries || '',
-        metrics.configRetryBaseDelay || '',
-        metrics.configBatchTimeout || '',
-        metrics.configPollInterval || '',
-        metrics.configRateLimitBackoff || '',
-        metrics.configJitterMax || '',
+        batchTimingsStr,
+        metrics.configBatchStagger || '',
       ];
 
       // Check if file exists, if not create with headers
@@ -241,22 +239,17 @@ class BatchPerformanceLogger {
         const headers = [
           'Datetime',
           'totalDuration',
-          'totalFiles',
+          'FILE_COUNT',
+          'PARALLEL_COUNT',
+          'BATCH_SIZE',
           'totalBatches',
-          'configBatchSize',
-          'batchTimings',
-          'configParallelCount',
-          'configWaveDelay',
+          'WAVE_DELAY',
           'completedBatches',
           'failedBatches',
           'retriesUsed',
           'rateLimitHits',
-          'configMaxRetries',
-          'configRetryBaseDelay',
-          'configBatchTimeout',
-          'configPollInterval',
-          'configRateLimitBackoff',
-          'configJitterMax',
+          'batchTimings',
+          'BATCH_STAGGER',
         ];
 
         fs.writeFileSync(csvFilePath, headers.join(',') + '\n');

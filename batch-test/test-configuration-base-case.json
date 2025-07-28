@@ -9,6 +9,6 @@
     "WAVE_DELAY": [0],
     "BATCH_STAGGER": [0],
     "FILE_COUNT": [10, 100, 500],
-    "REPEAT_COUNT": 1
+    "REPEAT_COUNT": 5
   }
 }

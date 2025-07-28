@@ -12,8 +12,8 @@ const {
   overrideBatchConfig,
   generateAllCombinations,
 } = require('./config-override');
-const testConfig = require('./test-configurations.json');
-// const testConfig = require('./test-configuration-base-case.json');
+// const testConfig = require('./test-configurations.json');
+const testConfig = require('./test-configuration-base-case.json');
 
 const validateConfiguration = (testParams) => {
   const warnings = [];
@@ -123,9 +123,9 @@ const runTestSuite = async () => {
   for (let repeatRun = 1; repeatRun <= repeatCount; repeatRun++) {
     if (repeatRun > 1) {
       console.log(
-        `\n⏳ Waiting 60 seconds before repeat run ${repeatRun}/${repeatCount}...`,
+        `\n⏳ Waiting 15 seconds before repeat run ${repeatRun}/${repeatCount}...`,
       );
-      await new Promise((resolve) => setTimeout(resolve, 60000));
+      await new Promise((resolve) => setTimeout(resolve, 15000));
     }
 
     console.log(
