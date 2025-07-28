@@ -40,13 +40,19 @@ const overrideBatchConfig = (configOverrides) => {
 };
 
 const createOverriddenConfig = (originalContent, overrides) => {
+  // Handle special infinity case for BATCH_SIZE
+  let batchSizeValue = overrides.BATCH_SIZE || 10;
+  if (batchSizeValue === 'infinity') {
+    batchSizeValue = -1; // Use -1 as infinity marker
+  }
+  
   // Create a test config based on conservative with overrides
   const testConfigSection = `  test: {
     // === BATCH EXECUTION SETTINGS ===
-    BATCH_SIZE: ${overrides.BATCH_SIZE || 10},
+    BATCH_SIZE: ${batchSizeValue},
     PARALLEL_COUNT: ${overrides.PARALLEL_COUNT || 2},
-    WAVE_DELAY: ${overrides.WAVE_DELAY || 1000},
-    BATCH_STAGGER: ${overrides.BATCH_STAGGER || 100},
+    WAVE_DELAY: ${overrides.WAVE_DELAY !== undefined ? overrides.WAVE_DELAY : 1000},
+    BATCH_STAGGER: ${overrides.BATCH_STAGGER !== undefined ? overrides.BATCH_STAGGER : 100},
 
     // === RETRY CONFIGURATION ===
     MAX_RETRIES: 3,
@@ -79,7 +85,8 @@ const createOverriddenConfig = (originalContent, overrides) => {
 
 const generateAllCombinations = (testParams) => {
   const combinations = [];
-  const keys = Object.keys(testParams);
+  // Exclude REPEAT_COUNT from combination generation since it's not part of test parameters
+  const keys = Object.keys(testParams).filter(key => key !== 'REPEAT_COUNT');
   
   const generateCombos = (keyIndex, currentCombo) => {
     if (keyIndex === keys.length) {

@@ -5,15 +5,31 @@ const BatchPerformanceLogger = require('./batchLogger');
 
 // Utility function to chunk array into smaller arrays
 const chunkArray = (array, chunkSize) => {
-  // Special case: 'infinity' means single batch with all files
-  if (String(chunkSize).toLowerCase() === 'infinity' || chunkSize >= array.length) {
+  // Debug logging
+  console.log(`chunkArray called with chunkSize: ${chunkSize} (type: ${typeof chunkSize})`);
+  
+  // Improved infinity handling
+  if (chunkSize === 'infinity' || 
+      chunkSize === -1 || 
+      String(chunkSize).toLowerCase() === 'infinity' || 
+      chunkSize >= array.length) {
+    console.log(`Creating single batch with ${array.length} files`);
     return [array]; // Single batch with all files
   }
   
-  const chunks = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
-    chunks.push(array.slice(i, i + chunkSize));
+  // Convert to number if string
+  const numericChunkSize = typeof chunkSize === 'string' ? parseInt(chunkSize, 10) : chunkSize;
+  
+  if (isNaN(numericChunkSize) || numericChunkSize <= 0) {
+    throw new Error(`Invalid chunk size: ${chunkSize}`);
   }
+  
+  const chunks = [];
+  for (let i = 0; i < array.length; i += numericChunkSize) {
+    chunks.push(array.slice(i, i + numericChunkSize));
+  }
+  
+  console.log(`Created ${chunks.length} batches with chunk size ${numericChunkSize}`);
   return chunks;
 };
 
