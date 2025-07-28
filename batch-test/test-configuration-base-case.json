@@ -4,9 +4,7 @@
     "datasetId": 771
   },
   "testParams": {
-    "BATCH_SIZE": [-1],
-    "PARALLEL_COUNT": [1],
-    "WAVE_DELAY": [0],
+    "PARALLEL_BATCH_COUNT": [1],
     "BATCH_STAGGER": [0],
     "FILE_COUNT": [10, 100, 500],
     "REPEAT_COUNT": 5

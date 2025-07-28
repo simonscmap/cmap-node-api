@@ -3,10 +3,8 @@ const CURRENT_CONFIG = 'test'; // Options: 'conservative', 'aggressive', 'sequen
 const BATCH_CONFIGS = {
   base_case: {
     // === BATCH EXECUTION SETTINGS ===
-    BATCH_SIZE: 'infinity', // Special case: all files in single batch
-    PARALLEL_COUNT: 1, // Irrelevant but set for clarity
-    WAVE_DELAY: 0, // Irrelevant but set for clarity
-    BATCH_STAGGER: 0, // Irrelevant but set for clarity
+    PARALLEL_BATCH_COUNT: 1, // Number of batches to run in parallel
+    BATCH_STAGGER: 0, // Delay between starting batches
 
     // === RETRY CONFIGURATION ===
     MAX_RETRIES: 3, // Standard retry attempts
@@ -26,20 +24,12 @@ const BATCH_CONFIGS = {
 /**
  * Configuration Parameter Documentation:
  *
- * BATCH_SIZE: Number of files included in each Dropbox batch operation
- * - Used by: stagedParallelExecutor (file chunking)
- * - Impact: Larger = fewer API calls but longer individual operations
- *
- * PARALLEL_COUNT: How many batches run simultaneously in each wave
- * - Used by: stagedParallelExecutor (wave creation)
+ * PARALLEL_BATCH_COUNT: How many batches run simultaneously in parallel
+ * - Used by: stagedParallelExecutor (batch creation and execution)
  * - Impact: Higher = faster but more API pressure, may trigger rate limits
  *
- * WAVE_DELAY: Time to wait between waves of parallel batches
- * - Used by: stagedParallelExecutor (inter-wave delays)
- * - Impact: Longer = more breathing room for API, less chance of rate limits
- *
- * BATCH_STAGGER: Delay between starting batches within the same wave
- * - Used by: stagedParallelExecutor (intra-wave timing)
+ * BATCH_STAGGER: Delay between starting batches in parallel execution
+ * - Used by: stagedParallelExecutor (batch timing)
  * - Impact: Prevents simultaneous API calls, reduces rate limit risk
  *
  * MAX_RETRIES: Number of retry attempts for failed operations
