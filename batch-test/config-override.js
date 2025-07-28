@@ -50,8 +50,7 @@ const createOverriddenConfig = (originalContent, overrides) => {
   const testConfigSection = `  test: {
     // === BATCH EXECUTION SETTINGS ===
     BATCH_SIZE: ${batchSizeValue},
-    PARALLEL_COUNT: ${overrides.PARALLEL_COUNT || 2},
-    WAVE_DELAY: ${overrides.WAVE_DELAY !== undefined ? overrides.WAVE_DELAY : 1000},
+    PARALLEL_BATCH_COUNT: ${overrides.PARALLEL_BATCH_COUNT || 2},
     BATCH_STAGGER: ${overrides.BATCH_STAGGER !== undefined ? overrides.BATCH_STAGGER : 100},
 
     // === RETRY CONFIGURATION ===

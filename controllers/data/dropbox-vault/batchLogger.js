@@ -117,9 +117,6 @@ class BatchPerformanceLogger {
       averageBatchTime: this.getAverageBatchTime(),
       // Flatten config object with correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configBatchSize: this.metrics.config
-        ? this.metrics.config.BATCH_SIZE
-        : null,
       configParallelBatchCount: this.metrics.config
         ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,
@@ -143,9 +140,6 @@ class BatchPerformanceLogger {
       ...this.metrics,
       // Replace config object with flattened values using correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configBatchSize: this.metrics.config
-        ? this.metrics.config.BATCH_SIZE
-        : null,
       configParallelBatchCount: this.metrics.config
         ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,

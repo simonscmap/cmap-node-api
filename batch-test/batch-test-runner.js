@@ -80,17 +80,10 @@ const runTestSuite = async () => {
     }`,
   );
   console.log(
-    `  - PARALLEL_COUNT: ${
-      Array.isArray(testParams.PARALLEL_COUNT)
-        ? testParams.PARALLEL_COUNT.join(', ')
-        : testParams.PARALLEL_COUNT
-    }`,
-  );
-  console.log(
-    `  - WAVE_DELAY: ${
-      Array.isArray(testParams.WAVE_DELAY)
-        ? testParams.WAVE_DELAY.join(', ')
-        : testParams.WAVE_DELAY
+    `  - PARALLEL_BATCH_COUNT: ${
+      Array.isArray(testParams.PARALLEL_BATCH_COUNT)
+        ? testParams.PARALLEL_BATCH_COUNT.join(', ')
+        : testParams.PARALLEL_BATCH_COUNT
     }`,
   );
   console.log(
@@ -135,10 +128,10 @@ const runTestSuite = async () => {
       const combo = combinations[i];
       console.log(`\n📋 Test ${i + 1}/${combinations.length}:`);
       console.log(
-        `   BATCH_SIZE: ${combo.BATCH_SIZE}, PARALLEL_COUNT: ${combo.PARALLEL_COUNT}`,
+        `   BATCH_SIZE: ${combo.BATCH_SIZE}, PARALLEL_BATCH_COUNT: ${combo.PARALLEL_BATCH_COUNT}`,
       );
       console.log(
-        `   WAVE_DELAY: ${combo.WAVE_DELAY}ms, BATCH_STAGGER: ${combo.BATCH_STAGGER}ms`,
+        `   BATCH_STAGGER: ${combo.BATCH_STAGGER}ms`,
       );
       console.log(`   FILE_COUNT: ${combo.FILE_COUNT}`);
 
@@ -151,8 +144,7 @@ const runTestSuite = async () => {
       // Override configuration
       const restoreConfig = overrideBatchConfig({
         BATCH_SIZE: combo.BATCH_SIZE,
-        PARALLEL_COUNT: combo.PARALLEL_COUNT,
-        WAVE_DELAY: combo.WAVE_DELAY,
+        PARALLEL_BATCH_COUNT: combo.PARALLEL_BATCH_COUNT,
         BATCH_STAGGER: combo.BATCH_STAGGER,
       });
 
@@ -276,8 +268,7 @@ const generateSummaryReport = (results, totalDuration) => {
       `   Test #${fastestTest.testNumber} - ${fastestTest.duration}ms`,
     );
     console.log(`   BATCH_SIZE: ${fastestTest.combination.BATCH_SIZE}`);
-    console.log(`   PARALLEL_COUNT: ${fastestTest.combination.PARALLEL_COUNT}`);
-    console.log(`   WAVE_DELAY: ${fastestTest.combination.WAVE_DELAY}ms`);
+    console.log(`   PARALLEL_BATCH_COUNT: ${fastestTest.combination.PARALLEL_BATCH_COUNT}`);
     console.log(`   BATCH_STAGGER: ${fastestTest.combination.BATCH_STAGGER}ms`);
     console.log(`   FILE_COUNT: ${fastestTest.combination.FILE_COUNT}`);
   }
@@ -289,7 +280,7 @@ const generateSummaryReport = (results, totalDuration) => {
         `   Test #${result.testNumber}: ${result.error || 'Response error'}`,
       );
       console.log(
-        `     BATCH_SIZE: ${result.combination.BATCH_SIZE}, PARALLEL_COUNT: ${result.combination.PARALLEL_COUNT}`,
+        `     BATCH_SIZE: ${result.combination.BATCH_SIZE}, PARALLEL_BATCH_COUNT: ${result.combination.PARALLEL_BATCH_COUNT}`,
       );
     });
   }
@@ -300,7 +291,7 @@ const generateSummaryReport = (results, totalDuration) => {
     const duration = result.duration ? `${result.duration}ms` : 'N/A';
     console.log(
       `   ${status} Test #${result.testNumber}: ${duration} - ` +
-        `BS:${result.combination.BATCH_SIZE} PC:${result.combination.PARALLEL_COUNT} ` +
+        `BS:${result.combination.BATCH_SIZE} PBC:${result.combination.PARALLEL_BATCH_COUNT} ` +
         `FC:${result.combination.FILE_COUNT}`,
     );
   });
