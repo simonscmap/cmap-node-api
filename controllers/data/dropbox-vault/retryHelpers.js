@@ -31,12 +31,20 @@ const isRetryableError = (error) => {
   // 409 - Most conflicts are retryable (file locks, concurrent operations, etc.)
   // Only exclude specific permanent conflicts
   if (error.status === 409) {
-    // Check for permanent conflicts that shouldn't be retried
     const errorSummary = (error.error && error.error.error_summary) || '';
+    const errorTag = (error.error && error.error.error && error.error.error['.tag']) || '';
+    
+    // Dropbox internal_error is permanent - never retry
+    if (errorTag === 'internal_error' || errorSummary.includes('internal_error')) {
+      return false;
+    }
+    
+    // Check for other permanent conflicts that shouldn't be retried
     const permanentConflicts = [
       'invalid_cursor',
       'disallowed_name',
-      'insufficient_space'
+      'insufficient_space',
+      'internal_error' // Add for double protection
     ];
     
     return !permanentConflicts.some(conflict => errorSummary.includes(conflict));
@@ -97,6 +105,19 @@ const executeWithRetry = async (
       
       // Check if error is retryable
       if (!isRetryableError(error)) {
+        // Special case for internal_error - needs complete restart
+        if (error.status === 409 && 
+            (error.error && error.error.error && error.error.error['.tag'] === 'internal_error' || 
+             error.error && error.error.error_summary && error.error.error_summary.includes('internal_error'))) {
+          batchLogger.log.error('Dropbox internal_error - operation must be restarted', {
+            batchIndex,
+            attempt,
+            error: error.message,
+            recommendation: 'Restart entire batch operation with new request',
+            config: config.name
+          });
+        }
+        
         batchLogger.log.error(`Non-retryable error in ${operationName}`, {
           batchIndex,
           attempt,
