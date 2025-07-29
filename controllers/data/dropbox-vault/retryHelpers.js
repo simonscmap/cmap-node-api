@@ -110,6 +110,9 @@ const executeWithRetry = async (
       
       retryCount++;
       
+      // Log retry attempt for metrics tracking
+      batchLogger.logRetryAttempt(batchIndex, error, operationName);
+      
       // Calculate delay (special handling for rate limits)
       let delay;
       const rateLimitDelay = handleRateLimitError(error, config, batchLogger, batchIndex);

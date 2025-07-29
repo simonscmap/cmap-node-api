@@ -14,6 +14,13 @@ class BatchPerformanceLogger {
       failedBatches: 0,
       retriesUsed: 0,
       rateLimitHits: 0,
+      retryBreakdown: {
+        rateLimitRetries: 0,
+        serverErrorRetries: 0,
+        conflictRetries: 0,
+        networkRetries: 0,
+        otherRetries: 0
+      },
       config: null,
       start: this.startTime,
       end: null,
@@ -89,11 +96,37 @@ class BatchPerformanceLogger {
 
   logRateLimitHit(batchIndex, retryAfter) {
     this.metrics.rateLimitHits++;
+    this.metrics.retryBreakdown.rateLimitRetries++;
     this.log.warn('Rate limit hit', {
       operationId: this.operationId,
       batchIndex,
       retryAfter,
       rateLimitHits: this.metrics.rateLimitHits,
+      config: this.metrics.config.name,
+    });
+  }
+
+  logRetryAttempt(batchIndex, error, operationName) {
+    // Categorize the retry based on error type
+    if (error.status === 429) {
+      this.metrics.retryBreakdown.rateLimitRetries++;
+    } else if (error.status === 409) {
+      this.metrics.retryBreakdown.conflictRetries++;
+    } else if (error.status >= 500) {
+      this.metrics.retryBreakdown.serverErrorRetries++;
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      this.metrics.retryBreakdown.networkRetries++;
+    } else {
+      this.metrics.retryBreakdown.otherRetries++;
+    }
+
+    this.log.debug('Retry attempt categorized', {
+      operationId: this.operationId,
+      batchIndex,
+      operationName,
+      errorStatus: error.status,
+      errorCode: error.code,
+      retryBreakdown: this.metrics.retryBreakdown,
       config: this.metrics.config.name,
     });
   }
@@ -114,6 +147,7 @@ class BatchPerformanceLogger {
       failedBatches: this.metrics.failedBatches,
       retriesUsed: this.metrics.retriesUsed,
       rateLimitHits: this.metrics.rateLimitHits,
+      retryBreakdown: this.metrics.retryBreakdown,
       averageBatchTime: this.getAverageBatchTime(),
       // Flatten config object with correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,

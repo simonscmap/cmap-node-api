@@ -43,7 +43,7 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
   batchLogger.logBatchStart(batchIndex, batch.length);
 
   try {
-    const result = await executeWithRetry(
+    const { result, retryCount } = await executeWithRetry(
       async () => {
         // Execute batch copy
         const copyBatchResult = await dbx.filesCopyBatchV2({
@@ -61,7 +61,7 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
           const batchJobId = copyBatchResult.result.async_job_id;
           
           // Wait for completion with timeout
-          await executeWithRetry(
+          const { retryCount: pollRetryCount } = await executeWithRetry(
             async () => {
               const maxWaitTime = config.BATCH_TIMEOUT;
               const pollInterval = config.POLL_INTERVAL;
@@ -89,7 +89,7 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
             'batch-poll'
           );
           
-          return { completed: true, batchJobId };
+          return { completed: true, batchJobId, pollRetryCount };
         }
         
         throw new Error(`Unexpected batch copy result: ${copyBatchResult.result['.tag']}`);
@@ -100,10 +100,13 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
       'batch-copy'
     );
 
-    batchLogger.logBatchComplete(batchIndex, true);
+    // Calculate total retry count (batch copy retries + poll retries if any)
+    const totalRetryCount = retryCount + (result.pollRetryCount || 0);
+
+    batchLogger.logBatchComplete(batchIndex, true, null, totalRetryCount);
     return result;
   } catch (error) {
-    batchLogger.logBatchComplete(batchIndex, false, error);
+    batchLogger.logBatchComplete(batchIndex, false, error, 0);
     throw error;
   }
 };
