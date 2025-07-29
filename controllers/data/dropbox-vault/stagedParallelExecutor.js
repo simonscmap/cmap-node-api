@@ -34,7 +34,7 @@ const chunkArray = (array, chunkSize) => {
 };
 
 // Execute a single batch with retry logic
-const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, batchIndex, dbx) => {
+const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, batchIndex, dbx, abortSignal) => {
   const copyEntries = batch.map((file) => ({
     from_path: file.filePath,
     to_path: `${tempFolderPath}/${file.name}`,
@@ -45,6 +45,11 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
   try {
     const { result, retryCount } = await executeWithRetry(
       async () => {
+        // Check abort signal before making API call
+        if (abortSignal && abortSignal.aborted) {
+          throw new Error('Operation aborted due to internal error in another batch');
+        }
+        
         // Execute batch copy
         const copyBatchResult = await dbx.filesCopyBatchV2({
           entries: copyEntries,
@@ -68,6 +73,11 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
               const startTime = Date.now();
 
               while (Date.now() - startTime < maxWaitTime) {
+                // Check abort signal during polling
+                if (abortSignal && abortSignal.aborted) {
+                  throw new Error('Operation aborted due to internal error in another batch');
+                }
+                
                 await new Promise(resolve => setTimeout(resolve, pollInterval));
 
                 const checkResult = await dbx.filesCopyBatchCheckV2({
@@ -138,8 +148,8 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   // Calculate failure threshold
   const maxAllowableFailures = Math.floor(totalBatches * (config.MAX_FAILURE_RATE || 0.1));
   
-  // Shared abort flag for cancelling remaining batches
-  let abortOperation = false;
+  // Shared abort signal for cancelling remaining batches
+  const abortSignal = { aborted: false };
   const pendingTimeouts = [];
   
   try {
@@ -151,13 +161,13 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
         
         const timeoutId = setTimeout(async () => {
           // Check if operation has been aborted before starting
-          if (abortOperation) {
+          if (abortSignal.aborted) {
             batchResolve({ success: false, batchIndex, aborted: true });
             return;
           }
           try {
             // Double-check abort flag right before execution
-            if (abortOperation) {
+            if (abortSignal.aborted) {
               batchResolve({ success: false, batchIndex, aborted: true });
               return;
             }
@@ -168,7 +178,8 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
               config, 
               batchLogger, 
               batchIndex, 
-              dbx
+              dbx,
+              abortSignal
             );
             batchResolve({ success: true, batchIndex });
           } catch (error) {
@@ -176,7 +187,7 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
             
             // Check for Dropbox internal_error - abort entire operation immediately
             if (isDropboxInternalError(error)) {
-              abortOperation = true; // Signal all other batches to abort
+              abortSignal.aborted = true; // Signal all other batches to abort
               
               baseLogger.error(`Dropbox internal_error detected - aborting entire operation`, {
                 batchIndex,
