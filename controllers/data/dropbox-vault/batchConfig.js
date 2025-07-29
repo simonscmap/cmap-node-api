@@ -1,6 +1,47 @@
 const CURRENT_CONFIG = 'test'; // Options: 'conservative', 'aggressive', 'sequential'
 
 const BATCH_CONFIGS = {
+  test: {
+    // === BATCH EXECUTION SETTINGS ===
+    BATCH_SIZE: 10,
+    PARALLEL_BATCH_COUNT: 40,
+    BATCH_STAGGER: 500,
+
+    // === RETRY CONFIGURATION ===
+    MAX_RETRIES: 3,
+    RETRY_BASE_DELAY: 2000,
+    RETRY_MAX_DELAY: 60000,
+
+    // === TIMEOUT SETTINGS ===
+    BATCH_TIMEOUT: 300000,
+    POLL_INTERVAL: 5000,
+
+    // === RATE LIMIT HANDLING ===
+    RATE_LIMIT_BACKOFF: 30000,
+    JITTER_MAX: 1000,
+  },
+  test: {
+    // === BATCH EXECUTION SETTINGS ===
+    BATCH_SIZE: 10,
+    PARALLEL_BATCH_COUNT: 40,
+    BATCH_STAGGER: 500,
+
+    // === RETRY CONFIGURATION ===
+    MAX_RETRIES: 3,
+    RETRY_BASE_DELAY: 2000,
+    RETRY_MAX_DELAY: 60000,
+
+    // === TIMEOUT SETTINGS ===
+    BATCH_TIMEOUT: 300000,
+    POLL_INTERVAL: 5000,
+
+    // === RATE LIMIT HANDLING ===
+    RATE_LIMIT_BACKOFF: 30000,
+    JITTER_MAX: 1000,
+
+    // === FAULT TOLERANCE SETTINGS ===
+    MAX_FAILURE_RATE: 0.1, // Acceptable failure rate (10% of batches can fail)
+  },
   base_case: {
     // === BATCH EXECUTION SETTINGS ===
     PARALLEL_BATCH_COUNT: 1, // Number of batches to run in parallel
@@ -18,6 +59,9 @@ const BATCH_CONFIGS = {
     // === RATE LIMIT HANDLING ===
     RATE_LIMIT_BACKOFF: 30000, // Standard rate limit delays
     JITTER_MAX: 1000, // Standard jitter
+
+    // === FAULT TOLERANCE SETTINGS ===
+    MAX_FAILURE_RATE: 0.1, // Acceptable failure rate (10% of batches can fail)
   },
 };
 
@@ -59,6 +103,10 @@ const BATCH_CONFIGS = {
  * JITTER_MAX: Maximum random delay added to prevent synchronized operations
  * - Used by: retryHelpers, stagedParallelExecutor (timing randomization)
  * - Impact: Reduces thundering herd effects, spreads out API calls
+ *
+ * MAX_FAILURE_RATE: Acceptable failure rate for fault-tolerant operations
+ * - Used by: stagedParallelExecutor (fault tolerance threshold)
+ * - Impact: Operation succeeds if failure rate stays below this threshold
  */
 
 const getCurrentConfig = () => {

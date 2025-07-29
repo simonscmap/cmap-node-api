@@ -131,7 +131,7 @@ class BatchPerformanceLogger {
     });
   }
 
-  logOperationComplete(success, error = null) {
+  logOperationComplete(success, error = null, additionalMetrics = null) {
     this.metrics.end = Date.now();
     this.metrics.totalDuration = Math.round(
       (this.metrics.end - this.metrics.start) / 1000,
@@ -165,6 +165,8 @@ class BatchPerformanceLogger {
         : null,
       error: error ? error.message : null,
       timestamp: new Date().toISOString(),
+      // Include additional metrics from fault-tolerant processing
+      ...additionalMetrics
     };
 
     this.log.info('Batch operation completed', summary);

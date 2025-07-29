@@ -32,7 +32,7 @@ const isRetryableError = (error) => {
   // Only exclude specific permanent conflicts
   if (error.status === 409) {
     // Check for permanent conflicts that shouldn't be retried
-    const errorSummary = error.error?.error_summary || '';
+    const errorSummary = (error.error && error.error.error_summary) || '';
     const permanentConflicts = [
       'invalid_cursor',
       'disallowed_name',
@@ -85,7 +85,7 @@ const executeWithRetry = async (
         retryCount,
         error: error.message,
         status: error.status,
-        errorSummary: error.error?.error_summary,
+        errorSummary: (error.error && error.error.error_summary),
         fullError: JSON.stringify(error, null, 2),
         config: config.name
       });
@@ -102,7 +102,7 @@ const executeWithRetry = async (
           attempt,
           error: error.message,
           status: error.status,
-          errorSummary: error.error?.error_summary,
+          errorSummary: (error.error && error.error.error_summary),
           config: config.name
         });
         break;

@@ -111,7 +111,7 @@ const executeSingleBatch = async (batch, tempFolderPath, config, batchLogger, ba
   }
 };
 
-// Execute staged parallel batches
+// Execute staged parallel batches with fault tolerance
 const executeStagedParallelBatches = async (files, tempFolderPath, config, baseLogger, dbx) => {
   const operationId = `batch-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
   const batchLogger = new BatchPerformanceLogger(baseLogger, operationId);
@@ -125,7 +125,7 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   
   batchLogger.setBatchCount(files.length, totalBatches);
   
-  baseLogger.info('Starting parallel batch execution', {
+  baseLogger.info('Starting fault-tolerant parallel batch execution', {
     operationId,
     totalFiles: files.length,
     totalBatches,
@@ -135,10 +135,13 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   
   const allErrors = [];
   
+  // Calculate failure threshold
+  const maxAllowableFailures = Math.floor(totalBatches * (config.MAX_FAILURE_RATE || 0.1));
+  
   try {
-    // Execute all batches directly with staggered starts
+    // CRITICAL FIX: Execute batches with fault tolerance - each promise NEVER rejects
     const batchPromises = batches.map((batch, batchIndex) => {
-      return new Promise((batchResolve) => {
+      return new Promise((batchResolve) => { // Note: Never rejects!
         const jitter = Math.random() * config.JITTER_MAX;
         const delay = (batchIndex * config.BATCH_STAGGER) + jitter;
         
@@ -154,33 +157,56 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
             );
             batchResolve({ success: true, batchIndex });
           } catch (error) {
-            allErrors.push({
-              batchIndex,
-              error
+            allErrors.push({ batchIndex, error });
+            
+            // Log failure but continue processing other batches
+            baseLogger.warn(`Batch ${batchIndex} failed, continuing with remaining batches`, {
+              error: error.message,
+              failedBatches: allErrors.length,
+              totalBatches,
+              maxAllowable: maxAllowableFailures,
+              config: config.name
             });
+            
+            // Always resolves (never rejects) so Promise.all continues
             batchResolve({ success: false, batchIndex, error });
           }
         }, delay);
       });
     });
     
-    // Wait for all batches to complete
-    await Promise.all(batchPromises);
+    // SAFE: All promises resolve (never reject), so Promise.all won't fail-fast
+    const results = await Promise.all(batchPromises);
+    const successfulBatches = results.filter(r => r.success).length;
+    const failedCount = allErrors.length;
     
-    // Check if any batches failed
-    if (allErrors.length > 0) {
-      const errorSummary = `${allErrors.length} of ${totalBatches} batches failed`;
-      const firstError = allErrors[0].error;
-      
+    // Assess overall operation success based on failure threshold
+    if (failedCount > maxAllowableFailures) {
+      const errorSummary = `${failedCount} of ${totalBatches} batches failed (max allowable: ${maxAllowableFailures})`;
       batchLogger.logOperationComplete(false, new Error(errorSummary));
-      
-      throw new Error(`Batch operation partially failed: ${errorSummary}. First error: ${firstError.message}`);
+      throw new Error(`Batch operation failed: ${errorSummary}. First error: ${allErrors[0].error.message}`);
+    } else if (failedCount > 0) {
+      // Partial success - log warning but continue
+      const successRate = ((totalBatches - failedCount) / totalBatches * 100).toFixed(1);
+      baseLogger.warn(`Operation completed with partial success`, {
+        successfulBatches,
+        failedBatches: failedCount,
+        totalBatches,
+        successRate: successRate + '%',
+        config: config.name
+      });
     }
     
-    batchLogger.logOperationComplete(true);
+    batchLogger.logOperationComplete(true, null, { 
+      successfulBatches, 
+      failedBatches: failedCount,
+      successRate: ((totalBatches - failedCount) / totalBatches * 100).toFixed(1) + '%'
+    });
     
-    baseLogger.info('All batches completed successfully', {
+    baseLogger.info('Batch execution completed', {
       operationId,
+      successfulBatches,
+      failedBatches: failedCount,
       totalBatches,
       config: config.name
     });
