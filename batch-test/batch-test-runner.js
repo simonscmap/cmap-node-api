@@ -10,7 +10,8 @@ const {
   generateAllCombinations,
 } = require('./config-override');
 // const testConfig = require('./test-configurations.json');
-const testConfig = require('./test-configurations-reliability-focused.json');
+const testConfig = require('./test-configurations-next-round.json');
+// const testConfig = require('./test-configurations-reliability-focused.json');
 
 // const testConfig = require('./test-configuration-base-case.json');
 
