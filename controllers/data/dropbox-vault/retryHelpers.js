@@ -59,6 +59,16 @@ const isRetryableError = (error) => {
   return false;
 };
 
+// Check if error is a Dropbox internal_error that requires complete operation restart
+const isDropboxInternalError = (error) => {
+  if (error.status !== 409) return false;
+  
+  const errorTag = (error.error && error.error.error && error.error.error['.tag']) || '';
+  const errorSummary = (error.error && error.error.error_summary) || '';
+  
+  return errorTag === 'internal_error' || errorSummary.includes('internal_error');
+};
+
 // Execute function with retry logic
 const executeWithRetry = async (
   fn,
@@ -171,5 +181,6 @@ module.exports = {
   calculateBackoffDelay,
   handleRateLimitError,
   isRetryableError,
+  isDropboxInternalError,
   executeWithRetry
 };

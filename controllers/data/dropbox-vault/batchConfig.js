@@ -19,9 +19,6 @@ const BATCH_CONFIGS = {
     // === RATE LIMIT HANDLING ===
     RATE_LIMIT_BACKOFF: 30000,
     JITTER_MAX: 1000,
-
-    // === FAULT TOLERANCE SETTINGS ===
-    MAX_FAILURE_RATE: 0.1, // Acceptable failure rate (10% of batches can fail)
   },
   base_case: {
     // === BATCH EXECUTION SETTINGS ===

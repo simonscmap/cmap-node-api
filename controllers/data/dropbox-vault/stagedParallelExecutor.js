@@ -1,6 +1,6 @@
 // Staged parallel execution engine for Dropbox batch operations
 const { setTimeout } = require('timers');
-const { executeWithRetry } = require('./retryHelpers');
+const { executeWithRetry, isDropboxInternalError } = require('./retryHelpers');
 const BatchPerformanceLogger = require('./batchLogger');
 
 // Utility function to chunk array into smaller arrays
@@ -138,6 +138,10 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
   // Calculate failure threshold
   const maxAllowableFailures = Math.floor(totalBatches * (config.MAX_FAILURE_RATE || 0.1));
   
+  // Shared abort flag for cancelling remaining batches
+  let abortOperation = false;
+  const pendingTimeouts = [];
+  
   try {
     // CRITICAL FIX: Execute batches with fault tolerance - each promise NEVER rejects
     const batchPromises = batches.map((batch, batchIndex) => {
@@ -145,8 +149,19 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
         const jitter = Math.random() * config.JITTER_MAX;
         const delay = (batchIndex * config.BATCH_STAGGER) + jitter;
         
-        setTimeout(async () => {
+        const timeoutId = setTimeout(async () => {
+          // Check if operation has been aborted before starting
+          if (abortOperation) {
+            batchResolve({ success: false, batchIndex, aborted: true });
+            return;
+          }
           try {
+            // Double-check abort flag right before execution
+            if (abortOperation) {
+              batchResolve({ success: false, batchIndex, aborted: true });
+              return;
+            }
+            
             await executeSingleBatch(
               batch, 
               tempFolderPath, 
@@ -158,6 +173,23 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
             batchResolve({ success: true, batchIndex });
           } catch (error) {
             allErrors.push({ batchIndex, error });
+            
+            // Check for Dropbox internal_error - abort entire operation immediately
+            if (isDropboxInternalError(error)) {
+              abortOperation = true; // Signal all other batches to abort
+              
+              baseLogger.error(`Dropbox internal_error detected - aborting entire operation`, {
+                batchIndex,
+                error: error.message,
+                recommendation: 'Restart entire batch operation with new request',
+                totalBatches,
+                config: config.name
+              });
+              
+              // Resolve with fatal error flag to signal immediate abort
+              batchResolve({ success: false, batchIndex, error, fatalError: true });
+              return;
+            }
             
             // Log failure but continue processing other batches
             baseLogger.warn(`Batch ${batchIndex} failed, continuing with remaining batches`, {
@@ -172,12 +204,30 @@ const executeStagedParallelBatches = async (files, tempFolderPath, config, baseL
             batchResolve({ success: false, batchIndex, error });
           }
         }, delay);
+        
+        pendingTimeouts.push(timeoutId);
       });
     });
     
     // SAFE: All promises resolve (never reject), so Promise.all won't fail-fast
     const results = await Promise.all(batchPromises);
+    
+    // Check for any fatal errors (like Dropbox internal_error)
+    const fatalError = results.find(r => r.fatalError);
+    if (fatalError) {
+      const abortedBatches = results.filter(r => r.aborted).length;
+      baseLogger.info(`Operation aborted - ${abortedBatches} batches were cancelled`, {
+        abortedBatches,
+        totalBatches,
+        config: config.name
+      });
+      
+      batchLogger.logOperationComplete(false, fatalError.error);
+      throw new Error(`Operation aborted due to Dropbox internal_error in batch ${fatalError.batchIndex}: ${fatalError.error.message}`);
+    }
+    
     const successfulBatches = results.filter(r => r.success).length;
+    const abortedBatches = results.filter(r => r.aborted).length;
     const failedCount = allErrors.length;
     
     // Assess overall operation success based on failure threshold
