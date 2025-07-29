@@ -1,6 +1,25 @@
 const CURRENT_CONFIG = 'test'; // Options: 'conservative', 'aggressive', 'sequential'
 
 const BATCH_CONFIGS = {
+  test: {
+    // === BATCH EXECUTION SETTINGS ===
+    BATCH_SIZE: 10,
+    PARALLEL_BATCH_COUNT: 10,
+    BATCH_STAGGER: 500,
+
+    // === RETRY CONFIGURATION ===
+    MAX_RETRIES: 3,
+    RETRY_BASE_DELAY: 2000,
+    RETRY_MAX_DELAY: 60000,
+
+    // === TIMEOUT SETTINGS ===
+    BATCH_TIMEOUT: 300000,
+    POLL_INTERVAL: 5000,
+
+    // === RATE LIMIT HANDLING ===
+    RATE_LIMIT_BACKOFF: 30000,
+    JITTER_MAX: 1000,
+  },
   base_case: {
     // === BATCH EXECUTION SETTINGS ===
     PARALLEL_BATCH_COUNT: 1, // Number of batches to run in parallel
