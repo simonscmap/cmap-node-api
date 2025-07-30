@@ -15,6 +15,7 @@ const { logDropboxVaultDownload } = require('./vaultLogger');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 const CHUNK_SIZE = 2000;
+const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
 );
@@ -170,6 +171,67 @@ const determineMainFolder = (availableFolders) => {
   if (availableFolders.hasNrt) return 'nrt';
   if (availableFolders.hasRaw) return 'raw';
   return null; // No files found
+};
+
+// Helper function to generate direct folder download link
+const generateFolderDownloadLink = async (folderPath, shortName, log) => {
+  try {
+    const sharedLinkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+      path: folderPath,
+      settings: {
+        requested_visibility: 'public',
+        access: 'viewer'
+      }
+    });
+    
+    // Convert to direct download link
+    const directDownloadLink = sharedLinkResponse.result.url.replace('?dl=0', '?dl=1');
+    
+    log.info('Generated direct folder download link', {
+      folderPath,
+      shortName,
+      directDownloadLink
+    });
+    
+    return directDownloadLink;
+  } catch (error) {
+    // Check if link already exists
+    if (error.status === 409 && error.error && error.error.error_summary && 
+        error.error.error_summary.includes('shared_link_already_exists')) {
+      // Try to get existing link
+      try {
+        const listSharedLinksResponse = await dbx.sharingListSharedLinks({
+          path: folderPath,
+          direct_only: true
+        });
+        
+        const existingLink = safePath(['result', 'links', 0, 'url'])(listSharedLinksResponse);
+        if (existingLink) {
+          const directDownloadLink = existingLink.replace('?dl=0', '?dl=1');
+          log.info('Retrieved existing direct folder download link', {
+            folderPath,
+            shortName,
+            directDownloadLink
+          });
+          return directDownloadLink;
+        }
+      } catch (listError) {
+        log.error('Failed to retrieve existing shared link', {
+          folderPath,
+          shortName,
+          error: listError
+        });
+      }
+    }
+    
+    log.error('Failed to generate folder download link', {
+      folderPath,
+      shortName,
+      error: error.message,
+      status: error.status
+    });
+    throw error;
+  }
 };
 
 // Safe deletion function that only allows deletion of temp-download folders in /temp-downloads (sibling to /vault)
@@ -528,7 +590,25 @@ const getVaultFilesInfo = async (req, res) => {
       return res.status(500).json({ error: 'Error fetching vault files' });
     }
 
-    // 9. Build pagination info
+    // 9. Check if auto-download is eligible and generate direct download link
+    const autoDownloadEligible = folderResult.totalCount && folderResult.totalCount <= FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD;
+    let directDownloadLink = null;
+    
+    if (autoDownloadEligible) {
+      try {
+        directDownloadLink = await generateFolderDownloadLink(targetPath, shortName, log);
+      } catch (error) {
+        log.warn('Failed to generate direct download link for auto-download eligible dataset', {
+          shortName,
+          targetPath,
+          totalCount: folderResult.totalCount,
+          error: error.message
+        });
+        // Continue without direct download link - frontend can fall back to file selection
+      }
+    }
+
+    // 10. Build pagination info
     const paginationInfo = {
       chunkSize: chunkSize,
       hasMore: folderResult.hasMore,
@@ -547,9 +627,11 @@ const getVaultFilesInfo = async (req, res) => {
       targetFolder,
       currentPageCount: folderResult.files.length,
       pagination: paginationInfo,
+      autoDownloadEligible,
+      hasDirectDownloadLink: !!directDownloadLink,
     });
 
-    // 10. Return enhanced response with folder availability info
+    // 11. Return enhanced response with folder availability info and smart download fields
     const payload = {
       shortName,
       datasetId,
@@ -568,6 +650,9 @@ const getVaultFilesInfo = async (req, res) => {
       folderType: targetFolder,
       // Keep selectedFolder for backwards compatibility
       selectedFolder: targetFolder,
+      // Feature A: Smart download fields
+      autoDownloadEligible,
+      ...(directDownloadLink && { directDownloadLink }),
     };
 
     return res.json(payload);
