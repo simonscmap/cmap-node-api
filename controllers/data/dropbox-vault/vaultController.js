@@ -185,7 +185,7 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
     });
     
     // Convert to direct download link
-    const directDownloadLink = sharedLinkResponse.result.url.replace('?dl=0', '?dl=1');
+    const directDownloadLink = forceDropboxFolderDownload(sharedLinkResponse.result.url);
     
     log.info('Generated direct folder download link', {
       folderPath,
@@ -207,7 +207,7 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
         
         const existingLink = safePath(['result', 'links', 0, 'url'])(listSharedLinksResponse);
         if (existingLink) {
-          const directDownloadLink = existingLink.replace('?dl=0', '?dl=1');
+          const directDownloadLink = forceDropboxFolderDownload(existingLink);
           log.info('Retrieved existing direct folder download link', {
             folderPath,
             shortName,
@@ -802,7 +802,7 @@ const createDownloadLink = async (tempFolderPath, log) => {
 
     const shareLink = shareLinkResult.result.url;
     // Force download by changing dl=0 to dl=1
-    const downloadLink = shareLink.replace('dl=0', 'dl=1');
+    const downloadLink = forceDropboxFolderDownload(shareLink);
 
     log.info('Download link created successfully', {
       tempFolderPath,

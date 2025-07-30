@@ -1,9 +1,9 @@
-const CURRENT_CONFIG = 'test'; // Options: 'conservative', 'aggressive', 'sequential'
+const CURRENT_CONFIG = 'base_case'; // Options: 'conservative', 'aggressive', 'sequential'
 
 const BATCH_CONFIGS = {
   base_case: {
     // === BATCH EXECUTION SETTINGS ===
-    PARALLEL_BATCH_COUNT: 1, // Number of batches to run in parallel
+    PARALLEL_BATCH_COUNT: 10, // Number of batches to run in parallel
     BATCH_STAGGER: 0, // Delay between starting batches
 
     // === RETRY CONFIGURATION ===
