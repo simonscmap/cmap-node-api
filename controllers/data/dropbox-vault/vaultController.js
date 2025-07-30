@@ -821,6 +821,114 @@ const createDownloadLink = async (tempFolderPath, log) => {
   }
 };
 
+// Helper function to handle direct folder download when all files are selected
+const handleDirectFolderDownload = async (vaultPath, shortName, log) => {
+  try {
+    const directDownloadLink = await generateFolderDownloadLink(vaultPath, shortName, log);
+    
+    return {
+      success: true,
+      downloadLink: directDownloadLink,
+      downloadType: 'direct_folder',
+      message: 'All files selected. Direct folder download available.',
+    };
+  } catch (error) {
+    log.error('Error creating direct folder download', { shortName, vaultPath, error });
+    throw new Error('Failed to create direct download link');
+  }
+};
+
+// Helper function to handle selective file download using temp folder
+const handleSelectiveFileDownload = async (shortName, files, log) => {
+  // Get current configuration
+  const config = getCurrentConfig();
+
+  log.info('Using batch configuration for selective download', {
+    configName: config.name,
+    config: config,
+    fileCount: files.length,
+  });
+
+  const tempFolderPath = generateTempFolderPath(shortName);
+
+  try {
+    // Create temporary folder
+    await createTempFolder(tempFolderPath, log);
+
+    // Execute staged parallel batches
+    await executeStagedParallelBatches(files, tempFolderPath, config, log, dbx);
+
+    // Create download link
+    const downloadLink = await createDownloadLink(tempFolderPath, log);
+
+    // Schedule cleanup
+    scheduleCleanup(tempFolderPath, log);
+
+    return {
+      success: true,
+      downloadLink,
+      downloadType: 'selective',
+      message: 'Files copied using staged parallel execution. Download will begin shortly.',
+      fileCount: files.length,
+      configUsed: config.name,
+    };
+  } catch (error) {
+    // Cleanup after error
+    await cleanupAfterError(tempFolderPath, log);
+    throw error;
+  }
+};
+
+// Helper function to get total file count for a dataset
+const getDatasetTotalFileCount = async (shortName, log) => {
+  try {
+    // Get dataset ID from short name
+    const datasetId = await getDatasetId(shortName, log);
+    if (!datasetId) {
+      throw new Error('Dataset not found');
+    }
+
+    // Get vault record for this dataset
+    const qs = `select top 1 * from tblDataset_Vault where Dataset_ID=${datasetId};`;
+    const [err, vaultResp] = await directQuery(qs, undefined, log);
+    if (err) {
+      throw new Error('Error retrieving vault record');
+    }
+
+    const result = safePath(['recordset', 0])(vaultResp);
+    if (!result) {
+      throw new Error('No vault record found');
+    }
+
+    // Set up folder paths
+    const vaultPath = ensureTrailingSlash(result.Vault_Path);
+    const repPath = getFolderPath('rep', vaultPath);
+    const nrtPath = getFolderPath('nrt', vaultPath);
+    const rawPath = getFolderPath('raw', vaultPath);
+
+    // Check all folders for availability
+    const availableFolders = await checkAllFolders(repPath, nrtPath, rawPath, log);
+    
+    // Determine main folder based on priority
+    const mainFolder = determineMainFolder(availableFolders);
+    if (!mainFolder) {
+      throw new Error('No files found in vault folders');
+    }
+
+    // Get total count from main folder
+    const targetPath = getFolderPath(mainFolder, vaultPath);
+    const totalCount = await getTotalFileCount(targetPath, log);
+    
+    return { totalCount, vaultPath: targetPath };
+  } catch (error) {
+    log.error('Error getting dataset total file count', {
+      shortName,
+      error: error.message,
+    });
+    throw error;
+  }
+};
+
 // Helper function to schedule cleanup
 const scheduleCleanup = (tempFolderPath, log) => {
   const cleanupDelayMs = 90 * 60 * 1000; //  90 minutes
@@ -930,46 +1038,49 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
     return res.status(validation.status).json({ error: validation.error });
   }
 
-  // Step 2: Get current configuration
-  const config = getCurrentConfig();
-
-  log.info('Using batch configuration', {
-    configName: config.name,
-    config: config,
-  });
-
-  const tempFolderPath = generateTempFolderPath(shortName);
-
   try {
-    // Step 3: Create temporary folder
-    await createTempFolder(tempFolderPath, log);
-
-    // Step 4: Execute staged parallel batches
-    await executeStagedParallelBatches(files, tempFolderPath, config, log, dbx);
-
-    // Step 5: Create download link
-    const downloadLink = await createDownloadLink(tempFolderPath, log);
-
-    // Step 6: Schedule cleanup
-    scheduleCleanup(tempFolderPath, log);
-
-    // Step 7: Log success and return response
-    logDropboxVaultDownload(req, {
+    // Step 2: Feature B - Check if all files are selected
+    const { totalCount, vaultPath } = await getDatasetTotalFileCount(shortName, log);
+    const allFilesSelected = files.length === totalCount;
+    
+    log.info('Feature B: All files selection check', {
       shortName,
-      datasetId,
-      files,
-      totalSize,
-      success: true,
+      selectedFileCount: files.length,
+      totalFileCount: totalCount,
+      allFilesSelected,
     });
 
-    return res.json({
-      success: true,
-      downloadLink,
-      message:
-        'Files copied using staged parallel execution. Download will begin shortly.',
-      fileCount: files.length,
-      configUsed: config.name,
-    });
+    if (allFilesSelected) {
+      // Step 3a: Handle direct folder download
+      const result = await handleDirectFolderDownload(vaultPath, shortName, log);
+      
+      // Log success
+      logDropboxVaultDownload(req, {
+        shortName,
+        datasetId,
+        files,
+        totalSize,
+        success: true,
+        downloadType: 'direct_folder',
+      });
+      
+      return res.json(result);
+    } else {
+      // Step 3b: Handle selective file download with temp folder
+      const result = await handleSelectiveFileDownload(shortName, files, log);
+      
+      // Log success
+      logDropboxVaultDownload(req, {
+        shortName,
+        datasetId,
+        files,
+        totalSize,
+        success: true,
+        downloadType: 'selective',
+      });
+      
+      return res.json(result);
+    }
   } catch (error) {
     // Log error
     logDropboxVaultDownload(req, {
@@ -980,9 +1091,6 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
       success: false,
       error,
     });
-
-    // Cleanup after error
-    await cleanupAfterError(tempFolderPath, log);
 
     // Handle and return error response
     const errorResponse = handleDropboxError(error, log);
