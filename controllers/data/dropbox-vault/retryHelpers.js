@@ -28,10 +28,26 @@ const isRetryableError = (error) => {
   // 429 - Rate limit
   if (error.status === 429) return true;
   
-  // 409 - Conflict (too_many_write_operations)
-  if (error.status === 409 && 
-      error.error && error.error.error_summary && error.error.error_summary.includes('too_many_write_operations')) {
-    return true;
+  // 409 - Most conflicts are retryable (file locks, concurrent operations, etc.)
+  // Only exclude specific permanent conflicts
+  if (error.status === 409) {
+    const errorSummary = (error.error && error.error.error_summary) || '';
+    const errorTag = (error.error && error.error.error && error.error.error['.tag']) || '';
+    
+    // Dropbox internal_error is permanent - never retry
+    if (errorTag === 'internal_error' || errorSummary.includes('internal_error')) {
+      return false;
+    }
+    
+    // Check for other permanent conflicts that shouldn't be retried
+    const permanentConflicts = [
+      'invalid_cursor',
+      'disallowed_name',
+      'insufficient_space',
+      'internal_error' // Add for double protection
+    ];
+    
+    return !permanentConflicts.some(conflict => errorSummary.includes(conflict));
   }
   
   // 500+ - Server errors
@@ -41,6 +57,16 @@ const isRetryableError = (error) => {
   if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') return true;
   
   return false;
+};
+
+// Check if error is a Dropbox internal_error that requires complete operation restart
+const isDropboxInternalError = (error) => {
+  if (error.status !== 409) return false;
+  
+  const errorTag = (error.error && error.error.error && error.error.error['.tag']) || '';
+  const errorSummary = (error.error && error.error.error_summary) || '';
+  
+  return errorTag === 'internal_error' || errorSummary.includes('internal_error');
 };
 
 // Execute function with retry logic
@@ -65,9 +91,22 @@ const executeWithRetry = async (
           config: config.name
         });
       }
-      return result;
+      // Return both result and retry count
+      return { result, retryCount };
     } catch (error) {
       lastError = error;
+      
+      // Enhanced error logging with full context
+      batchLogger.log.error(`Error in ${operationName}`, {
+        batchIndex,
+        attempt,
+        retryCount,
+        error: error.message,
+        status: error.status,
+        errorSummary: (error.error && error.error.error_summary),
+        fullError: JSON.stringify(error, null, 2),
+        config: config.name
+      });
       
       // If this is the last attempt, don't retry
       if (attempt === config.MAX_RETRIES) {
@@ -76,17 +115,34 @@ const executeWithRetry = async (
       
       // Check if error is retryable
       if (!isRetryableError(error)) {
+        // Special case for internal_error - needs complete restart
+        if (error.status === 409 && 
+            (error.error && error.error.error && error.error.error['.tag'] === 'internal_error' || 
+             error.error && error.error.error_summary && error.error.error_summary.includes('internal_error'))) {
+          batchLogger.log.error('Dropbox internal_error - operation must be restarted', {
+            batchIndex,
+            attempt,
+            error: error.message,
+            recommendation: 'Restart entire batch operation with new request',
+            config: config.name
+          });
+        }
+        
         batchLogger.log.error(`Non-retryable error in ${operationName}`, {
           batchIndex,
           attempt,
           error: error.message,
           status: error.status,
+          errorSummary: (error.error && error.error.error_summary),
           config: config.name
         });
         break;
       }
       
       retryCount++;
+      
+      // Log retry attempt for metrics tracking
+      batchLogger.logRetryAttempt(batchIndex, error, operationName);
       
       // Calculate delay (special handling for rate limits)
       let delay;
@@ -125,5 +181,6 @@ module.exports = {
   calculateBackoffDelay,
   handleRateLimitError,
   isRetryableError,
+  isDropboxInternalError,
   executeWithRetry
 };

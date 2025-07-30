@@ -24,7 +24,9 @@ const logDropboxVaultDownload = (
         : 'system';
   }
 
-  req.cmapApiCallDetails.query = JSON.stringify(loggingData);
+  if (req.cmapApiCallDetails) {
+    req.cmapApiCallDetails.query = JSON.stringify(loggingData);
+  }
 };
 
 module.exports = {

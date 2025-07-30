@@ -14,6 +14,13 @@ class BatchPerformanceLogger {
       failedBatches: 0,
       retriesUsed: 0,
       rateLimitHits: 0,
+      retryBreakdown: {
+        rateLimitRetries: 0,
+        serverErrorRetries: 0,
+        conflictRetries: 0,
+        networkRetries: 0,
+        otherRetries: 0
+      },
       config: null,
       start: this.startTime,
       end: null,
@@ -36,11 +43,10 @@ class BatchPerformanceLogger {
     this.metrics.totalBatches = totalBatches;
   }
 
-  logBatchStart(batchIndex, batchSize, waveIndex) {
+  logBatchStart(batchIndex, batchSize) {
     const batchTiming = {
       batchIndex,
       batchSize,
-      waveIndex,
       startTime: Date.now(),
       endTime: null,
       duration: null,
@@ -55,7 +61,6 @@ class BatchPerformanceLogger {
       operationId: this.operationId,
       batchIndex,
       batchSize,
-      waveIndex,
       config: this.metrics.config.name,
     });
   }
@@ -91,6 +96,7 @@ class BatchPerformanceLogger {
 
   logRateLimitHit(batchIndex, retryAfter) {
     this.metrics.rateLimitHits++;
+    this.metrics.retryBreakdown.rateLimitRetries++;
     this.log.warn('Rate limit hit', {
       operationId: this.operationId,
       batchIndex,
@@ -100,7 +106,32 @@ class BatchPerformanceLogger {
     });
   }
 
-  logOperationComplete(success, error = null) {
+  logRetryAttempt(batchIndex, error, operationName) {
+    // Categorize the retry based on error type
+    if (error.status === 429) {
+      this.metrics.retryBreakdown.rateLimitRetries++;
+    } else if (error.status === 409) {
+      this.metrics.retryBreakdown.conflictRetries++;
+    } else if (error.status >= 500) {
+      this.metrics.retryBreakdown.serverErrorRetries++;
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      this.metrics.retryBreakdown.networkRetries++;
+    } else {
+      this.metrics.retryBreakdown.otherRetries++;
+    }
+
+    this.log.debug('Retry attempt categorized', {
+      operationId: this.operationId,
+      batchIndex,
+      operationName,
+      errorStatus: error.status,
+      errorCode: error.code,
+      retryBreakdown: this.metrics.retryBreakdown,
+      config: this.metrics.config.name,
+    });
+  }
+
+  logOperationComplete(success, error = null, additionalMetrics = null) {
     this.metrics.end = Date.now();
     this.metrics.totalDuration = Math.round(
       (this.metrics.end - this.metrics.start) / 1000,
@@ -116,17 +147,12 @@ class BatchPerformanceLogger {
       failedBatches: this.metrics.failedBatches,
       retriesUsed: this.metrics.retriesUsed,
       rateLimitHits: this.metrics.rateLimitHits,
+      retryBreakdown: this.metrics.retryBreakdown,
       averageBatchTime: this.getAverageBatchTime(),
       // Flatten config object with correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configBatchSize: this.metrics.config
-        ? this.metrics.config.BATCH_SIZE
-        : null,
-      configParallelCount: this.metrics.config
-        ? this.metrics.config.PARALLEL_COUNT
-        : null,
-      configWaveDelay: this.metrics.config
-        ? this.metrics.config.WAVE_DELAY
+      configParallelBatchCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,
       configMaxRetries: this.metrics.config
         ? this.metrics.config.MAX_RETRIES
@@ -139,6 +165,8 @@ class BatchPerformanceLogger {
         : null,
       error: error ? error.message : null,
       timestamp: new Date().toISOString(),
+      // Include additional metrics from fault-tolerant processing
+      ...additionalMetrics
     };
 
     this.log.info('Batch operation completed', summary);
@@ -148,14 +176,8 @@ class BatchPerformanceLogger {
       ...this.metrics,
       // Replace config object with flattened values using correct property names
       configName: this.metrics.config ? this.metrics.config.name : null,
-      configBatchSize: this.metrics.config
-        ? this.metrics.config.BATCH_SIZE
-        : null,
-      configParallelCount: this.metrics.config
-        ? this.metrics.config.PARALLEL_COUNT
-        : null,
-      configWaveDelay: this.metrics.config
-        ? this.metrics.config.WAVE_DELAY
+      configParallelBatchCount: this.metrics.config
+        ? this.metrics.config.PARALLEL_BATCH_COUNT
         : null,
       configMaxRetries: this.metrics.config
         ? this.metrics.config.MAX_RETRIES
@@ -174,6 +196,9 @@ class BatchPerformanceLogger {
         : null,
       configJitterMax: this.metrics.config
         ? this.metrics.config.JITTER_MAX
+        : null,
+      configBatchStagger: this.metrics.config
+        ? this.metrics.config.BATCH_STAGGER
         : null,
     };
     // Remove the original config object
@@ -198,7 +223,7 @@ class BatchPerformanceLogger {
 
     try {
       const csvFilePath =
-        '/Users/howardwkim/src/simonscmap/cmap-node-api/notes/batch-performance-metrics.csv';
+        '/Users/howardwkim/src/simonscmap/cmap-node-api/batch-test/batch-performance-metrics.csv';
 
       // Format datetime as MM-DD HH:MM
       const now = new Date();
@@ -217,46 +242,55 @@ class BatchPerformanceLogger {
       // Prepare CSV row data in the specified order
       const csvRow = [
         datetime,
-        metrics.totalDuration || '',
-        metrics.totalFiles || '',
-        metrics.totalBatches || '',
-        metrics.configBatchSize || '',
+        metrics.totalDuration !== null && metrics.totalDuration !== undefined
+          ? metrics.totalDuration
+          : '',
+        metrics.totalFiles !== null && metrics.totalFiles !== undefined
+          ? metrics.totalFiles
+          : '',
+        metrics.configParallelBatchCount !== null &&
+        metrics.configParallelBatchCount !== undefined
+          ? metrics.configParallelBatchCount
+          : '',
+        metrics.totalBatches !== null && metrics.totalBatches !== undefined
+          ? metrics.totalBatches
+          : '',
+        Math.ceil(metrics.totalFiles / (metrics.configParallelBatchCount || 1)),  // FILES_PER_BATCH
+        metrics.completedBatches !== null &&
+        metrics.completedBatches !== undefined
+          ? metrics.completedBatches
+          : '',
+        metrics.failedBatches !== null && metrics.failedBatches !== undefined
+          ? metrics.failedBatches
+          : '',
+        metrics.retriesUsed !== null && metrics.retriesUsed !== undefined
+          ? metrics.retriesUsed
+          : '',
+        metrics.rateLimitHits !== null && metrics.rateLimitHits !== undefined
+          ? metrics.rateLimitHits
+          : '',
         batchTimingsStr,
-        metrics.configParallelCount || '',
-        metrics.configWaveDelay || '',
-        metrics.completedBatches || '',
-        metrics.failedBatches || '',
-        metrics.retriesUsed || '',
-        metrics.rateLimitHits || '',
-        metrics.configMaxRetries || '',
-        metrics.configRetryBaseDelay || '',
-        metrics.configBatchTimeout || '',
-        metrics.configPollInterval || '',
-        metrics.configRateLimitBackoff || '',
-        metrics.configJitterMax || '',
+        metrics.configBatchStagger !== null &&
+        metrics.configBatchStagger !== undefined
+          ? metrics.configBatchStagger
+          : '',
       ];
 
       // Check if file exists, if not create with headers
       if (!fs.existsSync(csvFilePath)) {
         const headers = [
           'Datetime',
-          'totalDuration',
-          'totalFiles',
+          'totalDuration (sec)',
+          'FILE_COUNT',
+          'PARALLEL_BATCH_COUNT',
           'totalBatches',
-          'configBatchSize',
-          'batchTimings',
-          'configParallelCount',
-          'configWaveDelay',
+          'FILES_PER_BATCH',
           'completedBatches',
           'failedBatches',
           'retriesUsed',
           'rateLimitHits',
-          'configMaxRetries',
-          'configRetryBaseDelay',
-          'configBatchTimeout',
-          'configPollInterval',
-          'configRateLimitBackoff',
-          'configJitterMax',
+          'batchTimings (ms)',
+          'BATCH_STAGGER',
         ];
 
         fs.writeFileSync(csvFilePath, headers.join(',') + '\n');
