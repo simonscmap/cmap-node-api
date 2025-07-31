@@ -2,6 +2,7 @@
 // This module provides functions to clean up temporary download folders
 // in a manner that's safe for multiple server instances
 
+const { setTimeout } = require('timers');
 const dbx = require('../../../utility/DropboxVault');
 const initLog = require('../../../log-service');
 
@@ -51,7 +52,7 @@ const safeDropboxDelete = async (dropbox, path) => {
       log.info('Folder already deleted by another instance', { path });
       return; // Return success - folder is gone, which is what we wanted
     }
-    
+
     // Re-throw other errors
     throw error;
   }
@@ -76,7 +77,7 @@ const getAllTempFolders = async () => {
 
     log.info('Retrieved temp folder list', {
       folderCount: folders.length,
-      folders: folders.slice(0, 5), // Log first 5 for debugging without being verbose
+      folders: folders,
     });
 
     return folders;
@@ -102,13 +103,15 @@ const cleanupAllTempFolders = async () => {
   const log = moduleLogger;
   try {
     const folders = await getAllTempFolders();
-    
+
     if (folders.length === 0) {
       log.info('No temp folders found to clean up');
       return;
     }
 
-    log.info('Starting cleanup of all temp folders', { folderCount: folders.length });
+    log.info('Starting cleanup of all temp folders', {
+      folderCount: folders.length,
+    });
 
     let successCount = 0;
     let errorCount = 0;
@@ -133,7 +136,6 @@ const cleanupAllTempFolders = async () => {
       successCount,
       errorCount,
     });
-    
   } catch (error) {
     log.error('Error in bulk temp folder cleanup', { error: error.message });
     throw error;
@@ -149,9 +151,9 @@ const cleanupSpecificTempFolders = async (folderList) => {
     return;
   }
 
-  log.info('Starting cleanup of specific temp folders', { 
+  log.info('Starting cleanup of specific temp folders', {
     folderCount: folderList.length,
-    folders: folderList.slice(0, 3), // Log first 3 for debugging
+    folders: folderList,
   });
 
   let successCount = 0;
@@ -186,15 +188,17 @@ const scheduleCleanup = async () => {
   try {
     // Capture snapshot of current temp folders immediately
     const foldersToCleanup = await getAllTempFolders();
-    
+
     if (foldersToCleanup.length === 0) {
-      log.info('No temp folders found at scheduling time - no cleanup scheduled');
+      log.info(
+        'No temp folders found at scheduling time - no cleanup scheduled',
+      );
       return;
     }
 
     log.info('Scheduled cleanup for captured temp folders', {
       folderCount: foldersToCleanup.length,
-      folders: foldersToCleanup.slice(0, 3), // Log first 3 for debugging
+      folders: foldersToCleanup,
     });
 
     // Schedule cleanup of the captured folders after 90 minutes
@@ -212,7 +216,6 @@ const scheduleCleanup = async () => {
         });
       }
     }, cleanupDelayMs);
-    
   } catch (error) {
     log.error('Error scheduling cleanup', { error: error.message });
     // Don't throw - scheduling failure shouldn't block download responses
