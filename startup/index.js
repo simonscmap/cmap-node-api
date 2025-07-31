@@ -22,7 +22,7 @@ const runStartupTasks = async () => {
     {
       name: 'Schedule cleanup of temp-download folders',
       task: () => scheduleCleanup(),
-      critical: false, // Don't block startup if this fails
+      critical: false,
     },
     // Add more startup tasks here as needed
   ];

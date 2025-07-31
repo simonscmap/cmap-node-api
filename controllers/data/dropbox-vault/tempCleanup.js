@@ -160,7 +160,7 @@ const scheduleCleanup = async () => {
     });
 
     // Schedule cleanup of the captured folders after 90 minutes
-    const cleanupDelayMs = 2 * 60 * 1000; // 90 minutes
+    const cleanupDelayMs = 90 * 60 * 1000; // 90 minutes
     setTimeout(async () => {
       try {
         await cleanupSpecificTempFolders(foldersToCleanup);
