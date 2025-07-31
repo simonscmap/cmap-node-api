@@ -1,8 +1,8 @@
 const initLog = require('../log-service');
 // const { monitor } = require('../mail-service/checkBouncedMail');
 const {
-  scheduleCleanupForAllTempFolders,
-} = require('../controllers/data/dropbox-vault/vaultController');
+  cleanupAllTempFolders,
+} = require('../controllers/data/dropbox-vault/tempCleanup');
 
 const log = initLog('startup');
 
@@ -20,8 +20,8 @@ const runStartupTasks = async () => {
     //   critical: false, // Don't block startup if this fails
     // },
     {
-      name: 'Dropbox Temp Folder Cleanup',
-      task: () => scheduleCleanupForAllTempFolders(),
+      name: 'Cleanup all temp-download folders',
+      task: () => cleanupAllTempFolders(),
       critical: false, // Don't block startup if this fails
     },
     // Add more startup tasks here as needed

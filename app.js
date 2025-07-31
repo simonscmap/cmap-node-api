@@ -16,9 +16,6 @@ const { v4: uuidv4 } = require('uuid');
 const { runStartupTasks } = require('./startup');
 const env = require('./config/environment');
 
-// Execute all startup tasks
-runStartupTasks();
-
 const log = createNewLogger()
   .setModule('app.js')
   .addContext(['node_version', process.version]);
@@ -58,6 +55,11 @@ app.use((req, res, next) => {
   req.cmapApiCallDetails = new ApiCallDetails(req);
   req.cmapApiCallDetails.checkIp();
   next();
+});
+
+// Execute startup tasks after Express setup but before routes
+runStartupTasks().catch((error) => {
+  log.error('Startup tasks failed unexpectedly', { error });
 });
 
 // Routes - DEPRECATED
