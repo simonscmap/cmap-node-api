@@ -12,6 +12,7 @@ const getVaultFolderMetadata = require('../getVaultInfo');
 const { getCurrentConfig } = require('./batchConfig');
 const { executeStagedParallelBatches } = require('./stagedParallelExecutor');
 const { logDropboxVaultDownload } = require('./vaultLogger');
+const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 const CHUNK_SIZE = 2000;
@@ -234,37 +235,6 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
   }
 };
 
-// Safe deletion function that only allows deletion of temp-download folders in /temp-downloads (sibling to /vault)
-const safeDropboxDelete = async (dropbox, path, log) => {
-  // Additional safety check for empty or root paths
-  if (!path || path === '/' || path.trim() === '' || path.includes('/vault')) {
-    const error = new Error(
-      `SAFETY GUARD: Attempted to delete empty, root path, or vault path: ${path}`,
-    );
-    log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
-      path,
-      error: error.message,
-    });
-    throw error;
-  }
-
-  // Only allow deletion of paths within /temp-downloads
-  const normalizedPath = path.toLowerCase();
-  if (normalizedPath.startsWith('/temp-downloads/')) {
-    log.info('Safe deletion proceeding', { path });
-    return await dropbox.filesDeleteV2({ path });
-  }
-
-  // If we get here, the path is not allowed
-  const error = new Error(
-    `SAFETY GUARD: Attempted to delete path outside /temp-downloads/: ${path}`,
-  );
-  log.error('BLOCKED DANGEROUS DELETION ATTEMPT', {
-    path,
-    error: error.message,
-  });
-  throw error;
-};
 
 // vaultController: return a share link to the correct folder given a shortName
 
@@ -861,8 +831,8 @@ const handleSelectiveFileDownload = async (shortName, files, log) => {
     // Create download link
     const downloadLink = await createDownloadLink(tempFolderPath, log);
 
-    // Schedule cleanup
-    scheduleCleanup(tempFolderPath, log);
+    // Schedule cleanup (runs async in background)
+    scheduleCleanup();
 
     return {
       success: true,
@@ -929,28 +899,11 @@ const getDatasetTotalFileCount = async (shortName, log) => {
   }
 };
 
-// Helper function to schedule cleanup
-const scheduleCleanup = (tempFolderPath, log) => {
-  const cleanupDelayMs = 90 * 60 * 1000; //  90 minutes
-  setTimeout(async () => {
-    try {
-      await safeDropboxDelete(dbx, tempFolderPath, log);
-      log.info('Temporary folder cleaned up successfully', {
-        tempFolderPath,
-      });
-    } catch (cleanupError) {
-      log.error('Failed to clean up temporary folder', {
-        tempFolderPath,
-        error: cleanupError,
-      });
-    }
-  }, cleanupDelayMs);
-};
 
 // Helper function to handle cleanup after error
 const cleanupAfterError = async (tempFolderPath, log) => {
   try {
-    await safeDropboxDelete(dbx, tempFolderPath, log);
+    await safeDropboxDelete(dbx, tempFolderPath);
     log.info('Cleaned up temporary folder after error', { tempFolderPath });
   } catch (cleanupError) {
     log.error('Failed to clean up temporary folder after error', {
