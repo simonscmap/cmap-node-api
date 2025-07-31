@@ -1,0 +1,12 @@
+{
+  "dataset": {
+    "shortName": "PARAGON1_KM2112_Leu_InSitu",
+    "datasetId": 771
+  },
+  "testParams": {
+    "PARALLEL_BATCH_COUNT": [10, 20, 30, 1],
+    "BATCH_STAGGER": [0, 100, 500],
+    "FILE_COUNT": [10, 100, 500],
+    "REPEAT_COUNT": 5
+  }
+}
