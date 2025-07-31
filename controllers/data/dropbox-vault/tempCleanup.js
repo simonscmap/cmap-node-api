@@ -40,7 +40,9 @@ const safeDropboxDelete = async (dropbox, path) => {
 
   try {
     log.info('Safe deletion proceeding', { path });
-    return await dropbox.filesDeleteV2({ path });
+    const result = await dropbox.filesDeleteV2({ path });
+    log.info('Safe deletion completed successfully', { path });
+    return result;
   } catch (error) {
     // Handle "not found" errors gracefully (for multiple server instance support)
     if (
@@ -94,50 +96,6 @@ const getAllTempFolders = async () => {
     }
 
     log.error('Error listing temp folders', { error });
-    throw error;
-  }
-};
-
-// Function to clean up all temp folders (used for startup cleanup)
-const cleanupAllTempFolders = async () => {
-  const log = moduleLogger;
-  try {
-    const folders = await getAllTempFolders();
-
-    if (folders.length === 0) {
-      log.info('No temp folders found to clean up');
-      return;
-    }
-
-    log.info('Starting cleanup of all temp folders', {
-      folderCount: folders.length,
-    });
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Delete each folder, continuing on errors
-    for (const folderPath of folders) {
-      try {
-        await safeDropboxDelete(dbx, folderPath);
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        log.error('Failed to delete temp folder', {
-          folderPath,
-          error: error.message,
-        });
-        // Continue processing other folders
-      }
-    }
-
-    log.info('Completed bulk temp folder cleanup', {
-      totalFolders: folders.length,
-      successCount,
-      errorCount,
-    });
-  } catch (error) {
-    log.error('Error in bulk temp folder cleanup', { error: error.message });
     throw error;
   }
 };
@@ -202,7 +160,7 @@ const scheduleCleanup = async () => {
     });
 
     // Schedule cleanup of the captured folders after 90 minutes
-    const cleanupDelayMs = 90 * 60 * 1000; // 90 minutes
+    const cleanupDelayMs = 2 * 60 * 1000; // 90 minutes
     setTimeout(async () => {
       try {
         await cleanupSpecificTempFolders(foldersToCleanup);
@@ -224,7 +182,6 @@ const scheduleCleanup = async () => {
 
 module.exports = {
   safeDropboxDelete,
-  cleanupAllTempFolders,
   cleanupSpecificTempFolders,
   scheduleCleanup,
   getAllTempFolders, // Export for testing/debugging
