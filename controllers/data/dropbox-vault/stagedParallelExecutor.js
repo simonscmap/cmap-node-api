@@ -173,17 +173,9 @@ const executeStagedParallelBatches = async (
   log.info('Batch configuration calculated', {
     totalBatches,
     filesPerBatch,
-    maxAllowableFailures: Math.floor(
-      totalBatches * (config.MAX_FAILURE_RATE || 0.1),
-    ),
   });
 
   const allErrors = [];
-
-  // Calculate failure threshold
-  const maxAllowableFailures = Math.floor(
-    totalBatches * (config.MAX_FAILURE_RATE || 0.1),
-  );
 
   // Shared abort signal for cancelling remaining batches
   const abortSignal = { aborted: false };
@@ -262,56 +254,13 @@ const executeStagedParallelBatches = async (
     // SAFE: All promises resolve (never reject), so Promise.all won't fail-fast
     const results = await Promise.all(batchPromises);
 
-    // Check for any fatal errors (like Dropbox internal_error)
-    const fatalError = results.find((r) => r.fatalError);
-    if (fatalError) {
-      log.error('Operation aborted due to fatal error', {
-        fatalBatchIndex: fatalError.batchIndex,
-        fatalError: fatalError.error.message,
-      });
-      throw new Error(
-        `Operation aborted due to Dropbox internal_error in batch ${fatalError.batchIndex}: ${fatalError.error.message}`,
-      );
-    }
-
-    const failedCount = allErrors.length;
-    const successCount = totalBatches - failedCount;
-
-    log.info('Batch execution results', {
+    // Simple success logging
+    const successCount = results.filter(r => r.success).length;
+    log.info('Batch execution completed', {
       totalBatches,
       successCount,
-      failedCount,
-      maxAllowableFailures,
+      totalFiles: files.length,
     });
-
-    // Assess overall operation success based on failure threshold
-    if (failedCount > maxAllowableFailures) {
-      const errorSummary = `${failedCount} of ${totalBatches} batches failed (max allowable: ${maxAllowableFailures})`;
-      log.error('Operation failed - too many batch failures', {
-        failedCount,
-        totalBatches,
-        maxAllowableFailures,
-        firstError: allErrors[0]?.error.message,
-      });
-      throw new Error(
-        `Batch operation failed: ${errorSummary}. First error: ${allErrors[0].error.message}`,
-      );
-    } else if (failedCount > 0) {
-      // Partial success - log warning but continue
-      log.warn(
-        'Operation completed with some batch failures within tolerance',
-        {
-          failedCount,
-          totalBatches,
-          maxAllowableFailures,
-        },
-      );
-    } else {
-      log.info('All batches completed successfully', {
-        totalBatches,
-        totalFiles: files.length,
-      });
-    }
   } catch (error) {
     log.error('Staged parallel batch execution failed', {
       operationId,
