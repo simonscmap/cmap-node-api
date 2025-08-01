@@ -13,12 +13,8 @@ const dataRetrievalRoutes = require('./routes/dataRetrieval');
 const ApiCallDetails = require('./models/ApiCallDetail');
 const { v4: uuidv4 } = require('uuid');
 
-const { monitor } = require('./mail-service/checkBouncedMail');
+const { runStartupTasks } = require('./startup');
 const env = require('./config/environment');
-
-// on startup, check for bounced mail
-monitor();
-monitor();
 
 const log = createNewLogger()
   .setModule('app.js')
@@ -59,6 +55,11 @@ app.use((req, res, next) => {
   req.cmapApiCallDetails = new ApiCallDetails(req);
   req.cmapApiCallDetails.checkIp();
   next();
+});
+
+// Execute startup tasks after Express setup but before routes
+runStartupTasks().catch((error) => {
+  log.error('Startup tasks failed unexpectedly', { error });
 });
 
 // Routes - DEPRECATED
