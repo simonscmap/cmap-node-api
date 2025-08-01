@@ -9,19 +9,25 @@ const logDropboxVaultDownload = (
     fileCount: files ? files.length : 0,
     totalSize,
     success,
-    errorType: null,
     requestSize: null,
   };
 
   if (error) {
-    loggingData.errorType =
-      error.status === 400
-        ? 'validation'
-        : error.status === 429
-        ? 'rate_limit'
-        : error.status === 507
-        ? 'storage'
-        : 'system';
+    const truncatedStack = error.stack ? error.stack.substring(0, 2000) : null;
+
+    loggingData.error = {
+      message: error.message || 'Unknown error',
+      stack: truncatedStack,
+      status: error.status || null,
+      type:
+        error.status === 400
+          ? 'validation'
+          : error.status === 429
+          ? 'rate_limit'
+          : error.status === 507
+          ? 'storage'
+          : 'system',
+    };
   }
 
   if (req.cmapApiCallDetails) {
