@@ -1,5 +1,5 @@
 // Staged parallel execution engine for Dropbox batch operations
-const { setTimeout } = require('timers');
+const { setTimeout, clearTimeout } = require('timers');
 const { executeWithRetry, isDropboxInternalError } = require('./retryHelpers');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog(
@@ -47,7 +47,11 @@ const executeSingleBatch = async (
     to_path: `${tempFolderPath}/${file.name}`,
   }));
 
-  log.logBatchStart(batchIndex, batch.length);
+  log.info('Starting batch execution', {
+    batchIndex,
+    fileCount: batch.length,
+    tempFolderPath,
+  });
 
   try {
     const { result, retryCount } = await executeWithRetry(
@@ -109,7 +113,6 @@ const executeSingleBatch = async (
               throw new Error('Batch copy operation timed out');
             },
             config,
-            log,
             batchIndex,
             'batch-poll',
           );
@@ -122,18 +125,22 @@ const executeSingleBatch = async (
         );
       },
       config,
-      log,
       batchIndex,
       'batch-copy',
     );
 
-    // Calculate total retry count (batch copy retries + poll retries if any)
-    const totalRetryCount = retryCount + (result.pollRetryCount || 0);
-
-    log.logBatchComplete(batchIndex, true, null, totalRetryCount);
+    log.info('Batch execution completed successfully', {
+      batchIndex,
+      fileCount: batch.length,
+      retryCount,
+    });
     return result;
   } catch (error) {
-    log.logBatchComplete(batchIndex, false, error, 0);
+    log.error('Batch execution failed', {
+      batchIndex,
+      fileCount: batch.length,
+      error: error.message,
+    });
     throw error;
   }
 };
@@ -150,10 +157,26 @@ const executeStagedParallelBatches = async (
     .substring(2, 8)}`;
   const log = moduleLogger.setReqId(operationId);
 
+  log.info('Starting staged parallel batch execution', {
+    operationId,
+    totalFiles: files.length,
+    tempFolderPath,
+    configName: config.name || 'unknown',
+    parallelBatchCount: config.PARALLEL_BATCH_COUNT,
+  });
+
   // Create batches directly for parallel execution
   const filesPerBatch = Math.ceil(files.length / config.PARALLEL_BATCH_COUNT);
   const batches = chunkArray(files, filesPerBatch);
   const totalBatches = batches.length;
+
+  log.info('Batch configuration calculated', {
+    totalBatches,
+    filesPerBatch,
+    maxAllowableFailures: Math.floor(
+      totalBatches * (config.MAX_FAILURE_RATE || 0.1),
+    ),
+  });
 
   const allErrors = [];
 
@@ -196,12 +219,25 @@ const executeStagedParallelBatches = async (
               dbx,
               abortSignal,
             );
+            log.info('Batch completed successfully', { batchIndex });
             batchResolve({ success: true, batchIndex });
           } catch (error) {
             allErrors.push({ batchIndex, error });
+            log.error('Batch failed during execution', {
+              batchIndex,
+              error: error.message,
+              isDropboxInternalError: isDropboxInternalError(error),
+            });
 
             // Check for Dropbox internal_error - abort entire operation immediately
             if (isDropboxInternalError(error)) {
+              log.error(
+                'Dropbox internal error detected - aborting all remaining batches',
+                {
+                  batchIndex,
+                  error: error.message,
+                },
+              );
               abortSignal.aborted = true; // Signal all other batches to abort
 
               // Resolve with fatal error flag to signal immediate abort
@@ -229,25 +265,68 @@ const executeStagedParallelBatches = async (
     // Check for any fatal errors (like Dropbox internal_error)
     const fatalError = results.find((r) => r.fatalError);
     if (fatalError) {
+      log.error('Operation aborted due to fatal error', {
+        fatalBatchIndex: fatalError.batchIndex,
+        fatalError: fatalError.error.message,
+      });
       throw new Error(
         `Operation aborted due to Dropbox internal_error in batch ${fatalError.batchIndex}: ${fatalError.error.message}`,
       );
     }
 
     const failedCount = allErrors.length;
+    const successCount = totalBatches - failedCount;
+
+    log.info('Batch execution results', {
+      totalBatches,
+      successCount,
+      failedCount,
+      maxAllowableFailures,
+    });
 
     // Assess overall operation success based on failure threshold
     if (failedCount > maxAllowableFailures) {
       const errorSummary = `${failedCount} of ${totalBatches} batches failed (max allowable: ${maxAllowableFailures})`;
+      log.error('Operation failed - too many batch failures', {
+        failedCount,
+        totalBatches,
+        maxAllowableFailures,
+        firstError: allErrors[0]?.error.message,
+      });
       throw new Error(
         `Batch operation failed: ${errorSummary}. First error: ${allErrors[0].error.message}`,
       );
     } else if (failedCount > 0) {
       // Partial success - log warning but continue
+      log.warn(
+        'Operation completed with some batch failures within tolerance',
+        {
+          failedCount,
+          totalBatches,
+          maxAllowableFailures,
+        },
+      );
+    } else {
+      log.info('All batches completed successfully', {
+        totalBatches,
+        totalFiles: files.length,
+      });
     }
   } catch (error) {
-    batchLogger.logOperationComplete(false, error);
+    log.error('Staged parallel batch execution failed', {
+      operationId,
+      totalFiles: files.length,
+      totalBatches,
+      error: error.message,
+    });
     throw error;
+  } finally {
+    // Clear any pending timeouts
+    pendingTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+    log.info('Staged parallel batch execution completed', {
+      operationId,
+      pendingTimeoutsCleared: pendingTimeouts.length,
+    });
   }
 };
 
