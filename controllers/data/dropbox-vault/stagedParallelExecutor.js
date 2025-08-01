@@ -1,8 +1,10 @@
 // Staged parallel execution engine for Dropbox batch operations
 const { setTimeout } = require('timers');
 const { executeWithRetry, isDropboxInternalError } = require('./retryHelpers');
-const BatchPerformanceLogger = require('./batchLogger');
-
+const initLog = require('../../../log-service');
+const moduleLogger = initLog(
+  'controllers/data/dropbox-vault/stagedParallelExecutor',
+);
 // Utility function to chunk array into smaller arrays
 const chunkArray = (array, chunkSize) => {
   // Debug logging
@@ -151,13 +153,12 @@ const executeStagedParallelBatches = async (
   files,
   tempFolderPath,
   config,
-  baseLogger,
   dbx,
 ) => {
   const operationId = `batch-${Date.now()}-${Math.random()
     .toString(36)
     .substring(2, 8)}`;
-  const batchLogger = new BatchPerformanceLogger(baseLogger, operationId);
+  const log = moduleLogger.setReqId(operationId);
 
   batchLogger.setConfig(config);
 

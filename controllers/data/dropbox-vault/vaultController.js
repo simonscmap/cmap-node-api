@@ -850,7 +850,7 @@ const handleSelectiveFileDownload = async (shortName, files, log) => {
     await createTempFolder(tempFolderPath, log);
 
     // Execute staged parallel batches
-    await executeStagedParallelBatches(files, tempFolderPath, config, log, dbx);
+    await executeStagedParallelBatches(files, tempFolderPath, config, dbx);
 
     // Create download link
     const downloadLink = await createDownloadLink(tempFolderPath, log);
