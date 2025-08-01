@@ -100,47 +100,8 @@ const getAllTempFolders = async () => {
   }
 };
 
-// Function to clean up only specific temp folders from a pre-captured list
-// This is used for scheduled cleanup to prevent premature deletion of newer folders
-const cleanupSpecificTempFolders = async (folderList) => {
-  const log = moduleLogger;
-  if (!folderList || folderList.length === 0) {
-    log.info('No specific folders provided for cleanup');
-    return;
-  }
-
-  log.info('Starting cleanup of specific temp folders', {
-    folderCount: folderList.length,
-    folders: folderList,
-  });
-
-  let successCount = 0;
-  let errorCount = 0;
-
-  // Delete each folder in the list, continuing on errors
-  for (const folderPath of folderList) {
-    try {
-      await safeDropboxDelete(dbx, folderPath);
-      successCount++;
-    } catch (error) {
-      errorCount++;
-      log.error('Failed to delete specific temp folder', {
-        folderPath,
-        error: error.message,
-      });
-      // Continue processing other folders
-    }
-  }
-
-  log.info('Completed specific temp folder cleanup', {
-    totalFolders: folderList.length,
-    successCount,
-    errorCount,
-  });
-};
-
-// New snapshot-based scheduler that captures folder list at scheduling time
-// This prevents premature deletion of folders created after scheduling
+// Staggered scheduler that captures folder list and schedules individual deletions
+// This prevents rate limiting by spacing deletions 90 seconds apart
 const scheduleCleanup = async () => {
   const log = moduleLogger;
   try {
@@ -154,26 +115,29 @@ const scheduleCleanup = async () => {
       return;
     }
 
-    log.info('Scheduled cleanup for captured temp folders', {
+    log.info('Scheduling staggered cleanup for captured temp folders', {
       folderCount: foldersToCleanup.length,
       folders: foldersToCleanup,
     });
 
-    // Schedule cleanup of the captured folders after 90 minutes
-    const cleanupDelayMs = 90 * 60 * 1000; // 90 minutes
-    setTimeout(async () => {
-      try {
-        await cleanupSpecificTempFolders(foldersToCleanup);
-        log.info('Scheduled cleanup completed successfully', {
-          originalFolderCount: foldersToCleanup.length,
-        });
-      } catch (cleanupError) {
-        log.error('Scheduled cleanup failed', {
-          originalFolderCount: foldersToCleanup.length,
-          error: cleanupError.message,
-        });
-      }
-    }, cleanupDelayMs);
+    // Schedule each folder deletion at staggered intervals
+    const baseDelayMs = 90 * 60 * 1000; // 90 minutes
+    foldersToCleanup.forEach((folderPath, index) => {
+      const staggerDelayMs = index * 30 * 1000; // 30 seconds per folder
+      const totalDelayMs = baseDelayMs + staggerDelayMs;
+
+      setTimeout(async () => {
+        try {
+          await safeDropboxDelete(dbx, folderPath);
+          log.info('Scheduled deletion completed', { folderPath });
+        } catch (error) {
+          log.error('Scheduled deletion failed', {
+            folderPath,
+            error: error.message,
+          });
+        }
+      }, totalDelayMs);
+    });
   } catch (error) {
     log.error('Error scheduling cleanup', { error: error.message });
     // Don't throw - scheduling failure shouldn't block download responses
@@ -182,7 +146,6 @@ const scheduleCleanup = async () => {
 
 module.exports = {
   safeDropboxDelete,
-  cleanupSpecificTempFolders,
   scheduleCleanup,
   getAllTempFolders, // Export for testing/debugging
 };
