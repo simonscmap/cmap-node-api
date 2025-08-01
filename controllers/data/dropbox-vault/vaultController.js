@@ -181,38 +181,46 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
       path: folderPath,
       settings: {
         requested_visibility: 'public',
-        access: 'viewer'
-      }
+        access: 'viewer',
+      },
     });
-    
+
     // Convert to direct download link
-    const directDownloadLink = forceDropboxFolderDownload(sharedLinkResponse.result.url);
-    
+    const directDownloadLink = forceDropboxFolderDownload(
+      sharedLinkResponse.result.url,
+    );
+
     log.info('Generated direct folder download link', {
       folderPath,
       shortName,
-      directDownloadLink
+      directDownloadLink,
     });
-    
+
     return directDownloadLink;
   } catch (error) {
     // Check if link already exists
-    if (error.status === 409 && error.error && error.error.error_summary && 
-        error.error.error_summary.includes('shared_link_already_exists')) {
+    if (
+      error.status === 409 &&
+      error.error &&
+      error.error.error_summary &&
+      error.error.error_summary.includes('shared_link_already_exists')
+    ) {
       // Try to get existing link
       try {
         const listSharedLinksResponse = await dbx.sharingListSharedLinks({
           path: folderPath,
-          direct_only: true
+          direct_only: true,
         });
-        
-        const existingLink = safePath(['result', 'links', 0, 'url'])(listSharedLinksResponse);
+
+        const existingLink = safePath(['result', 'links', 0, 'url'])(
+          listSharedLinksResponse,
+        );
         if (existingLink) {
           const directDownloadLink = forceDropboxFolderDownload(existingLink);
           log.info('Retrieved existing direct folder download link', {
             folderPath,
             shortName,
-            directDownloadLink
+            directDownloadLink,
           });
           return directDownloadLink;
         }
@@ -220,21 +228,20 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
         log.error('Failed to retrieve existing shared link', {
           folderPath,
           shortName,
-          error: listError
+          error: listError,
         });
       }
     }
-    
+
     log.error('Failed to generate folder download link', {
       folderPath,
       shortName,
       error: error.message,
-      status: error.status
+      status: error.status,
     });
     throw error;
   }
 };
-
 
 // vaultController: return a share link to the correct folder given a shortName
 
@@ -561,19 +568,28 @@ const getVaultFilesInfo = async (req, res) => {
     }
 
     // 9. Check if auto-download is eligible and generate direct download link
-    const autoDownloadEligible = folderResult.totalCount && folderResult.totalCount <= FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD;
+    const autoDownloadEligible =
+      folderResult.totalCount &&
+      folderResult.totalCount <= FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD;
     let directDownloadLink = null;
-    
+
     if (autoDownloadEligible) {
       try {
-        directDownloadLink = await generateFolderDownloadLink(targetPath, shortName, log);
-      } catch (error) {
-        log.warn('Failed to generate direct download link for auto-download eligible dataset', {
-          shortName,
+        directDownloadLink = await generateFolderDownloadLink(
           targetPath,
-          totalCount: folderResult.totalCount,
-          error: error.message
-        });
+          shortName,
+          log,
+        );
+      } catch (error) {
+        log.warn(
+          'Failed to generate direct download link for auto-download eligible dataset',
+          {
+            shortName,
+            targetPath,
+            totalCount: folderResult.totalCount,
+            error: error.message,
+          },
+        );
         // Continue without direct download link - frontend can fall back to file selection
       }
     }
@@ -794,8 +810,12 @@ const createDownloadLink = async (tempFolderPath, log) => {
 // Helper function to handle direct folder download when all files are selected
 const handleDirectFolderDownload = async (vaultPath, shortName, log) => {
   try {
-    const directDownloadLink = await generateFolderDownloadLink(vaultPath, shortName, log);
-    
+    const directDownloadLink = await generateFolderDownloadLink(
+      vaultPath,
+      shortName,
+      log,
+    );
+
     return {
       success: true,
       downloadLink: directDownloadLink,
@@ -803,7 +823,11 @@ const handleDirectFolderDownload = async (vaultPath, shortName, log) => {
       message: 'All files selected. Direct folder download available.',
     };
   } catch (error) {
-    log.error('Error creating direct folder download', { shortName, vaultPath, error });
+    log.error('Error creating direct folder download', {
+      shortName,
+      vaultPath,
+      error,
+    });
     throw new Error('Failed to create direct download link');
   }
 };
@@ -838,7 +862,8 @@ const handleSelectiveFileDownload = async (shortName, files, log) => {
       success: true,
       downloadLink,
       downloadType: 'selective',
-      message: 'Files copied using staged parallel execution. Download will begin shortly.',
+      message:
+        'Files copied using staged parallel execution. Download will begin shortly.',
       fileCount: files.length,
       configUsed: config.name,
     };
@@ -877,8 +902,13 @@ const getDatasetTotalFileCount = async (shortName, log) => {
     const rawPath = getFolderPath('raw', vaultPath);
 
     // Check all folders for availability
-    const availableFolders = await checkAllFolders(repPath, nrtPath, rawPath, log);
-    
+    const availableFolders = await checkAllFolders(
+      repPath,
+      nrtPath,
+      rawPath,
+      log,
+    );
+
     // Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);
     if (!mainFolder) {
@@ -888,7 +918,7 @@ const getDatasetTotalFileCount = async (shortName, log) => {
     // Get total count from main folder
     const targetPath = getFolderPath(mainFolder, vaultPath);
     const totalCount = await getTotalFileCount(targetPath, log);
-    
+
     return { totalCount, vaultPath: targetPath };
   } catch (error) {
     log.error('Error getting dataset total file count', {
@@ -898,7 +928,6 @@ const getDatasetTotalFileCount = async (shortName, log) => {
     throw error;
   }
 };
-
 
 // Helper function to handle cleanup after error
 const cleanupAfterError = async (tempFolderPath, log) => {
@@ -993,9 +1022,12 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
 
   try {
     // Step 2: Feature B - Check if all files are selected
-    const { totalCount, vaultPath } = await getDatasetTotalFileCount(shortName, log);
+    const { totalCount, vaultPath } = await getDatasetTotalFileCount(
+      shortName,
+      log,
+    );
     const allFilesSelected = files.length === totalCount;
-    
+
     log.info('Feature B: All files selection check', {
       shortName,
       selectedFileCount: files.length,
@@ -1005,8 +1037,12 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
 
     if (allFilesSelected) {
       // Step 3a: Handle direct folder download
-      const result = await handleDirectFolderDownload(vaultPath, shortName, log);
-      
+      const result = await handleDirectFolderDownload(
+        vaultPath,
+        shortName,
+        log,
+      );
+
       // Log success
       logDropboxVaultDownload(req, {
         shortName,
@@ -1016,12 +1052,12 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
         success: true,
         downloadType: 'direct_folder',
       });
-      
+
       return res.json(result);
     } else {
       // Step 3b: Handle selective file download with temp folder
       const result = await handleSelectiveFileDownload(shortName, files, log);
-      
+
       // Log success
       logDropboxVaultDownload(req, {
         shortName,
@@ -1031,7 +1067,7 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
         success: true,
         downloadType: 'selective',
       });
-      
+
       return res.json(result);
     }
   } catch (error) {
