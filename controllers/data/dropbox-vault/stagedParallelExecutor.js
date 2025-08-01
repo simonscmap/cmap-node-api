@@ -1,5 +1,5 @@
 // Staged parallel execution engine for Dropbox batch operations
-const { setTimeout, clearTimeout } = require('timers');
+const { setTimeout } = require('timers');
 const { executeWithRetry, isDropboxInternalError } = require('./retryHelpers');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog(
@@ -179,7 +179,6 @@ const executeStagedParallelBatches = async (
 
   // Shared abort signal for cancelling remaining batches
   const abortSignal = { aborted: false };
-  const pendingTimeouts = [];
 
   try {
     // CRITICAL FIX: Execute batches with fault tolerance - each promise NEVER rejects
@@ -189,7 +188,7 @@ const executeStagedParallelBatches = async (
         const jitter = Math.random() * config.JITTER_MAX;
         const delay = batchIndex * config.BATCH_STAGGER + jitter;
 
-        const timeoutId = setTimeout(async () => {
+        setTimeout(async () => {
           // Check if operation has been aborted before starting
           if (abortSignal.aborted) {
             batchResolve({ success: false, batchIndex, aborted: true });
@@ -246,8 +245,6 @@ const executeStagedParallelBatches = async (
             batchResolve({ success: false, batchIndex, error });
           }
         }, delay);
-
-        pendingTimeouts.push(timeoutId);
       });
     });
 
@@ -255,7 +252,7 @@ const executeStagedParallelBatches = async (
     const results = await Promise.all(batchPromises);
 
     // Simple success logging
-    const successCount = results.filter(r => r.success).length;
+    const successCount = results.filter((r) => r.success).length;
     log.info('Batch execution completed', {
       totalBatches,
       successCount,
@@ -269,13 +266,6 @@ const executeStagedParallelBatches = async (
       error: error.message,
     });
     throw error;
-  } finally {
-    // Clear any pending timeouts
-    pendingTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
-    log.info('Staged parallel batch execution completed', {
-      operationId,
-      pendingTimeoutsCleared: pendingTimeouts.length,
-    });
   }
 };
 
