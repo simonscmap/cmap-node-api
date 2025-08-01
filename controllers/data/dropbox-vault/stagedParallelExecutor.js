@@ -7,19 +7,12 @@ const moduleLogger = initLog(
 );
 // Utility function to chunk array into smaller arrays
 const chunkArray = (array, chunkSize) => {
-  // Debug logging
-  console.log(
-    `chunkArray called with chunkSize: ${chunkSize} (type: ${typeof chunkSize})`,
-  );
-
-  // Improved infinity handling
   if (
     chunkSize === 'infinity' ||
     chunkSize === -1 ||
     String(chunkSize).toLowerCase() === 'infinity' ||
     chunkSize >= array.length
   ) {
-    console.log(`Creating single batch with ${array.length} files`);
     return [array]; // Single batch with all files
   }
 
@@ -36,9 +29,6 @@ const chunkArray = (array, chunkSize) => {
     chunks.push(array.slice(i, i + numericChunkSize));
   }
 
-  console.log(
-    `Created ${chunks.length} batches with chunk size ${numericChunkSize}`,
-  );
   return chunks;
 };
 
@@ -47,7 +37,7 @@ const executeSingleBatch = async (
   batch,
   tempFolderPath,
   config,
-  batchLogger,
+  log,
   batchIndex,
   dbx,
   abortSignal,
@@ -57,7 +47,7 @@ const executeSingleBatch = async (
     to_path: `${tempFolderPath}/${file.name}`,
   }));
 
-  batchLogger.logBatchStart(batchIndex, batch.length);
+  log.logBatchStart(batchIndex, batch.length);
 
   try {
     const { result, retryCount } = await executeWithRetry(
@@ -119,7 +109,7 @@ const executeSingleBatch = async (
               throw new Error('Batch copy operation timed out');
             },
             config,
-            batchLogger,
+            log,
             batchIndex,
             'batch-poll',
           );
@@ -132,7 +122,7 @@ const executeSingleBatch = async (
         );
       },
       config,
-      batchLogger,
+      log,
       batchIndex,
       'batch-copy',
     );
@@ -140,10 +130,10 @@ const executeSingleBatch = async (
     // Calculate total retry count (batch copy retries + poll retries if any)
     const totalRetryCount = retryCount + (result.pollRetryCount || 0);
 
-    batchLogger.logBatchComplete(batchIndex, true, null, totalRetryCount);
+    log.logBatchComplete(batchIndex, true, null, totalRetryCount);
     return result;
   } catch (error) {
-    batchLogger.logBatchComplete(batchIndex, false, error, 0);
+    log.logBatchComplete(batchIndex, false, error, 0);
     throw error;
   }
 };
@@ -160,22 +150,10 @@ const executeStagedParallelBatches = async (
     .substring(2, 8)}`;
   const log = moduleLogger.setReqId(operationId);
 
-  batchLogger.setConfig(config);
-
   // Create batches directly for parallel execution
   const filesPerBatch = Math.ceil(files.length / config.PARALLEL_BATCH_COUNT);
   const batches = chunkArray(files, filesPerBatch);
   const totalBatches = batches.length;
-
-  batchLogger.setBatchCount(files.length, totalBatches);
-
-  baseLogger.info('Starting fault-tolerant parallel batch execution', {
-    operationId,
-    totalFiles: files.length,
-    totalBatches,
-    filesPerBatch,
-    config: config.name,
-  });
 
   const allErrors = [];
 
@@ -213,7 +191,7 @@ const executeStagedParallelBatches = async (
               batch,
               tempFolderPath,
               config,
-              batchLogger,
+              log,
               batchIndex,
               dbx,
               abortSignal,
@@ -226,18 +204,6 @@ const executeStagedParallelBatches = async (
             if (isDropboxInternalError(error)) {
               abortSignal.aborted = true; // Signal all other batches to abort
 
-              baseLogger.error(
-                `Dropbox internal_error detected - aborting entire operation`,
-                {
-                  batchIndex,
-                  error: error.message,
-                  recommendation:
-                    'Restart entire batch operation with new request',
-                  totalBatches,
-                  config: config.name,
-                },
-              );
-
               // Resolve with fatal error flag to signal immediate abort
               batchResolve({
                 success: false,
@@ -247,18 +213,6 @@ const executeStagedParallelBatches = async (
               });
               return;
             }
-
-            // Log failure but continue processing other batches
-            baseLogger.warn(
-              `Batch ${batchIndex} failed, continuing with remaining batches`,
-              {
-                error: error.message,
-                failedBatches: allErrors.length,
-                totalBatches,
-                maxAllowable: maxAllowableFailures,
-                config: config.name,
-              },
-            );
 
             // Always resolves (never rejects) so Promise.all continues
             batchResolve({ success: false, batchIndex, error });
@@ -275,61 +229,22 @@ const executeStagedParallelBatches = async (
     // Check for any fatal errors (like Dropbox internal_error)
     const fatalError = results.find((r) => r.fatalError);
     if (fatalError) {
-      const abortedBatches = results.filter((r) => r.aborted).length;
-      baseLogger.info(
-        `Operation aborted - ${abortedBatches} batches were cancelled`,
-        {
-          abortedBatches,
-          totalBatches,
-          config: config.name,
-        },
-      );
-
-      batchLogger.logOperationComplete(false, fatalError.error);
       throw new Error(
         `Operation aborted due to Dropbox internal_error in batch ${fatalError.batchIndex}: ${fatalError.error.message}`,
       );
     }
 
-    const successfulBatches = results.filter((r) => r.success).length;
     const failedCount = allErrors.length;
 
     // Assess overall operation success based on failure threshold
     if (failedCount > maxAllowableFailures) {
       const errorSummary = `${failedCount} of ${totalBatches} batches failed (max allowable: ${maxAllowableFailures})`;
-      batchLogger.logOperationComplete(false, new Error(errorSummary));
       throw new Error(
         `Batch operation failed: ${errorSummary}. First error: ${allErrors[0].error.message}`,
       );
     } else if (failedCount > 0) {
       // Partial success - log warning but continue
-      const successRate = (
-        ((totalBatches - failedCount) / totalBatches) *
-        100
-      ).toFixed(1);
-      baseLogger.warn(`Operation completed with partial success`, {
-        successfulBatches,
-        failedBatches: failedCount,
-        totalBatches,
-        successRate: successRate + '%',
-        config: config.name,
-      });
     }
-
-    batchLogger.logOperationComplete(true, null, {
-      successfulBatches,
-      failedBatches: failedCount,
-      successRate:
-        (((totalBatches - failedCount) / totalBatches) * 100).toFixed(1) + '%',
-    });
-
-    baseLogger.info('Batch execution completed', {
-      operationId,
-      successfulBatches,
-      failedBatches: failedCount,
-      totalBatches,
-      config: config.name,
-    });
   } catch (error) {
     batchLogger.logOperationComplete(false, error);
     throw error;
