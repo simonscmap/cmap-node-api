@@ -72,7 +72,7 @@ const getCurrentConfig = () => {
   const configName = CURRENT_CONFIG;
   return {
     name: configName,
-    ...(BATCH_CONFIGS[configName] || BATCH_CONFIGS.conservative),
+    ...(BATCH_CONFIGS[configName] || BATCH_CONFIGS.base_case),
   };
 };
 
