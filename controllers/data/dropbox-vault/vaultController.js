@@ -112,7 +112,7 @@ const getFilesFromFolder = async (path, options = {}, log) => {
 };
 
 // Helper to get total file count
-const getTotalFileCount = async (path, log) => {
+const getTotalFileCount = async (path) => {
   let count = 0;
   let cursor = null;
   let hasMore = true;
@@ -771,66 +771,6 @@ const createTempFolder = async (tempFolderPath, log) => {
   }
 
   await dbx.filesCreateFolderV2({ path: tempFolderPath });
-};
-
-// Helper function to prepare batch copy entries
-const prepareBatchCopyEntries = (files, tempFolderPath) => {
-  return files.map((file) => ({
-    from_path: file.filePath,
-    to_path: `${tempFolderPath}/${file.name}`,
-  }));
-};
-
-// Helper function to execute batch copy
-const executeBatchCopy = async (copyEntries, log) => {
-  log.info('Starting batch copy operation', {
-    entryCount: copyEntries.length,
-  });
-
-  const copyBatchResult = await dbx.filesCopyBatchV2({
-    entries: copyEntries,
-    autorename: true, // Rename if conflicts occur
-  });
-
-  if (copyBatchResult.result['.tag'] === 'complete') {
-    log.info('Batch copy completed immediately');
-    return { completed: true };
-  } else if (copyBatchResult.result['.tag'] === 'async_job_id') {
-    const batchJobId = copyBatchResult.result.async_job_id;
-    log.info('Batch copy started as async job', { batchJobId });
-    return { completed: false, batchJobId };
-  } else {
-    throw new Error(
-      `Unexpected batch copy result: ${copyBatchResult.result['.tag']}`,
-    );
-  }
-};
-
-// Helper function to wait for batch copy completion
-const waitForBatchCopyCompletion = async (batchJobId, log) => {
-  const maxWaitTime = 60000; // 60 seconds
-  const pollInterval = 2000; // 2 seconds
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < maxWaitTime) {
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-    const checkResult = await dbx.filesCopyBatchCheckV2({
-      async_job_id: batchJobId,
-    });
-
-    if (checkResult.result['.tag'] === 'complete') {
-      log.info('Batch copy completed', { batchJobId });
-      return;
-    } else if (checkResult.result['.tag'] === 'failed') {
-      throw new Error(
-        `Batch copy failed: ${JSON.stringify(checkResult.result)}`,
-      );
-    }
-    // If still in_progress, continue polling
-  }
-
-  throw new Error('Batch copy operation timed out');
 };
 
 // Helper function to create download link
