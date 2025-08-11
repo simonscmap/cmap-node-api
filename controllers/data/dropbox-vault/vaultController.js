@@ -15,7 +15,7 @@ const { logDropboxVaultDownload } = require('./vaultLogger');
 const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-const CHUNK_SIZE = 4000;
+const CHUNK_SIZE = 2000;
 const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
