@@ -15,7 +15,7 @@ const { logDropboxVaultDownload } = require('./vaultLogger');
 const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-const CHUNK_SIZE = 2000;
+const CHUNK_SIZE = 4000;
 const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
 const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
@@ -148,6 +148,8 @@ const getFolderPath = (folderType, vaultPath) => {
 
 // Helper function to check all folders for availability
 const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
+  const startTime = Date.now();
+
   try {
     const results = await Promise.all([
       getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
@@ -155,13 +157,28 @@ const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
       getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
     ]);
 
-    return {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    const folderAvailability = {
       hasRep: results[0][1] && results[0][1].totalCount > 0,
       hasNrt: results[1][1] && results[1][1].totalCount > 0,
       hasRaw: results[2][1] && results[2][1].totalCount > 0,
     };
+
+    log.info('checkAllFolders performance', {
+      duration,
+      folderAvailability,
+      repCount: results[0][1] ? results[0][1].totalCount : 0,
+      nrtCount: results[1][1] ? results[1][1].totalCount : 0,
+      rawCount: results[2][1] ? results[2][1].totalCount : 0,
+    });
+
+    return folderAvailability;
   } catch (error) {
-    log.error('Error checking folder availability', { error });
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    log.error('Error checking folder availability', { error, duration });
     throw error;
   }
 };
@@ -503,13 +520,18 @@ const getVaultFilesInfo = async (req, res) => {
   const rawPath = getFolderPath('raw', vaultPath);
 
   try {
+    const overallStartTime = Date.now();
+
     // 4. Check all folders for availability
+    const checkFoldersStart = Date.now();
     const availableFolders = await checkAllFolders(
       repPath,
       nrtPath,
       rawPath,
       log,
     );
+    const checkFoldersEnd = Date.now();
+    const checkFoldersDuration = checkFoldersEnd - checkFoldersStart;
 
     // 5. Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);
@@ -520,6 +542,7 @@ const getVaultFilesInfo = async (req, res) => {
         nrtPath,
         rawPath,
         availableFolders,
+        checkFoldersDuration,
       });
       return res.status(404).json({ error: 'No files found in vault folders' });
     }
@@ -546,6 +569,7 @@ const getVaultFilesInfo = async (req, res) => {
 
     // 8. Fetch files from target folder
     const targetPath = getFolderPath(targetFolder, vaultPath);
+    const fetchTargetFolderStart = Date.now();
     const [folderErr, folderResult] = await getFilesFromFolder(
       targetPath,
       {
@@ -555,6 +579,9 @@ const getVaultFilesInfo = async (req, res) => {
       },
       log,
     );
+    const fetchTargetFolderEnd = Date.now();
+    const fetchTargetFolderDuration =
+      fetchTargetFolderEnd - fetchTargetFolderStart;
 
     if (folderErr) {
       log.error(
@@ -562,10 +589,21 @@ const getVaultFilesInfo = async (req, res) => {
         {
           path: targetPath,
           error: folderErr,
+          fetchTargetFolderDuration,
         },
       );
       return res.status(500).json({ error: 'Error fetching vault files' });
     }
+
+    log.info('fetchTargetFolder performance', {
+      targetPath,
+      fetchTargetFolderDuration,
+      filesReturned: folderResult.files.length,
+      totalCount: folderResult.totalCount,
+      hasMore: folderResult.hasMore,
+      chunkSize,
+      CHUNK_SIZE,
+    });
 
     // 9. Check if auto-download is eligible and generate direct download link
     const autoDownloadEligible =
@@ -604,6 +642,31 @@ const getVaultFilesInfo = async (req, res) => {
         ? Math.ceil(folderResult.totalCount / chunkSize)
         : null,
     };
+
+    const overallEndTime = Date.now();
+    const overallDuration = overallEndTime - overallStartTime;
+
+    // Performance summary logging
+    log.info('getVaultFilesInfo performance summary', {
+      overallDuration,
+      checkFoldersDuration,
+      fetchTargetFolderDuration,
+      performanceBreakdown: {
+        checkAllFolders: checkFoldersDuration,
+        fetchTargetFolder: fetchTargetFolderDuration,
+        other:
+          overallDuration - checkFoldersDuration - fetchTargetFolderDuration,
+      },
+      operationSummary: {
+        shortName,
+        targetFolder,
+        filesReturned: folderResult.files.length,
+        totalCount: folderResult.totalCount,
+        chunkSize,
+        CHUNK_SIZE,
+        cursor: !!cursor,
+      },
+    });
 
     // Log the operation
     log.info('Retrieved vault files for dataset', {
