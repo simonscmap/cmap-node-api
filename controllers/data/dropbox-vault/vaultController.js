@@ -1,170 +1,34 @@
 // NOTE: this module is for accessing files in the vault, not the submissions app
 // these require different dropbox credentials
 const { URL } = require('url');
-const { setTimeout } = require('timers');
 
 const dbx = require('../../../utility/DropboxVault');
 const { getDatasetId } = require('../../../queries/datasetId');
 const directQuery = require('../../../utility/directQuery');
-const { safePath, safePathOr } = require('../../../utility/objectUtils');
+const { safePath } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
-const getVaultFolderMetadata = require('../getVaultInfo');
 const { getCurrentConfig } = require('./batchConfig');
 const { executeStagedParallelBatches } = require('./stagedParallelExecutor');
 const { logDropboxVaultDownload } = require('./vaultLogger');
 const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
-const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-const CHUNK_SIZE = 2000;
-const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
-const safePathOrEmpty = safePathOr([])(
-  (val) => Array.isArray(val) && val.length > 0,
-);
+const {
+  getTotalFileCount,
+  setupAndCheckVaultFolders,
+  getFolderPath,
+  checkAllFolders,
+  ensureTrailingSlash,
+  getAllFilesAndCount,
+} = require('./vaultHelper');
 
-const ensureTrailingSlash = (path = '') => {
-  if (path.length === 0) {
-    return path;
-  } else if (path.charAt(path.length - 1) !== '/') {
-    return `${path}/`;
-  } else {
-    return path;
-  }
-};
+const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
+const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
+
 function forceDropboxFolderDownload(dropboxLink) {
   const url = new URL(dropboxLink);
   url.searchParams.set('dl', '1');
   return url.toString();
 }
-
-// Function to get all files in a folder (no subfolders expected)
-const getFilesFromFolder = async (path, options = {}, log) => {
-  const {
-    limit = CHUNK_SIZE, // Default chunk size
-    cursor = null, // For fetching specific page
-    includeTotal = true, // Whether to include total count
-  } = options;
-
-  try {
-    let response;
-    let entries = [];
-    let totalCount = null;
-
-    if (cursor) {
-      // Continue from previous cursor
-      response = await dbx.filesListFolderContinue({ cursor });
-    } else {
-      // Initial request
-      response = await dbx.filesListFolder({
-        path,
-        recursive: false,
-        include_media_info: false,
-        include_deleted: false,
-        include_non_downloadable_files: false,
-        limit,
-      });
-    }
-
-    // Process entries
-    entries = response.result.entries
-      .filter((entry) => entry['.tag'] === 'file')
-      .map((file) => ({
-        name: file.name,
-        path: file.path_display,
-        size: file.size,
-        sizeFormatted: formatFileSize(file.size),
-      }));
-
-    // Get total count if requested (requires full traversal)
-    if (includeTotal && !cursor) {
-      totalCount = await getTotalFileCount(path, log);
-    }
-
-    return [
-      null,
-      {
-        files: entries,
-        cursor: response.result.has_more ? response.result.cursor : null,
-        hasMore: response.result.has_more,
-        totalCount,
-      },
-    ];
-  } catch (error) {
-    // Check if it's a "not found" error, which is fine (empty folder)
-    if (
-      error.status === 409 &&
-      error.error.error_summary.includes('path/not_found')
-    ) {
-      log.info('Folder not found or empty', { path });
-      return [
-        null,
-        {
-          files: [],
-          cursor: null,
-          hasMore: false,
-          totalCount: 0,
-        },
-      ];
-    }
-
-    log.error('Error getting files from folder', { path, error });
-    return [error, null];
-  }
-};
-
-// Helper to get total file count
-const getTotalFileCount = async (path, log) => {
-  let count = 0;
-  let cursor = null;
-  let hasMore = true;
-
-  while (hasMore) {
-    const response = cursor
-      ? await dbx.filesListFolderContinue({ cursor })
-      : await dbx.filesListFolder({ path, recursive: false });
-
-    count += response.result.entries.filter((e) => e['.tag'] === 'file').length;
-    cursor = response.result.cursor;
-    hasMore = response.result.has_more;
-  }
-
-  return count;
-};
-
-// Helper function to format file size
-const formatFileSize = (bytes) => {
-  if (!+bytes) return '0 Bytes';
-
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-
-// Helper function to get folder path based on folder type
-const getFolderPath = (folderType, vaultPath) => {
-  return `/vault/${vaultPath}${folderType}`;
-};
-
-// Helper function to check all folders for availability
-const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
-  try {
-    const results = await Promise.all([
-      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
-    ]);
-
-    return {
-      hasRep: results[0][1] && results[0][1].totalCount > 0,
-      hasNrt: results[1][1] && results[1][1].totalCount > 0,
-      hasRaw: results[2][1] && results[2][1].totalCount > 0,
-    };
-  } catch (error) {
-    log.error('Error checking folder availability', { error });
-    throw error;
-  }
-};
 
 // Helper function to determine main folder based on priority
 const determineMainFolder = (availableFolders) => {
@@ -243,205 +107,6 @@ const generateFolderDownloadLink = async (folderPath, shortName, log) => {
   }
 };
 
-// vaultController: return a share link to the correct folder given a shortName
-
-// 1. get dataset id from short name
-// 2. look up vault record by dataset id
-// 3. vault folder contents and choose a path (rep, raw, nrt)
-// 4. create share link
-// 5. get metadata
-// 6. return payload
-
-const getShareLinkController = async (req, res) => {
-  const log = moduleLogger.setReqId(req.reqId);
-
-  // 0.
-  const dropbox = dbx;
-
-  // 1.
-  const shortName = req.params.shortName;
-
-  if (!shortName) {
-    log.warn('no short name provided', { params: req.params });
-    return res.sendStatus(400);
-  }
-
-  const datasetId = await getDatasetId(shortName, log);
-
-  if (!datasetId) {
-    log.error('no dataset id found for short name', { shortName });
-    return res.sendStatus(404);
-  }
-
-  // 2.
-  const qs = `select top 1 * from tblDataset_Vault where Dataset_ID=${datasetId};`;
-  const [err, vaultResp] = await directQuery(qs, undefined, log);
-  if (err) {
-    log.error('error retrieving vault record', {
-      shortName,
-      datasetId,
-      error: err,
-    });
-    return res.sendStatus(500);
-  }
-
-  const result = safePath(['recordset', 0])(vaultResp);
-  if (!result) {
-    log.error('no vault record found', { shortName, datasetId });
-    return res.sendStatus(404);
-  }
-
-  // 3.
-  log.info('retrieved valut info', result);
-  const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = `/vault/${vaultPath}rep`;
-  const nrtPath = `/vault/${vaultPath}nrt`;
-  const rawPath = `/vault/${vaultPath}raw`;
-
-  let repResp;
-  try {
-    repResp = await dropbox.filesListFolder({ path: repPath });
-  } catch (e) {
-    log.error('dropbox error: filesListFolder', {
-      path: repPath,
-      error: e.error,
-      status: e.status,
-    });
-    return res.sendStatus(500);
-  }
-  const repContents = safePathOrEmpty(['result', 'entries'])(repResp);
-
-  let nrtResp;
-  try {
-    nrtResp = await dropbox.filesListFolder({ path: nrtPath });
-  } catch (e) {
-    log.error('dropbox error: filesListFolder', {
-      path: nrtPath,
-      error: e.error,
-      status: e.status,
-    });
-    return res.sendStatus(500);
-  }
-  const nrtContents = safePathOrEmpty(['result', 'entries'])(nrtResp);
-
-  let rawResp;
-  try {
-    rawResp = await dropbox.filesListFolder({ path: rawPath });
-  } catch (e) {
-    log.error('dropbox error: filedListFolder', {
-      path: rawPath,
-      error: e.error,
-      status: e.status,
-    });
-    return res.sendStatus(500);
-  }
-  const rawContents = safePathOrEmpty(['result', 'entries'])(rawResp);
-
-  let folderName;
-  let folderPath;
-  if (repContents.length) {
-    folderName = 'rep';
-    folderPath = repPath;
-    console.log(repContents[0]);
-  } else if (nrtContents.length) {
-    folderName = 'nrt';
-    folderPath = nrtPath;
-    console.log(nrtContents[0]);
-  } else if (rawContents.length) {
-    folderName = 'raw';
-    folderPath = rawPath;
-    console.log(rawContents[0]);
-  } else {
-    log.warn('no dataset vault folders contain files', {
-      vaultPath,
-      shortName,
-      datasetId,
-    });
-    return res.sendStatus(404);
-  }
-
-  // 4. get share link
-
-  // 4. a) check if link already exists
-
-  const listSharedLinksArg = { path: folderPath, direct_only: true };
-  let listSharedLinksResp;
-  try {
-    listSharedLinksResp = await dropbox.sharingListSharedLinks(
-      listSharedLinksArg,
-    );
-  } catch (e) {
-    log.error('dropbox error: listSharedLinks', {
-      ...listSharedLinksArg,
-      error: e.error,
-      status: e.status,
-    });
-    return res.sendStatus(500);
-  }
-
-  let link = safePath(['result', 'links', 0, 'url'])(listSharedLinksResp);
-
-  if (link) {
-    link = forceDropboxFolderDownload(link);
-    log.info('retrieved existing dropbox share link', {
-      path: folderPath,
-      url: link,
-    });
-  } else {
-    // 4. b) if no existing link, create one
-    const arg = {
-      path: folderPath,
-      settings: {
-        require_password: false,
-        expires: undefined, // does not expire
-        allow_download: true,
-      },
-    };
-
-    let shareLinkResp;
-    try {
-      shareLinkResp = await dropbox.sharingCreateSharedLinkWithSettings(arg);
-    } catch (e) {
-      log.error('dropbox error: sharingCreateSharedLinkWithSettings', arg);
-      console.log(e);
-      return res.sendStatus(500);
-    }
-
-    const newShareLink = safePath(['result', 'url'])(shareLinkResp);
-
-    if (!newShareLink) {
-      log.error('no new share link returned', {
-        path: folderPath,
-        resp: shareLinkResp,
-      });
-      return res.sendStatus(500);
-    }
-
-    link = forceDropboxFolderDownload(newShareLink);
-  }
-
-  // 5. metadata
-  const [mdErr, metadata] = await getVaultFolderMetadata(folderPath, log);
-  if (mdErr) {
-    res.status(500).send('error retrieving metadata');
-  }
-
-  // 6. return
-  const payload = {
-    shortName,
-    datasetId,
-    folderPath,
-    folderName,
-    shareLink: link,
-    metadata: {
-      totalSize: metadata.sizeString,
-      fileCount: metadata.count,
-    },
-  };
-
-  return res.json(payload);
-};
-
 // New controller to get detailed file information for a dataset
 const getVaultFilesInfo = async (req, res) => {
   const log = moduleLogger.setReqId(req.reqId);
@@ -451,8 +116,6 @@ const getVaultFilesInfo = async (req, res) => {
 
   // Parse query parameters
   const folderType = req.query.folderType; // 'rep', 'nrt', 'raw', or undefined
-  const chunkSize = req.query.chunkSize || CHUNK_SIZE;
-  const cursor = req.query.cursor || null;
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
@@ -496,18 +159,12 @@ const getVaultFilesInfo = async (req, res) => {
     return res.status(404).json({ error: 'No vault record found for dataset' });
   }
 
-  // 3. Set up folder paths
-  const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = getFolderPath('rep', vaultPath);
-  const nrtPath = getFolderPath('nrt', vaultPath);
-  const rawPath = getFolderPath('raw', vaultPath);
-
   try {
-    // 4. Check all folders for availability
-    const availableFolders = await checkAllFolders(
-      repPath,
-      nrtPath,
-      rawPath,
+    const overallStartTime = Date.now();
+
+    // 3. Set up folder paths and check availability
+    const { availableFolders, vaultPath } = await setupAndCheckVaultFolders(
+      result.Vault_Path,
       log,
     );
 
@@ -516,9 +173,6 @@ const getVaultFilesInfo = async (req, res) => {
 
     if (!mainFolder) {
       log.warn('No files found in any vault folder', {
-        repPath,
-        nrtPath,
-        rawPath,
         availableFolders,
       });
       return res.status(404).json({ error: 'No files found in vault folders' });
@@ -546,13 +200,8 @@ const getVaultFilesInfo = async (req, res) => {
 
     // 8. Fetch files from target folder
     const targetPath = getFolderPath(targetFolder, vaultPath);
-    const [folderErr, folderResult] = await getFilesFromFolder(
+    const [folderErr, folderResult] = await getAllFilesAndCount(
       targetPath,
-      {
-        limit: chunkSize,
-        cursor,
-        includeTotal: !cursor, // Only get total on first page
-      },
       log,
     );
 
@@ -594,16 +243,22 @@ const getVaultFilesInfo = async (req, res) => {
       }
     }
 
-    // 10. Build pagination info
-    const paginationInfo = {
-      chunkSize: chunkSize,
-      hasMore: folderResult.hasMore,
-      cursor: folderResult.cursor,
-      totalCount: folderResult.totalCount,
-      totalChunks: folderResult.totalCount
-        ? Math.ceil(folderResult.totalCount / chunkSize)
-        : null,
-    };
+    // 10. Extract total count
+    const totalCount = folderResult.totalCount;
+
+    const overallEndTime = Date.now();
+    const overallDuration = overallEndTime - overallStartTime;
+
+    // Performance summary logging
+    log.info('getVaultFilesInfo performance summary', {
+      overallDuration,
+      operationSummary: {
+        shortName,
+        targetFolder,
+        filesReturned: folderResult.files.length,
+        totalCount: folderResult.totalCount,
+      },
+    });
 
     // Log the operation
     log.info('Retrieved vault files for dataset', {
@@ -612,19 +267,21 @@ const getVaultFilesInfo = async (req, res) => {
       mainFolder,
       targetFolder,
       currentPageCount: folderResult.files.length,
-      pagination: paginationInfo,
+      totalCount,
       autoDownloadEligible,
       hasDirectDownloadLink: !!directDownloadLink,
     });
 
-    // 11. Return enhanced response with folder availability info and smart download fields
+    // 11. Sort files alphabetically and return enhanced response with folder availability info and smart download fields
+    folderResult.files.sort((a, b) => a.name.localeCompare(b.name));
+
     const payload = {
       shortName,
       datasetId,
       availableFolders,
       mainFolder,
       files: folderResult.files,
-      pagination: paginationInfo,
+      totalCount,
       summary: {
         folderUsed: targetFolder,
         currentPageCount: folderResult.files.length,
@@ -708,66 +365,6 @@ const createTempFolder = async (tempFolderPath, log) => {
   }
 
   await dbx.filesCreateFolderV2({ path: tempFolderPath });
-};
-
-// Helper function to prepare batch copy entries
-const prepareBatchCopyEntries = (files, tempFolderPath) => {
-  return files.map((file) => ({
-    from_path: file.filePath,
-    to_path: `${tempFolderPath}/${file.name}`,
-  }));
-};
-
-// Helper function to execute batch copy
-const executeBatchCopy = async (copyEntries, log) => {
-  log.info('Starting batch copy operation', {
-    entryCount: copyEntries.length,
-  });
-
-  const copyBatchResult = await dbx.filesCopyBatchV2({
-    entries: copyEntries,
-    autorename: true, // Rename if conflicts occur
-  });
-
-  if (copyBatchResult.result['.tag'] === 'complete') {
-    log.info('Batch copy completed immediately');
-    return { completed: true };
-  } else if (copyBatchResult.result['.tag'] === 'async_job_id') {
-    const batchJobId = copyBatchResult.result.async_job_id;
-    log.info('Batch copy started as async job', { batchJobId });
-    return { completed: false, batchJobId };
-  } else {
-    throw new Error(
-      `Unexpected batch copy result: ${copyBatchResult.result['.tag']}`,
-    );
-  }
-};
-
-// Helper function to wait for batch copy completion
-const waitForBatchCopyCompletion = async (batchJobId, log) => {
-  const maxWaitTime = 60000; // 60 seconds
-  const pollInterval = 2000; // 2 seconds
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < maxWaitTime) {
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-    const checkResult = await dbx.filesCopyBatchCheckV2({
-      async_job_id: batchJobId,
-    });
-
-    if (checkResult.result['.tag'] === 'complete') {
-      log.info('Batch copy completed', { batchJobId });
-      return;
-    } else if (checkResult.result['.tag'] === 'failed') {
-      throw new Error(
-        `Batch copy failed: ${JSON.stringify(checkResult.result)}`,
-      );
-    }
-    // If still in_progress, continue polling
-  }
-
-  throw new Error('Batch copy operation timed out');
 };
 
 // Helper function to create download link
@@ -1022,6 +619,7 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
 
   try {
     // Step 2: Feature B - Check if all files are selected
+    // ! WE shoudl cache the totalfilecount and retrieve here.
     const { totalCount, vaultPath } = await getDatasetTotalFileCount(
       shortName,
       log,
@@ -1088,7 +686,6 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
 };
 
 module.exports = {
-  getShareLinkController,
   getVaultFilesInfo,
   downloadDropboxVaultFiles: downloadDropboxVaultFilesWithStagedParallel, // Use new implementation
 };
