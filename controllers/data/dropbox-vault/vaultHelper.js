@@ -1,4 +1,8 @@
 const dbx = require('../../../utility/DropboxVault');
+const { 
+  setCachedVaultFiles, 
+  getCachedVaultFiles
+} = require('./vaultCache');
 const CHUNK_SIZE = 2000;
 
 // Helper function to get folder path based on folder type
@@ -185,8 +189,27 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-// New function: Get ALL files and total count in one traversal
+// New function: Get ALL files and total count in one traversal (with caching)
 const getAllFilesAndCount = async (path, log) => {
+  // Check cache first
+  const cachedData = getCachedVaultFiles(path, log);
+  if (cachedData) {
+    return [null, cachedData];
+  }
+
+  // Cache miss - fetch from Dropbox
+  const [error, data] = await getAllFilesAndCountFromDropbox(path, log);
+  
+  // Cache the result if successful
+  if (!error && data) {
+    setCachedVaultFiles(path, data, log);
+  }
+  
+  return [error, data];
+};
+
+// Original function: Get ALL files and total count from Dropbox (uncached)
+const getAllFilesAndCountFromDropbox = async (path, log) => {
   const allFiles = [];
   let cursor = null;
   let hasMore = true;
@@ -245,6 +268,7 @@ const getAllFilesAndCount = async (path, log) => {
     return [error, null];
   }
 };
+
 
 module.exports = {
   getFilesFromFolder,
