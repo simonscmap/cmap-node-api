@@ -13,7 +13,14 @@ const { executeStagedParallelBatches } = require('./stagedParallelExecutor');
 const { logDropboxVaultDownload } = require('./vaultLogger');
 const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
-const { getFilesFromFolder, getTotalFileCount } = require('./vaultHelper');
+const {
+  getFilesFromFolder,
+  getTotalFileCount,
+  setupAndCheckVaultFolders,
+  getFolderPath,
+  checkAllFolders,
+  ensureTrailingSlash,
+} = require('./vaultHelper');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
 const CHUNK_SIZE = 2000;
@@ -22,62 +29,11 @@ const safePathOrEmpty = safePathOr([])(
   (val) => Array.isArray(val) && val.length > 0,
 );
 
-const ensureTrailingSlash = (path = '') => {
-  if (path.length === 0) {
-    return path;
-  } else if (path.charAt(path.length - 1) !== '/') {
-    return `${path}/`;
-  } else {
-    return path;
-  }
-};
 function forceDropboxFolderDownload(dropboxLink) {
   const url = new URL(dropboxLink);
   url.searchParams.set('dl', '1');
   return url.toString();
 }
-
-// Helper function to get folder path based on folder type
-const getFolderPath = (folderType, vaultPath) => {
-  return `/vault/${vaultPath}${folderType}`;
-};
-
-// Helper function to check all folders for availability
-const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
-  const startTime = Date.now();
-
-  try {
-    const results = await Promise.all([
-      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
-    ]);
-
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-
-    const folderAvailability = {
-      hasRep: results[0][1] && results[0][1].totalCount > 0,
-      hasNrt: results[1][1] && results[1][1].totalCount > 0,
-      hasRaw: results[2][1] && results[2][1].totalCount > 0,
-    };
-
-    log.info('checkAllFolders performance', {
-      duration,
-      folderAvailability,
-      repCount: results[0][1] ? results[0][1].totalCount : 0,
-      nrtCount: results[1][1] ? results[1][1].totalCount : 0,
-      rawCount: results[2][1] ? results[2][1].totalCount : 0,
-    });
-
-    return folderAvailability;
-  } catch (error) {
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-    log.error('Error checking folder availability', { error, duration });
-    throw error;
-  }
-};
 
 // Helper function to determine main folder based on priority
 const determineMainFolder = (availableFolders) => {
@@ -409,25 +365,18 @@ const getVaultFilesInfo = async (req, res) => {
     return res.status(404).json({ error: 'No vault record found for dataset' });
   }
 
-  // 3. Set up folder paths
-  const vaultPath = ensureTrailingSlash(result.Vault_Path);
-  const repPath = getFolderPath('rep', vaultPath);
-  const nrtPath = getFolderPath('nrt', vaultPath);
-  const rawPath = getFolderPath('raw', vaultPath);
-
   try {
     const overallStartTime = Date.now();
 
-    // 4. Check all folders for availability
-    const checkFoldersStart = Date.now();
-    const availableFolders = await checkAllFolders(
+    // 3. Set up folder paths and check availability
+    const {
+      availableFolders,
       repPath,
       nrtPath,
       rawPath,
-      log,
-    );
-    const checkFoldersEnd = Date.now();
-    const checkFoldersDuration = checkFoldersEnd - checkFoldersStart;
+      checkFoldersDuration,
+      vaultPath,
+    } = await setupAndCheckVaultFolders(result.Vault_Path, log);
 
     // 5. Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);

@@ -1,6 +1,91 @@
 const dbx = require('../../../utility/DropboxVault');
 const CHUNK_SIZE = 2000;
 
+// Helper function to get folder path based on folder type
+const getFolderPath = (folderType, vaultPath) => {
+  return `/vault/${vaultPath}${folderType}`;
+};
+
+// Helper function to ensure trailing slash on path
+const ensureTrailingSlash = (path = '') => {
+  if (path.length === 0) {
+    return path;
+  } else if (path.charAt(path.length - 1) !== '/') {
+    return `${path}/`;
+  } else {
+    return path;
+  }
+};
+
+// Helper function to check all folders for availability
+const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
+  const startTime = Date.now();
+
+  try {
+    const results = await Promise.all([
+      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
+      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
+    ]);
+
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    const folderAvailability = {
+      hasRep: results[0][1] && results[0][1].totalCount > 0,
+      hasNrt: results[1][1] && results[1][1].totalCount > 0,
+      hasRaw: results[2][1] && results[2][1].totalCount > 0,
+    };
+
+    log.info('checkAllFolders performance', {
+      duration,
+      folderAvailability,
+      repCount: results[0][1] ? results[0][1].totalCount : 0,
+      nrtCount: results[1][1] ? results[1][1].totalCount : 0,
+      rawCount: results[2][1] ? results[2][1].totalCount : 0,
+    });
+
+    return folderAvailability;
+  } catch (error) {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    log.error('Error checking folder availability', { error, duration });
+    throw error;
+  }
+};
+
+/**
+ * Sets up vault folder paths and checks their availability
+ * @param {string} vaultPath - Base vault path
+ * @param {Object} log - Logger instance
+ * @returns {Promise<Object>} - { availableFolders, repPath, nrtPath, rawPath, checkFoldersDuration }
+ */
+const setupAndCheckVaultFolders = async (vaultPath, log) => {
+  const normalizedVaultPath = ensureTrailingSlash(vaultPath);
+  const repPath = getFolderPath('rep', normalizedVaultPath);
+  const nrtPath = getFolderPath('nrt', normalizedVaultPath);
+  const rawPath = getFolderPath('raw', normalizedVaultPath);
+
+  const checkFoldersStart = Date.now();
+  const availableFolders = await checkAllFolders(
+    repPath,
+    nrtPath,
+    rawPath,
+    log,
+  );
+  const checkFoldersEnd = Date.now();
+  const checkFoldersDuration = checkFoldersEnd - checkFoldersStart;
+
+  return {
+    availableFolders,
+    repPath,
+    nrtPath,
+    rawPath,
+    checkFoldersDuration,
+    vaultPath: normalizedVaultPath
+  };
+};
+
 // Helper to get total file count
 const getTotalFileCount = async (path) => {
   let count = 0;
@@ -109,4 +194,8 @@ const formatFileSize = (bytes) => {
 module.exports = {
   getFilesFromFolder,
   getTotalFileCount,
+  setupAndCheckVaultFolders,
+  getFolderPath,
+  checkAllFolders,
+  ensureTrailingSlash,
 };
