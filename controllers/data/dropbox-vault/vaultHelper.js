@@ -1,8 +1,5 @@
 const dbx = require('../../../utility/DropboxVault');
-const { 
-  setCachedVaultFiles, 
-  getCachedVaultFiles
-} = require('./vaultCache');
+const { setCachedVaultCount, getCachedVaultCount } = require('./vaultCache');
 const CHUNK_SIZE = 2000;
 
 // Helper function to get folder path based on folder type
@@ -189,23 +186,26 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
-// New function: Get ALL files and total count in one traversal (with caching)
+// New function: Get ALL files and total count (with count caching)
 const getAllFilesAndCount = async (path, log) => {
-  // Check cache first
-  const cachedData = getCachedVaultFiles(path, log);
-  if (cachedData) {
-    return [null, cachedData];
+  // Check cached count first
+  const cachedCount = getCachedVaultCount(path, log);
+
+  // Fetch all files from Dropbox
+  const [error, data] = await getAllFilesAndCountFromDropbox(path, log);
+
+  if (error) {
+    return [error, null];
   }
 
-  // Cache miss - fetch from Dropbox
-  const [error, data] = await getAllFilesAndCountFromDropbox(path, log);
-  
-  // Cache the result if successful
-  if (!error && data) {
-    setCachedVaultFiles(path, data, log);
+  // If we have cached count, use it; otherwise cache the new count
+  if (cachedCount !== undefined) {
+    data.totalCount = cachedCount;
+  } else if (data && data.totalCount !== undefined) {
+    setCachedVaultCount(path, data.totalCount, log);
   }
-  
-  return [error, data];
+
+  return [null, data];
 };
 
 // Original function: Get ALL files and total count from Dropbox (uncached)
@@ -218,12 +218,12 @@ const getAllFilesAndCountFromDropbox = async (path, log) => {
     while (hasMore) {
       const response = cursor
         ? await dbx.filesListFolderContinue({ cursor })
-        : await dbx.filesListFolder({ 
-            path, 
+        : await dbx.filesListFolder({
+            path,
             recursive: false,
             include_media_info: false,
             include_deleted: false,
-            include_non_downloadable_files: false
+            include_non_downloadable_files: false,
           });
 
       // Process and collect files from this batch
@@ -268,7 +268,6 @@ const getAllFilesAndCountFromDropbox = async (path, log) => {
     return [error, null];
   }
 };
-
 
 module.exports = {
   getFilesFromFolder,

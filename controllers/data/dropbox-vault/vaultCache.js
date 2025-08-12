@@ -1,71 +1,71 @@
 const cache = require('../../../utility/nodeCache');
 
-// Cache configuration for vault files
+// Cache configuration for vault file count
 const VAULT_CACHE_TTL = 60 * 60; // 1 hour TTL in seconds
-const VAULT_CACHE_PREFIX = 'vault_files:';
+const VAULT_CACHE_PREFIX = 'vault_count:';
 
 // Helper function to generate cache key
 const generateCacheKey = (path) => {
   return `${VAULT_CACHE_PREFIX}${path}`;
 };
 
-// Helper function to set cached vault files
-const setCachedVaultFiles = (path, data, log) => {
+// Helper function to set cached vault file count
+const setCachedVaultCount = (path, totalCount, log) => {
   const cacheKey = generateCacheKey(path);
-  const success = cache.set(cacheKey, data, VAULT_CACHE_TTL);
+  const success = cache.set(cacheKey, totalCount, VAULT_CACHE_TTL);
   if (log && success) {
-    log.info('Cached vault files', { 
+    log.info('Cached vault file count', { 
       path, 
       cacheKey, 
-      fileCount: data.totalCount,
+      fileCount: totalCount,
       ttl: VAULT_CACHE_TTL 
     });
   }
   return success;
 };
 
-// Helper function to get cached vault files
-const getCachedVaultFiles = (path, log) => {
+// Helper function to get cached vault file count
+const getCachedVaultCount = (path, log) => {
   const cacheKey = generateCacheKey(path);
-  const cachedData = cache.get(cacheKey);
+  const cachedCount = cache.get(cacheKey);
   
-  if (cachedData && log) {
-    log.info('Retrieved cached vault files', { 
+  if (cachedCount !== undefined && log) {
+    log.info('Retrieved cached vault file count', { 
       path, 
       cacheKey, 
-      fileCount: cachedData.totalCount 
+      fileCount: cachedCount 
     });
   }
   
-  return cachedData;
+  return cachedCount;
 };
 
 // Helper function to clear cache for a specific path
-const clearCachedVaultFiles = (path, log) => {
+const clearCachedVaultCount = (path, log) => {
   const cacheKey = generateCacheKey(path);
   const deleted = cache.del(cacheKey);
   if (log && deleted) {
-    log.info('Cleared cached vault files', { path, cacheKey });
+    log.info('Cleared cached vault file count', { path, cacheKey });
   }
   return deleted > 0;
 };
 
-// Function to retrieve cached vault files data by path
-const getVaultFilesByPath = (path, log) => {
-  const cachedData = getCachedVaultFiles(path, log);
-  if (cachedData) {
+// Function to retrieve cached vault file count by path
+const getVaultCountByPath = (path, log) => {
+  const cachedCount = getCachedVaultCount(path, log);
+  if (cachedCount !== undefined) {
     return {
       success: true,
-      data: cachedData,
+      count: cachedCount,
       source: 'cache'
     };
   }
   
   return {
     success: false,
-    data: null,
+    count: null,
     source: 'cache_miss',
-    message: 'No cached data found for path'
+    message: 'No cached count found for path'
   };
 };
 
@@ -110,9 +110,9 @@ const cleanupVaultCache = (log) => {
 };
 
 module.exports = {
-  setCachedVaultFiles,
-  getCachedVaultFiles,
-  clearCachedVaultFiles,
-  getVaultFilesByPath,
+  setCachedVaultCount,
+  getCachedVaultCount,
+  clearCachedVaultCount,
+  getVaultCountByPath,
   cleanupVaultCache,
 };
