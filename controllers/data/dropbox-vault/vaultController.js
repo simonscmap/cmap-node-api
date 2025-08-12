@@ -5,7 +5,7 @@ const { URL } = require('url');
 const dbx = require('../../../utility/DropboxVault');
 const { getDatasetId } = require('../../../queries/datasetId');
 const directQuery = require('../../../utility/directQuery');
-const { safePath, safePathOr } = require('../../../utility/objectUtils');
+const { safePath } = require('../../../utility/objectUtils');
 const initLog = require('../../../log-service');
 // const getVaultFolderMetadata = require('../getVaultInfo');
 const { getCurrentConfig } = require('./batchConfig');
@@ -20,10 +20,10 @@ const {
   getFolderPath,
   checkAllFolders,
   ensureTrailingSlash,
+  getAllFilesAndCount,
 } = require('./vaultHelper');
 
 const moduleLogger = initLog('controllers/data/dropbox-vault/vaultController');
-const CHUNK_SIZE = 2000;
 const FILE_COUNT_THRESHOLD_FOR_DIRECT_DOWNLOAD = 5;
 // const safePathOrEmpty = safePathOr([])(
 //   (val) => Array.isArray(val) && val.length > 0,
@@ -320,8 +320,6 @@ const getVaultFilesInfo = async (req, res) => {
 
   // Parse query parameters
   const folderType = req.query.folderType; // 'rep', 'nrt', 'raw', or undefined
-  const chunkSize = req.query.chunkSize || CHUNK_SIZE;
-  const cursor = req.query.cursor || null;
 
   if (!shortName) {
     log.warn('No short name provided', { params: req.params });
@@ -437,8 +435,6 @@ const getVaultFilesInfo = async (req, res) => {
       filesReturned: folderResult.files.length,
       totalCount: folderResult.totalCount,
       hasMore: folderResult.hasMore,
-      chunkSize,
-      CHUNK_SIZE,
     });
 
     // 9. Check if auto-download is eligible and generate direct download link
@@ -468,16 +464,8 @@ const getVaultFilesInfo = async (req, res) => {
       }
     }
 
-    // 10. Build pagination info
-    const paginationInfo = {
-      chunkSize: chunkSize,
-      hasMore: folderResult.hasMore,
-      cursor: folderResult.cursor,
-      totalCount: folderResult.totalCount,
-      totalChunks: folderResult.totalCount
-        ? Math.ceil(folderResult.totalCount / chunkSize)
-        : null,
-    };
+    // 10. Extract total count
+    const totalCount = folderResult.totalCount;
 
     const overallEndTime = Date.now();
     const overallDuration = overallEndTime - overallStartTime;
@@ -498,9 +486,6 @@ const getVaultFilesInfo = async (req, res) => {
         targetFolder,
         filesReturned: folderResult.files.length,
         totalCount: folderResult.totalCount,
-        chunkSize,
-        CHUNK_SIZE,
-        cursor: !!cursor,
       },
     });
 
@@ -511,7 +496,7 @@ const getVaultFilesInfo = async (req, res) => {
       mainFolder,
       targetFolder,
       currentPageCount: folderResult.files.length,
-      pagination: paginationInfo,
+      totalCount,
       autoDownloadEligible,
       hasDirectDownloadLink: !!directDownloadLink,
     });
@@ -523,7 +508,7 @@ const getVaultFilesInfo = async (req, res) => {
       availableFolders,
       mainFolder,
       files: folderResult.files,
-      pagination: paginationInfo,
+      totalCount,
       summary: {
         folderUsed: targetFolder,
         currentPageCount: folderResult.files.length,
