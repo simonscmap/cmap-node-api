@@ -404,13 +404,8 @@ const getVaultFilesInfo = async (req, res) => {
     // 8. Fetch files from target folder
     const targetPath = getFolderPath(targetFolder, vaultPath);
     const fetchTargetFolderStart = Date.now();
-    const [folderErr, folderResult] = await getFilesFromFolder(
+    const [folderErr, folderResult] = await getAllFilesAndCount(
       targetPath,
-      {
-        limit: chunkSize,
-        cursor,
-        includeTotal: !cursor, // Only get total on first page
-      },
       log,
     );
     const fetchTargetFolderEnd = Date.now();

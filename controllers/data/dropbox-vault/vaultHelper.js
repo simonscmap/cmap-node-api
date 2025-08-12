@@ -18,32 +18,57 @@ const ensureTrailingSlash = (path = '') => {
   }
 };
 
+// Optimized function to check if a folder has any files (no cursors, minimal processing)
+const hasFiles = async (path, log) => {
+  try {
+    const response = await dbx.filesListFolder({
+      path,
+      recursive: false,
+      include_media_info: false,
+      include_deleted: false,
+      include_non_downloadable_files: false,
+      limit: 1,
+    });
+
+    const hasAnyFiles = response.result.entries.some((entry) => entry['.tag'] === 'file');
+    return [null, hasAnyFiles];
+  } catch (error) {
+    if (
+      error.status === 409 &&
+      error.error.error_summary.includes('path/not_found')
+    ) {
+      log.info('Folder not found or empty', { path });
+      return [null, false];
+    }
+
+    log.error('Error checking if folder has files', { path, error });
+    return [error, null];
+  }
+};
+
 // Helper function to check all folders for availability
 const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
   const startTime = Date.now();
 
   try {
     const results = await Promise.all([
-      getFilesFromFolder(repPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(nrtPath, { limit: 1, includeTotal: true }, log),
-      getFilesFromFolder(rawPath, { limit: 1, includeTotal: true }, log),
+      hasFiles(repPath, log),
+      hasFiles(nrtPath, log),
+      hasFiles(rawPath, log),
     ]);
 
     const endTime = Date.now();
     const duration = endTime - startTime;
 
     const folderAvailability = {
-      hasRep: results[0][1] && results[0][1].totalCount > 0,
-      hasNrt: results[1][1] && results[1][1].totalCount > 0,
-      hasRaw: results[2][1] && results[2][1].totalCount > 0,
+      hasRep: results[0][1] === true,
+      hasNrt: results[1][1] === true,
+      hasRaw: results[2][1] === true,
     };
 
     log.info('checkAllFolders performance', {
       duration,
       folderAvailability,
-      repCount: results[0][1] ? results[0][1].totalCount : 0,
-      nrtCount: results[1][1] ? results[1][1].totalCount : 0,
-      rawCount: results[2][1] ? results[2][1].totalCount : 0,
     });
 
     return folderAvailability;
@@ -275,6 +300,7 @@ module.exports = {
   setupAndCheckVaultFolders,
   getFolderPath,
   checkAllFolders,
+  hasFiles,
   ensureTrailingSlash,
   getAllFilesAndCount,
 };
