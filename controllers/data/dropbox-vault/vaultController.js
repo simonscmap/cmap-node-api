@@ -369,23 +369,14 @@ const getVaultFilesInfo = async (req, res) => {
     const overallStartTime = Date.now();
 
     // 3. Set up folder paths and check availability
-    const {
-      availableFolders,
-      repPath,
-      nrtPath,
-      rawPath,
-      checkFoldersDuration,
-      vaultPath,
-    } = await setupAndCheckVaultFolders(result.Vault_Path, log);
+    const { availableFolders, checkFoldersDuration, vaultPath } =
+      await setupAndCheckVaultFolders(result.Vault_Path, log);
 
     // 5. Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);
 
     if (!mainFolder) {
       log.warn('No files found in any vault folder', {
-        repPath,
-        nrtPath,
-        rawPath,
         availableFolders,
         checkFoldersDuration,
       });

@@ -78,11 +78,8 @@ const setupAndCheckVaultFolders = async (vaultPath, log) => {
 
   return {
     availableFolders,
-    repPath,
-    nrtPath,
-    rawPath,
     checkFoldersDuration,
-    vaultPath: normalizedVaultPath
+    vaultPath: normalizedVaultPath,
   };
 };
 
