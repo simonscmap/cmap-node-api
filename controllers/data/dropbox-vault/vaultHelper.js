@@ -1,6 +1,5 @@
 const dbx = require('../../../utility/DropboxVault');
 const { setCachedVaultCount, getCachedVaultCount } = require('./vaultCache');
-const CHUNK_SIZE = 2000;
 
 // Helper function to get folder path based on folder type
 const getFolderPath = (folderType, vaultPath) => {
