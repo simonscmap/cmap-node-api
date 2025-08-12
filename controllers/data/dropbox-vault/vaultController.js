@@ -14,7 +14,6 @@ const { logDropboxVaultDownload } = require('./vaultLogger');
 const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
 
 const {
-  getFilesFromFolder,
   getTotalFileCount,
   setupAndCheckVaultFolders,
   getFolderPath,
