@@ -366,8 +366,10 @@ const getVaultFilesInfo = async (req, res) => {
     const overallStartTime = Date.now();
 
     // 3. Set up folder paths and check availability
-    const { availableFolders, checkFoldersDuration, vaultPath } =
-      await setupAndCheckVaultFolders(result.Vault_Path, log);
+    const { availableFolders, vaultPath } = await setupAndCheckVaultFolders(
+      result.Vault_Path,
+      log,
+    );
 
     // 5. Determine main folder based on priority
     const mainFolder = determineMainFolder(availableFolders);
@@ -375,7 +377,6 @@ const getVaultFilesInfo = async (req, res) => {
     if (!mainFolder) {
       log.warn('No files found in any vault folder', {
         availableFolders,
-        checkFoldersDuration,
       });
       return res.status(404).json({ error: 'No files found in vault folders' });
     }
@@ -402,14 +403,10 @@ const getVaultFilesInfo = async (req, res) => {
 
     // 8. Fetch files from target folder
     const targetPath = getFolderPath(targetFolder, vaultPath);
-    const fetchTargetFolderStart = Date.now();
     const [folderErr, folderResult] = await getAllFilesAndCount(
       targetPath,
       log,
     );
-    const fetchTargetFolderEnd = Date.now();
-    const fetchTargetFolderDuration =
-      fetchTargetFolderEnd - fetchTargetFolderStart;
 
     if (folderErr) {
       log.error(
@@ -417,19 +414,10 @@ const getVaultFilesInfo = async (req, res) => {
         {
           path: targetPath,
           error: folderErr,
-          fetchTargetFolderDuration,
         },
       );
       return res.status(500).json({ error: 'Error fetching vault files' });
     }
-
-    log.info('fetchTargetFolder performance', {
-      targetPath,
-      fetchTargetFolderDuration,
-      filesReturned: folderResult.files.length,
-      totalCount: folderResult.totalCount,
-      hasMore: folderResult.hasMore,
-    });
 
     // 9. Check if auto-download is eligible and generate direct download link
     const autoDownloadEligible =
@@ -467,14 +455,6 @@ const getVaultFilesInfo = async (req, res) => {
     // Performance summary logging
     log.info('getVaultFilesInfo performance summary', {
       overallDuration,
-      checkFoldersDuration,
-      fetchTargetFolderDuration,
-      performanceBreakdown: {
-        checkAllFolders: checkFoldersDuration,
-        fetchTargetFolder: fetchTargetFolderDuration,
-        other:
-          overallDuration - checkFoldersDuration - fetchTargetFolderDuration,
-      },
       operationSummary: {
         shortName,
         targetFolder,

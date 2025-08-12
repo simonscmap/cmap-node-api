@@ -91,19 +91,15 @@ const checkAllFolders = async (repPath, nrtPath, rawPath, log) => {
 const setupAndCheckVaultFolders = async (vaultPath, log) => {
   const normalizedVaultPath = ensureTrailingSlash(vaultPath);
 
-  const checkFoldersStart = Date.now();
   const availableFolders = await checkAllFolders(
     getFolderPath('rep', normalizedVaultPath),
     getFolderPath('nrt', normalizedVaultPath),
     getFolderPath('raw', normalizedVaultPath),
     log,
   );
-  const checkFoldersEnd = Date.now();
-  const checkFoldersDuration = checkFoldersEnd - checkFoldersStart;
 
   return {
     availableFolders,
-    checkFoldersDuration,
     vaultPath: normalizedVaultPath,
   };
 };
