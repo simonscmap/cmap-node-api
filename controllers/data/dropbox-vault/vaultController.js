@@ -475,7 +475,9 @@ const getVaultFilesInfo = async (req, res) => {
       hasDirectDownloadLink: !!directDownloadLink,
     });
 
-    // 11. Return enhanced response with folder availability info and smart download fields
+    // 11. Sort files alphabetically and return enhanced response with folder availability info and smart download fields
+    folderResult.files.sort((a, b) => a.name.localeCompare(b.name));
+    
     const payload = {
       shortName,
       datasetId,
