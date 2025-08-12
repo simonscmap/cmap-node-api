@@ -185,6 +185,67 @@ const formatFileSize = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+// New function: Get ALL files and total count in one traversal
+const getAllFilesAndCount = async (path, log) => {
+  const allFiles = [];
+  let cursor = null;
+  let hasMore = true;
+
+  try {
+    while (hasMore) {
+      const response = cursor
+        ? await dbx.filesListFolderContinue({ cursor })
+        : await dbx.filesListFolder({ 
+            path, 
+            recursive: false,
+            include_media_info: false,
+            include_deleted: false,
+            include_non_downloadable_files: false
+          });
+
+      // Process and collect files from this batch
+      const batchFiles = response.result.entries
+        .filter((entry) => entry['.tag'] === 'file')
+        .map((file) => ({
+          name: file.name,
+          path: file.path_display,
+          size: file.size,
+          sizeFormatted: formatFileSize(file.size),
+        }));
+
+      allFiles.push(...batchFiles);
+      cursor = response.result.cursor;
+      hasMore = response.result.has_more;
+    }
+
+    return [
+      null,
+      {
+        files: allFiles,
+        totalCount: allFiles.length,
+      },
+    ];
+  } catch (error) {
+    // Check if it's a "not found" error, which is fine (empty folder)
+    if (
+      error.status === 409 &&
+      error.error.error_summary.includes('path/not_found')
+    ) {
+      log.info('Folder not found or empty', { path });
+      return [
+        null,
+        {
+          files: [],
+          totalCount: 0,
+        },
+      ];
+    }
+
+    log.error('Error getting all files and count from folder', { path, error });
+    return [error, null];
+  }
+};
+
 module.exports = {
   getFilesFromFolder,
   getTotalFileCount,
@@ -192,4 +253,5 @@ module.exports = {
   getFolderPath,
   checkAllFolders,
   ensureTrailingSlash,
+  getAllFilesAndCount,
 };
