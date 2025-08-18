@@ -15,13 +15,14 @@ const createWorkspace = async (log) => {
   }
 };
 
-const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log) => {
+const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = null) => {
   log.debug('shortNames', shortNames);
   
   const [dataErr, result] = await fetchAndWriteData(
     pathToTmpDir,
     shortNames,
     reqId,
+    filters,
   );
   
   if (dataErr) {

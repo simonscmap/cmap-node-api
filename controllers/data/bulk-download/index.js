@@ -10,41 +10,9 @@ const {
   sendFetchError,
   sendStreamError,
 } = require('./bulkDownloadUtils');
+const { validateRequest } = require('./requestValidation');
 
-// Validation function
-const validateRequest = (req, log) => {
-  if (!req.body.shortNames) {
-    log.error('missing argument', { body: req.body });
-    return {
-      isValid: false,
-      statusCode: 400,
-      message: 'bad request: missing argument',
-    };
-  }
 
-  let shortNames;
-  try {
-    shortNames = JSON.parse(req.body.shortNames);
-  } catch (e) {
-    log.error('error parsing post body', { error: e, body: req.body });
-    return {
-      isValid: false,
-      statusCode: 400,
-      message: 'bad request: invalid json',
-    };
-  }
-
-  if (!Array.isArray(shortNames) || shortNames.length === 0) {
-    log.error('incorrect argument type: expected non-empty array of strings');
-    return {
-      isValid: false,
-      statusCode: 400,
-      message: 'bad request: incorrect argument type',
-    };
-  }
-
-  return { isValid: true, shortNames };
-};
 
 /*
    1. validate incoming request
@@ -62,7 +30,7 @@ const bulkDownloadController = async (req, res, next) => {
   if (!validation.isValid) {
     return sendValidationError(res, next, validation);
   }
-  const { shortNames } = validation;
+  const { shortNames, filters } = validation;
 
   // 2. Create workspace directory
   const workspaceResult = await createWorkspace(log);
@@ -72,7 +40,7 @@ const bulkDownloadController = async (req, res, next) => {
   const { pathToTmpDir } = workspaceResult;
 
   // 3. Fetch and write data for each requested dataset
-  const fetchResult = await fetchAllDatasets(pathToTmpDir, shortNames, req.reqId, log);
+  const fetchResult = await fetchAllDatasets(pathToTmpDir, shortNames, req.reqId, log, filters);
   if (!fetchResult.success) {
     return sendFetchError(res, next, fetchResult.error);
   }

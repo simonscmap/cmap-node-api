@@ -25,6 +25,26 @@ const parseFloatOrNull = (n) => {
   }
 };
 
+const checkDatasetHasDepth = (dataset) => {
+  // Check if dataset is null or undefined
+  if (!dataset) {
+    return false;
+  }
+
+  // If dataset has a variables array (from metadata), check if any variable has depth
+  if (dataset.variables && Array.isArray(dataset.variables)) {
+    return dataset.variables.some(variable => variable.Has_Depth === true);
+  }
+
+  // If dataset has Has_Depth directly (some dataset objects may have this at root level)
+  if (typeof dataset.Has_Depth === 'boolean') {
+    return dataset.Has_Depth;
+  }
+
+  // Default to false if we can't determine depth capability
+  return false;
+};
+
 const getLatConstraint = (constraints) => {
   let {
     lat: { min, max },
@@ -43,7 +63,18 @@ const getLonConstraint = (constraints) => {
   return makeClause('lon', lonMin, lonMax);
 };
 
-const getDepthConstraint = (constraints) => {
+const getDepthConstraint = (constraints, dataset) => {
+  // Check if depth constraints are provided
+  if (!constraints.depth) {
+    return '';
+  }
+
+  // Only apply depth constraints if the dataset has depth dimensions
+  const hasDepthDimension = checkDatasetHasDepth(dataset);
+  if (!hasDepthDimension) {
+    return '';
+  }
+
   let {
     depth: { min, max },
   } = constraints;
@@ -74,7 +105,7 @@ const generateQuery = (tablename, constraints, dataset) => {
 
   let latConstraint = getLatConstraint(constraints);
   let lonConstraint = getLonConstraint(constraints);
-  let depthConstraint = getDepthConstraint(constraints);
+  let depthConstraint = getDepthConstraint(constraints, dataset);
   let timeConstraint = getTimeConstraint(constraints, dataset);
 
   let joinedConstraints = joinConstraints([

@@ -4,6 +4,62 @@ const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./createTempDir');
 const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 
+// Transform API filters to internal constraint format
+const parseFiltersToConstraints = (filters) => {
+  if (!filters) {
+    return null;
+  }
+
+  const constraints = {};
+
+  // Transform temporal filters
+  if (filters.temporal) {
+    constraints.time = {};
+    if (filters.temporal.startDate) {
+      constraints.time.min = filters.temporal.startDate;
+    }
+    if (filters.temporal.endDate) {
+      constraints.time.max = filters.temporal.endDate;
+    }
+  }
+
+  // Transform spatial filters
+  if (filters.spatial) {
+    if (filters.spatial.latMin !== undefined || filters.spatial.latMax !== undefined) {
+      constraints.lat = {};
+      if (filters.spatial.latMin !== undefined) {
+        constraints.lat.min = filters.spatial.latMin;
+      }
+      if (filters.spatial.latMax !== undefined) {
+        constraints.lat.max = filters.spatial.latMax;
+      }
+    }
+
+    if (filters.spatial.lonMin !== undefined || filters.spatial.lonMax !== undefined) {
+      constraints.lon = {};
+      if (filters.spatial.lonMin !== undefined) {
+        constraints.lon.min = filters.spatial.lonMin;
+      }
+      if (filters.spatial.lonMax !== undefined) {
+        constraints.lon.max = filters.spatial.lonMax;
+      }
+    }
+  }
+
+  // Transform depth filters
+  if (filters.depth) {
+    constraints.depth = {};
+    if (filters.depth.min !== undefined) {
+      constraints.depth.min = filters.depth.min;
+    }
+    if (filters.depth.max !== undefined) {
+      constraints.depth.max = filters.depth.max;
+    }
+  }
+
+  return Object.keys(constraints).length > 0 ? constraints : null;
+};
+
 // Create subdirectory for dataset
 const createDatasetDirectory = async (tempDir, shortName, log) => {
   try {
@@ -64,8 +120,36 @@ const fetchTableNames = async (shortName, log) => {
 };
 
 // Fetch and write all table data
-const fetchAndWriteAllTables = async (tables, dirTarget, shortName, reqId, routeQuery, log) => {
-  const makeQuery = (t) => `select * from ${t}`;
+const fetchAndWriteAllTables = async (tables, dirTarget, shortName, reqId, routeQuery, log, filters = null) => {
+  // Transform filters to constraints if provided
+  const constraints = parseFiltersToConstraints(filters);
+  
+  // If we have constraints, we need dataset metadata for proper query generation
+  let dataset = null;
+  if (constraints) {
+    const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(shortName, reqId);
+    if (metadataErr) {
+      log.error('error fetching dataset metadata for constraint application', { 
+        shortName, 
+        error: metadataErr 
+      });
+      // Fallback to unfiltered queries if we can't get metadata
+      dataset = null;
+    } else {
+      dataset = metadata.dataset;
+    }
+  }
+
+  const makeQuery = (tableName) => {
+    if (constraints && dataset) {
+      // Use existing generateQueryFromConstraints system
+      const generateQueryFromConstraints = require('../generateQueryFromConstraints');
+      return generateQueryFromConstraints(tableName, constraints, dataset).replace(/^select count\(time\) as c(, '[^']*' as id)? from/, 'select * from');
+    } else {
+      // Fallback to full table query
+      return `select * from ${tableName}`;
+    }
+  };
 
   const fetchAndWriteJobs = tables.map(
     async (tableName) =>
@@ -89,4 +173,5 @@ module.exports = {
   fetchAndWriteMetadata,
   fetchTableNames,
   fetchAndWriteAllTables,
+  parseFiltersToConstraints,
 };
