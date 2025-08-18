@@ -6,6 +6,41 @@ const fetchAndWriteData = require('./fetchAndWriteData');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog('bulk-download');
 
+// Validation function
+const validateRequest = (req, log) => {
+  if (!req.body.shortNames) {
+    log.error('missing argument', { body: req.body });
+    return {
+      isValid: false,
+      statusCode: 400,
+      message: 'bad request: missing argument',
+    };
+  }
+
+  let shortNames;
+  try {
+    shortNames = JSON.parse(req.body.shortNames);
+  } catch (e) {
+    log.error('error parsing post body', { error: e, body: req.body });
+    return {
+      isValid: false,
+      statusCode: 400,
+      message: 'bad request: invalid json',
+    };
+  }
+
+  if (!Array.isArray(shortNames) || shortNames.length === 0) {
+    log.error('incorrect argument type: expected non-empty array of strings');
+    return {
+      isValid: false,
+      statusCode: 400,
+      message: 'bad request: incorrect argument type',
+    };
+  }
+
+  return { isValid: true, shortNames };
+};
+
 /*
    1. validate incoming request
    2. create a guid-name temp directory
@@ -17,27 +52,13 @@ const moduleLogger = initLog('bulk-download');
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
 
-  // 1. TODO validate incoming request
-  if (!req.body.shortNames) {
-    log.error('missing argument', { body: req.body });
-    res.status(400).send('bad request: missing argument');
-    return next('missing argument');
+  // 1. Validate incoming request
+  const validation = validateRequest(req, log);
+  if (!validation.isValid) {
+    res.status(validation.statusCode).send(validation.message);
+    return next('validation failed');
   }
-
-  let shortNames;
-  try {
-    shortNames = JSON.parse(req.body.shortNames);
-  } catch (e) {
-    log.error('error parsing post body', { error: e, body: req.body });
-    res.status(400).send('bad request: invalid json');
-    return next('error parsing post body');
-  }
-  if (!Array.isArray(shortNames) || shortNames.length === 0) {
-    log.error('incorrect argument type: expected non-empty array of strings');
-    res.status(400).send('bad request: incorrect argument type');
-    return next('insufficient argument');
-  }
-
+  const { shortNames } = validation;
   log.debug('shortNames', shortNames);
 
   // 2. create a guid-name temp directory

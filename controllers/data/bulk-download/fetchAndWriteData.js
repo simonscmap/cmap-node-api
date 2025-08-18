@@ -1,5 +1,4 @@
 const path = require('path');
-const fs = require('fs');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog('bulk-download');
 const directQuery = require('../../../utility/directQuery');
