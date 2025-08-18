@@ -11,4 +11,15 @@ module.exports = {
   bracketSpacing: true,
   bracketSameLine: false,
   arrowParens: 'always',
+  overrides: [
+    {
+      files: ['*.md', '*.mdx'],
+      options: {
+        proseWrap: 'always',
+        embeddedLanguageFormatting: 'off',
+        // printWidth is already 80 globally; keep it explicit for clarity
+        printWidth: 80,
+      },
+    },
+  ],
 };
