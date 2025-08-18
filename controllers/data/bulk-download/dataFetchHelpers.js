@@ -46,6 +46,17 @@ const parseFiltersToConstraints = (filters) => {
     }
   }
 
+  // Transform depth filters
+  if (filters.depth) {
+    constraints.depth = {};
+    if (filters.depth.min !== undefined) {
+      constraints.depth.min = filters.depth.min;
+    }
+    if (filters.depth.max !== undefined) {
+      constraints.depth.max = filters.depth.max;
+    }
+  }
+
   return Object.keys(constraints).length > 0 ? constraints : null;
 };
 

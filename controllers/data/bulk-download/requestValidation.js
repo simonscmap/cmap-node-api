@@ -44,13 +44,30 @@ const validateSpatialBounds = (spatial) => {
   return { isValid: true };
 };
 
+// Helper function to validate depth bounds
+const validateDepthBounds = (depth) => {
+  const { min, max } = depth;
+  
+  // Check values are numbers
+  if ([min, max].some(val => typeof val !== 'number' || isNaN(val))) {
+    return { isValid: false, message: 'depth bounds must be numbers' };
+  }
+  
+  // Check min <= max constraint
+  if (min > max) {
+    return { isValid: false, message: 'depth min must be less than or equal to depth max' };
+  }
+  
+  return { isValid: true };
+};
+
 // Helper function to validate filters
 const validateFilters = (filters) => {
   if (!filters || typeof filters !== 'object') {
     return { isValid: false, message: 'filters must be an object' };
   }
   
-  const { temporal, spatial } = filters;
+  const { temporal, spatial, depth } = filters;
   
   // Both temporal and spatial must be present when filters are provided
   if (!temporal || !spatial) {
@@ -76,6 +93,14 @@ const validateFilters = (filters) => {
   const spatialValidation = validateSpatialBounds(spatial);
   if (!spatialValidation.isValid) {
     return spatialValidation;
+  }
+  
+  // Validate optional depth
+  if (depth) {
+    const depthValidation = validateDepthBounds(depth);
+    if (!depthValidation.isValid) {
+      return depthValidation;
+    }
   }
   
   return { isValid: true };
@@ -149,6 +174,7 @@ const validateRequest = (req, log) => {
 module.exports = {
   validateISODate,
   validateSpatialBounds,
+  validateDepthBounds,
   validateFilters,
   validateRequest,
 };
