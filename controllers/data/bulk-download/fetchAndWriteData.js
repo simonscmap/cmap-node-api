@@ -12,9 +12,12 @@ const {
   logErrors,
   logWarnings,
 } = require('../../../log-service/log-helpers');
-const { toBuffer, toDisk } = require('./prepareMetadata');
-const { createSubDir } = require('./createTempDir');
-const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
+const {
+  createDatasetDirectory,
+  fetchAndWriteMetadata,
+  fetchTableNames,
+  fetchAndWriteAllTables,
+} = require('./dataFetchHelpers');
 
 // with retries
 const delegate = async (targetInfo, query, candidateLocations) => {
@@ -64,82 +67,31 @@ const routeQuery = async (targetInfo, query, reqId) => {
 // and write them to disk in the temp directory
 const fetchAndWriteData = async (tempDir, shortName, reqId) => {
   const log = moduleLogger.setReqId(reqId);
-  // each dataset requires 2 requests: one for the data, the other for metadata
 
   if (typeof shortName !== 'string') {
     throw new Error(`incorrect arg type; expected string, got ${shortName}`);
   }
 
   // 1. create subdirectory
-  try {
-    await createSubDir(tempDir, shortName);
-  } catch (e) {
-    log.error('failed to create sub dir', { error: e, tempDir, shortName });
-    throw new Error(`failed to create sub dir for ${shortName}`);
-  }
-  const dirTarget = path.join(tempDir, shortName);
+  const dirTarget = await createDatasetDirectory(tempDir, shortName, log);
 
   // 2. fetch metadata, create xlsx, & write to disk
-  const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
-    shortName,
-    reqId,
-  );
-  if (metadataErr) {
-    log.error('error fetching metadata', { shortName, metadataErr });
-    throw new Error(metadataErr);
-  }
-  const metaBuf = toBuffer(metadata);
-  const targetPath = `${dirTarget}/${shortName}_Metadata.xlsx`;
-  try {
-    await toDisk(metaBuf, targetPath);
-  } catch (e) {
-    log.error('failed to write metadata to disk', {
-      targetPath,
-      shortName,
-      error: e,
-    });
-    throw new Error('failed to write metadata to disk');
-  }
+  const resultOfMetadataWrite = await fetchAndWriteMetadata(shortName, dirTarget, reqId, log);
 
-  const resultOfMetadataWrite = 1;
+  // 3. fetch table names
+  const tables = await fetchTableNames(shortName, log);
 
-  // 3. fetch and write csv data
-  const getTableNameQuery = `select distinct Table_Name
-    from tblVariables
-    where Dataset_ID=(select ID from tblDatasets where Dataset_Name='${shortName}')`;
-  const getTableNameOpts = { description: 'get table name' };
-
-  const [tablesErr, tablesResp] = await directQuery(
-    getTableNameQuery,
-    getTableNameOpts,
-    log,
-  );
-  if (tablesErr) {
-    log.error('failed to fetch datatet table name', { error: tablesErr });
-    return [tablesErr];
-  }
-
-  const tables = tablesResp.recordset.map(({ Table_Name }) => Table_Name);
-  const makeQuery = (t) => `select * from ${t}`;
-
-  const fetchAndWriteJobs = tables.map(
-    async (tableName) =>
-      await routeQuery(
-        { tempDir: dirTarget, tableName, shortName },
-        makeQuery(tableName),
-        reqId,
-      ),
+  // 4. fetch and write csv data
+  const resultOfDataFetchAndWrites = await fetchAndWriteAllTables(
+    tables, 
+    dirTarget, 
+    shortName, 
+    reqId, 
+    routeQuery, 
+    log
   );
 
-  let resultOfDataFetchAndWrites;
-  try {
-    resultOfDataFetchAndWrites = await Promise.all(fetchAndWriteJobs);
-  } catch (e) {
-    log.error('error in dataFetchAndWrite', { error: e });
-    throw new Error('error fething and writing data');
-  }
-
-  // 4. return results (though nothing is done with the results)
+  // 5. return results (though nothing is done with the results)
   return [resultOfMetadataWrite, resultOfDataFetchAndWrites];
 };
 
