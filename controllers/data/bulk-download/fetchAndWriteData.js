@@ -1,12 +1,9 @@
-const path = require('path');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog('bulk-download');
-const directQuery = require('../../../utility/directQuery');
 const {
   getCandidateList,
 } = require('../../../utility/router/queryToDatabaseTarget');
 const onPremToDisk = require('./onPremToDisk');
-const safePromise = require('../../../utility/safePromise');
 const {
   logMessages,
   logErrors,
@@ -76,31 +73,41 @@ const fetchAndWriteData = async (tempDir, shortName, reqId) => {
   const dirTarget = await createDatasetDirectory(tempDir, shortName, log);
 
   // 2. fetch metadata, create xlsx, & write to disk
-  const resultOfMetadataWrite = await fetchAndWriteMetadata(shortName, dirTarget, reqId, log);
+  const resultOfMetadataWrite = await fetchAndWriteMetadata(
+    shortName,
+    dirTarget,
+    reqId,
+    log,
+  );
 
   // 3. fetch table names
   const tables = await fetchTableNames(shortName, log);
 
   // 4. fetch and write csv data
   const resultOfDataFetchAndWrites = await fetchAndWriteAllTables(
-    tables, 
-    dirTarget, 
-    shortName, 
-    reqId, 
-    routeQuery, 
-    log
+    tables,
+    dirTarget,
+    shortName,
+    reqId,
+    routeQuery,
+    log,
   );
 
   // 5. return results (though nothing is done with the results)
   return [resultOfMetadataWrite, resultOfDataFetchAndWrites];
 };
 
-const makeFetchJob = (dirTarget, reqId) => (shortName) =>
-  fetchAndWriteData(dirTarget, shortName, reqId);
+const fetchAll = async (dirTarget, shortNames, reqId) => {
+  try {
+    const result = await Promise.all(
+      shortNames.map((shortName) =>
+        fetchAndWriteData(dirTarget, shortName, reqId),
+      ),
+    );
+    return [null, result];
+  } catch (error) {
+    return [error];
+  }
+};
 
-const fetchAll = (dirTarget, shortNames, reqId) =>
-  Promise.all(shortNames.map(makeFetchJob(dirTarget, reqId)));
-
-const safeFetchAll = safePromise(fetchAll);
-
-module.exports = safeFetchAll;
+module.exports = fetchAll;
