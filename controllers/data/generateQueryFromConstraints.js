@@ -1,4 +1,3 @@
-const { v4: uuidv4 } = require('uuid');
 
 const Monthly_Climatology = 'Monthly Climatology';
 
@@ -114,12 +113,11 @@ const joinConstraints = (arr) => {
 };
 
 const generateQuery = (tablename, constraints, dataset, queryType = 'count') => {
+  const selectClause = {
+    'count': 'select count(time) as c',
+    'data': 'select *'
+  };
   if (constraints === null) {
-    const selectClause = {
-      'count': 'select count(time) as c',
-      'data': 'select *',
-      'count-simple': 'select count(time) as c'
-    };
     return `${selectClause[queryType] || selectClause['count']} from ${tablename}`;
   }
 
@@ -135,17 +133,9 @@ const generateQuery = (tablename, constraints, dataset, queryType = 'count') => 
     depthConstraint,
   ]);
 
-  const selectClause = {
-    'count': () => {
-      let id = uuidv4().slice(0, 5);
-      return `select count(time) as c, 'id${id}' as id`;
-    },
-    'data': () => 'select *',
-    'count-simple': () => 'select count(time) as c'
-  };
 
   const clause = selectClause[queryType] || selectClause['count'];
-  let query = `${clause()} from ${tablename} ${joinedConstraints}`.trim();
+  let query = `${clause} from ${tablename} ${joinedConstraints}`.trim();
 
   return query;
 };
