@@ -61,7 +61,7 @@ async function testBulkDownload() {
   // Prepare the request body (the API expects form data)
   const requestBody = {
     shortNames: shortNames,
-    // filters: filters,
+    filters: filters,
   };
 
   console.log('🚀 Sending bulk download request...');
