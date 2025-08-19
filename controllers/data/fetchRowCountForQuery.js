@@ -10,7 +10,7 @@ const getRowCountForQuery = async (
   dataset,
   requestId,
 ) => {
-  let query = generateQueryFromConstraints(tablename, constraints, dataset);
+  let query = generateQueryFromConstraints(tablename, constraints, dataset, 'count');
 
   let [queryError, countResult] = await internalRouter(query, requestId);
 

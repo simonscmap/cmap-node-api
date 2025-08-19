@@ -1,15 +1,13 @@
-const { v4: uuidv4 } = require('uuid');
-
 const Monthly_Climatology = 'Monthly Climatology';
 
 const wrap = (val) => (typeof val === 'string' ? `'${val}'` : val);
 
 const makeClause = (name, min, max) => {
-  if (min && max) {
+  if (min !== undefined && max !== undefined) {
     return `${name} between ${wrap(min)} and ${wrap(max)}`;
-  } else if (min && !max) {
+  } else if (min !== undefined && max === undefined) {
     return `${name} > ${wrap(min)}`;
-  } else if (!min && max) {
+  } else if (min === undefined && max !== undefined) {
     return `${name} < ${wrap(max)}`;
   } else {
     return '';
@@ -33,7 +31,7 @@ const checkDatasetHasDepth = (dataset) => {
 
   // If dataset has a variables array (from metadata), check if any variable has depth
   if (dataset.variables && Array.isArray(dataset.variables)) {
-    return dataset.variables.some(variable => variable.Has_Depth === true);
+    return dataset.variables.some((variable) => variable.Has_Depth === true);
   }
 
   // If dataset has Has_Depth directly (some dataset objects may have this at root level)
@@ -41,11 +39,22 @@ const checkDatasetHasDepth = (dataset) => {
     return dataset.Has_Depth;
   }
 
+  // Check for Depth_Min/Depth_Max fields as depth indicators
+  if (
+    (dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) ||
+    (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)
+  ) {
+    return true;
+  }
+
   // Default to false if we can't determine depth capability
   return false;
 };
 
 const getLatConstraint = (constraints) => {
+  if (!constraints.lat) {
+    return '';
+  }
   let {
     lat: { min, max },
   } = constraints;
@@ -55,6 +64,9 @@ const getLatConstraint = (constraints) => {
 };
 
 const getLonConstraint = (constraints) => {
+  if (!constraints.lon) {
+    return '';
+  }
   let {
     lon: { min, max },
   } = constraints;
@@ -84,6 +96,9 @@ const getDepthConstraint = (constraints, dataset) => {
 };
 
 const getTimeConstraint = (constraints, dataset) => {
+  if (!constraints.time) {
+    return '';
+  }
   let isMonthlyClimatology =
     dataset.Temporal_Resolution === Monthly_Climatology;
   let colName = isMonthlyClimatology ? 'month' : 'time';
@@ -95,31 +110,42 @@ const getTimeConstraint = (constraints, dataset) => {
 
 const joinConstraints = (arr) => {
   let constraints = arr.filter((str) => !!str.length);
-  return `where ${constraints.join(' AND ')}`;
+  return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
 };
 
-const generateQuery = (tablename, constraints, dataset) => {
-  if (constraints === null) {
-    return `select count(time) as c from ${tablename}`;
-  }
+const buildConstraints = (constraints, dataset) => {
+  const timeConstraint = getTimeConstraint(constraints, dataset);
+  const latConstraint = getLatConstraint(constraints);
+  const lonConstraint = getLonConstraint(constraints);
+  const depthConstraint = getDepthConstraint(constraints, dataset);
 
-  let latConstraint = getLatConstraint(constraints);
-  let lonConstraint = getLonConstraint(constraints);
-  let depthConstraint = getDepthConstraint(constraints, dataset);
-  let timeConstraint = getTimeConstraint(constraints, dataset);
-
-  let joinedConstraints = joinConstraints([
+  return joinConstraints([
     timeConstraint,
     latConstraint,
     lonConstraint,
     depthConstraint,
   ]);
-  let id = uuidv4().slice(0, 5);
+};
 
-  let query =
-    `select count(time) as c, 'id${id}' as id from ${tablename} ${joinedConstraints}`.trim();
+const generateQuery = (
+  tablename,
+  constraints,
+  dataset,
+  queryType = 'count',
+) => {
+  const selectClauses = {
+    count: 'select count(time) as c',
+    data: 'select *',
+  };
 
-  return query;
+  const clause = selectClauses[queryType] || selectClauses['count'];
+
+  if (constraints === null) {
+    return `${clause} from ${tablename}`;
+  }
+
+  const whereClause = buildConstraints(constraints, dataset);
+  return `${clause} from ${tablename} ${whereClause}`.trim();
 };
 
 module.exports = generateQuery;
