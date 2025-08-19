@@ -2,6 +2,7 @@ const router = require('express').Router();
 const passport = require('../middleware/passport');
 
 const dataController = require('../controllers/data');
+const { bulkRowCountController } = require('../controllers/data/bulkRowCountController');
 const queryAnalysis = require('../middleware/queryAnalysis');
 const checkQuerySize = require('../middleware/checkQuerySize');
 const candidateAnalysis = require('../utility/router/routerMiddleware');
@@ -88,6 +89,11 @@ router.post(
   '/bulk-download',
   passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
   asyncControllerWrapper(dataController.bulkDownloadController),
+);
+
+router.post(
+  '/bulk-download-row-counts',
+  asyncControllerWrapper(bulkRowCountController),
 );
 
 router.get(
