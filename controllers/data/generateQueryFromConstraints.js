@@ -52,6 +52,9 @@ const checkDatasetHasDepth = (dataset) => {
 };
 
 const getLatConstraint = (constraints) => {
+  if (!constraints.lat) {
+    return '';
+  }
   let {
     lat: { min, max },
   } = constraints;
@@ -61,6 +64,9 @@ const getLatConstraint = (constraints) => {
 };
 
 const getLonConstraint = (constraints) => {
+  if (!constraints.lon) {
+    return '';
+  }
   let {
     lon: { min, max },
   } = constraints;
@@ -90,6 +96,9 @@ const getDepthConstraint = (constraints, dataset) => {
 };
 
 const getTimeConstraint = (constraints, dataset) => {
+  if (!constraints.time) {
+    return '';
+  }
   let isMonthlyClimatology =
     dataset.Temporal_Resolution === Monthly_Climatology;
   let colName = isMonthlyClimatology ? 'month' : 'time';
@@ -101,7 +110,7 @@ const getTimeConstraint = (constraints, dataset) => {
 
 const joinConstraints = (arr) => {
   let constraints = arr.filter((str) => !!str.length);
-  return `where ${constraints.join(' AND ')}`;
+  return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
 };
 
 const generateQuery = (tablename, constraints, dataset) => {
