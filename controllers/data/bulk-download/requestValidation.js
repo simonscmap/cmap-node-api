@@ -69,33 +69,37 @@ const validateFilters = (filters) => {
   
   const { temporal, spatial, depth } = filters;
   
-  // Both temporal and spatial must be present when filters are provided
-  if (!temporal || !spatial) {
-    return { isValid: false, message: 'filters must include both temporal and spatial parameters' };
+  // At least one filter type must be present
+  if (!temporal && !spatial && !depth) {
+    return { isValid: false, message: 'filters must include at least one of: temporal, spatial, or depth parameters' };
   }
   
-  // Validate temporal
-  if (!temporal.startDate || !temporal.endDate) {
-    return { isValid: false, message: 'temporal filters must include startDate and endDate' };
+  // Validate temporal if present
+  if (temporal) {
+    if (!temporal.startDate || !temporal.endDate) {
+      return { isValid: false, message: 'temporal filters must include startDate and endDate' };
+    }
+    
+    if (!validateISODate(temporal.startDate) || !validateISODate(temporal.endDate)) {
+      return { isValid: false, message: 'temporal dates must be in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)' };
+    }
+    
+    const startDate = new Date(temporal.startDate);
+    const endDate = new Date(temporal.endDate);
+    if (startDate > endDate) {
+      return { isValid: false, message: 'startDate must be less than or equal to endDate' };
+    }
   }
   
-  if (!validateISODate(temporal.startDate) || !validateISODate(temporal.endDate)) {
-    return { isValid: false, message: 'temporal dates must be in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)' };
+  // Validate spatial if present
+  if (spatial) {
+    const spatialValidation = validateSpatialBounds(spatial);
+    if (!spatialValidation.isValid) {
+      return spatialValidation;
+    }
   }
   
-  const startDate = new Date(temporal.startDate);
-  const endDate = new Date(temporal.endDate);
-  if (startDate > endDate) {
-    return { isValid: false, message: 'startDate must be less than or equal to endDate' };
-  }
-  
-  // Validate spatial
-  const spatialValidation = validateSpatialBounds(spatial);
-  if (!spatialValidation.isValid) {
-    return spatialValidation;
-  }
-  
-  // Validate optional depth
+  // Validate depth if present
   if (depth) {
     const depthValidation = validateDepthBounds(depth);
     if (!depthValidation.isValid) {
