@@ -1,4 +1,3 @@
-
 const Monthly_Climatology = 'Monthly Climatology';
 
 const wrap = (val) => (typeof val === 'string' ? `'${val}'` : val);
@@ -41,8 +40,10 @@ const checkDatasetHasDepth = (dataset) => {
   }
 
   // Check for Depth_Min/Depth_Max fields as depth indicators
-  if ((dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) || 
-      (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)) {
+  if (
+    (dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) ||
+    (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)
+  ) {
     return true;
   }
 
@@ -112,32 +113,39 @@ const joinConstraints = (arr) => {
   return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
 };
 
-const generateQuery = (tablename, constraints, dataset, queryType = 'count') => {
-  const selectClause = {
-    'count': 'select count(time) as c',
-    'data': 'select *'
-  };
-  if (constraints === null) {
-    return `${selectClause[queryType] || selectClause['count']} from ${tablename}`;
-  }
+const buildConstraints = (constraints, dataset) => {
+  const timeConstraint = getTimeConstraint(constraints, dataset);
+  const latConstraint = getLatConstraint(constraints);
+  const lonConstraint = getLonConstraint(constraints);
+  const depthConstraint = getDepthConstraint(constraints, dataset);
 
-  let latConstraint = getLatConstraint(constraints);
-  let lonConstraint = getLonConstraint(constraints);
-  let depthConstraint = getDepthConstraint(constraints, dataset);
-  let timeConstraint = getTimeConstraint(constraints, dataset);
-
-  let joinedConstraints = joinConstraints([
+  return joinConstraints([
     timeConstraint,
     latConstraint,
     lonConstraint,
     depthConstraint,
   ]);
+};
 
+const generateQuery = (
+  tablename,
+  constraints,
+  dataset,
+  queryType = 'count',
+) => {
+  const selectClauses = {
+    count: 'select count(time) as c',
+    data: 'select *',
+  };
 
-  const clause = selectClause[queryType] || selectClause['count'];
-  let query = `${clause} from ${tablename} ${joinedConstraints}`.trim();
+  const clause = selectClauses[queryType] || selectClauses['count'];
 
-  return query;
+  if (constraints === null) {
+    return `${clause} from ${tablename}`;
+  }
+
+  const whereClause = buildConstraints(constraints, dataset);
+  return `${clause} from ${tablename} ${whereClause}`.trim();
 };
 
 module.exports = generateQuery;
