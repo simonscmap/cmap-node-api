@@ -3,7 +3,7 @@ const directQuery = require('../../../utility/directQuery');
 const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./createTempDir');
 const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
-
+const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
@@ -25,7 +25,10 @@ const parseFiltersToConstraints = (filters) => {
 
   // Transform spatial filters
   if (filters.spatial) {
-    if (filters.spatial.latMin !== undefined || filters.spatial.latMax !== undefined) {
+    if (
+      filters.spatial.latMin !== undefined ||
+      filters.spatial.latMax !== undefined
+    ) {
       constraints.lat = {};
       if (filters.spatial.latMin !== undefined) {
         constraints.lat.min = filters.spatial.latMin;
@@ -35,7 +38,10 @@ const parseFiltersToConstraints = (filters) => {
       }
     }
 
-    if (filters.spatial.lonMin !== undefined || filters.spatial.lonMax !== undefined) {
+    if (
+      filters.spatial.lonMin !== undefined ||
+      filters.spatial.lonMax !== undefined
+    ) {
       constraints.lon = {};
       if (filters.spatial.lonMin !== undefined) {
         constraints.lon.min = filters.spatial.lonMin;
@@ -81,10 +87,10 @@ const fetchAndWriteMetadata = async (shortName, dirTarget, reqId, log) => {
     log.error('error fetching metadata', { shortName, metadataErr });
     throw new Error(metadataErr);
   }
-  
+
   const metaBuf = toBuffer(metadata);
   const targetPath = `${dirTarget}/${shortName}_Metadata.xlsx`;
-  
+
   try {
     await toDisk(metaBuf, targetPath);
     return 1; // success indicator
@@ -110,7 +116,7 @@ const fetchTableNames = async (shortName, log) => {
     getTableNameOpts,
     log,
   );
-  
+
   if (tablesErr) {
     log.error('failed to fetch datatet table name', { error: tablesErr });
     throw new Error(tablesErr);
@@ -120,18 +126,29 @@ const fetchTableNames = async (shortName, log) => {
 };
 
 // Fetch and write all table data
-const fetchAndWriteAllTables = async (tables, dirTarget, shortName, reqId, routeQuery, log, filters = null) => {
+const fetchAndWriteAllTables = async (
+  tables,
+  dirTarget,
+  shortName,
+  reqId,
+  routeQuery,
+  log,
+  filters = null,
+) => {
   // Transform filters to constraints if provided
   const constraints = parseFiltersToConstraints(filters);
-  
+
   // If we have constraints, we need dataset metadata for proper query generation
   let dataset = null;
   if (constraints) {
-    const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(shortName, reqId);
+    const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
+      shortName,
+      reqId,
+    );
     if (metadataErr) {
-      log.error('error fetching dataset metadata for constraint application', { 
-        shortName, 
-        error: metadataErr 
+      log.error('error fetching dataset metadata for constraint application', {
+        shortName,
+        error: metadataErr,
       });
       // Fallback to unfiltered queries if we can't get metadata
       dataset = null;
@@ -143,8 +160,15 @@ const fetchAndWriteAllTables = async (tables, dirTarget, shortName, reqId, route
   const makeQuery = (tableName) => {
     if (constraints && dataset) {
       // Use existing generateQueryFromConstraints system
-      const generateQueryFromConstraints = require('../generateQueryFromConstraints');
-      return generateQueryFromConstraints(tableName, constraints, dataset).replace(/^select count\(time\) as c(, '[^']*' as id)? from/, 'select * from');
+      const query = generateQueryFromConstraints(
+        tableName,
+        constraints,
+        dataset,
+      ).replace(
+        /^select count\(time\) as c(, '[^']*' as id)? from/,
+        'select * from',
+      );
+      return query;
     } else {
       // Fallback to full table query
       return `select * from ${tableName}`;
