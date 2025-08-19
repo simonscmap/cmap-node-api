@@ -41,6 +41,11 @@ const checkDatasetHasDepth = (dataset) => {
     return dataset.Has_Depth;
   }
 
+  // Check for Depth_Min/Depth_Max fields as depth indicators
+  if (dataset.Depth_Min !== undefined || dataset.Depth_Max !== undefined) {
+    return true;
+  }
+
   // Default to false if we can't determine depth capability
   return false;
 };
