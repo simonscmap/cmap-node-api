@@ -7,9 +7,13 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 
+// Download directory configuration
+const DOWNLOAD_DIR = '/Users/howardwkim/Downloads';
+
 class EndpointTester {
-  constructor(baseUrl = 'http://localhost:8080') {
+  constructor(baseUrl = 'http://localhost:8080', downloadDir = DOWNLOAD_DIR) {
     this.baseUrl = baseUrl;
+    this.downloadDir = downloadDir;
     this.jwt = null;
   }
 
@@ -151,9 +155,9 @@ class EndpointTester {
             }
           }
           
-          // Save file to current directory
+          // Save file to configured download directory
           const buffer = await response.buffer();
-          const filePath = path.join(process.cwd(), filename);
+          const filePath = path.join(this.downloadDir, filename);
           fs.writeFileSync(filePath, buffer);
           
           console.log(`💾 File saved: ${filePath} (${buffer.length} bytes)`);
@@ -179,7 +183,7 @@ class EndpointTester {
         
         // Save the file anyway
         const filename = `download-${Date.now()}.zip`;
-        const filePath = require('path').join(process.cwd(), filename);
+        const filePath = path.join(this.downloadDir, filename);
         fs.writeFileSync(filePath, buffer);
         
         console.log(`💾 File saved: ${filePath} (${buffer.length} bytes)`);
