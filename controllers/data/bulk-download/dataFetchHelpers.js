@@ -159,14 +159,12 @@ const fetchAndWriteAllTables = async (
 
   const makeQuery = (tableName) => {
     if (constraints && dataset) {
-      // Use existing generateQueryFromConstraints system
+      // Use existing generateQueryFromConstraints system with data query type
       const query = generateQueryFromConstraints(
         tableName,
         constraints,
         dataset,
-      ).replace(
-        /^select count\(time\) as c(, '[^']*' as id)? from/,
-        'select * from',
+        'data'
       );
       return query;
     } else {

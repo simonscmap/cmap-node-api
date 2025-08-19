@@ -113,9 +113,14 @@ const joinConstraints = (arr) => {
   return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
 };
 
-const generateQuery = (tablename, constraints, dataset) => {
+const generateQuery = (tablename, constraints, dataset, queryType = 'count') => {
   if (constraints === null) {
-    return `select count(time) as c from ${tablename}`;
+    const selectClause = {
+      'count': 'select count(time) as c',
+      'data': 'select *',
+      'count-simple': 'select count(time) as c'
+    };
+    return `${selectClause[queryType] || selectClause['count']} from ${tablename}`;
   }
 
   let latConstraint = getLatConstraint(constraints);
@@ -129,10 +134,18 @@ const generateQuery = (tablename, constraints, dataset) => {
     lonConstraint,
     depthConstraint,
   ]);
-  let id = uuidv4().slice(0, 5);
 
-  let query =
-    `select count(time) as c, 'id${id}' as id from ${tablename} ${joinedConstraints}`.trim();
+  const selectClause = {
+    'count': () => {
+      let id = uuidv4().slice(0, 5);
+      return `select count(time) as c, 'id${id}' as id`;
+    },
+    'data': () => 'select *',
+    'count-simple': () => 'select count(time) as c'
+  };
+
+  const clause = selectClause[queryType] || selectClause['count'];
+  let query = `${clause()} from ${tablename} ${joinedConstraints}`.trim();
 
   return query;
 };
