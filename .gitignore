@@ -52,7 +52,7 @@ config/UNSAFE_jwtConfig.js
 .vscode/
 .nvmrc
 
-test-bulk-download.js
+*/test-bulk-download.js
 
 # BMAD Start
 .bmad-core
