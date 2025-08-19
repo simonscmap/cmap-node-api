@@ -81,8 +81,8 @@ class EndpointTester {
     });
   }
 
-  async request(method, path, body = null, options = {}) {
-    const url = `${this.baseUrl}${path}`;
+  async request(method, urlPath, body = null, options = {}) {
+    const url = `${this.baseUrl}${urlPath}`;
     const headers = {};
 
     // Handle different content types
@@ -110,7 +110,7 @@ class EndpointTester {
       headers['Cookie'] = `jwt=${this.jwt}`;
     }
 
-    console.log(`\n📡 ${method} ${path}`);
+    console.log(`\n📡 ${method} ${urlPath}`);
     const startTime = Date.now();
 
     try {
@@ -218,20 +218,20 @@ class EndpointTester {
     }
   }
 
-  async get(path) {
-    return this.request('GET', path);
+  async get(urlPath) {
+    return this.request('GET', urlPath);
   }
 
-  async post(path, body, options = {}) {
-    return this.request('POST', path, body, options);
+  async post(urlPath, body, options = {}) {
+    return this.request('POST', urlPath, body, options);
   }
 
-  async put(path, body) {
-    return this.request('PUT', path, body);
+  async put(urlPath, body) {
+    return this.request('PUT', urlPath, body);
   }
 
-  async delete(path) {
-    return this.request('DELETE', path);
+  async delete(urlPath) {
+    return this.request('DELETE', urlPath);
   }
 }
 
@@ -259,7 +259,7 @@ Common endpoints to test:
     process.exit(1);
   }
 
-  const [method, path, username, password] = args;
+  const [method, urlPath, username, password] = args;
   const tester = new EndpointTester();
 
   // Login if credentials provided
@@ -281,7 +281,7 @@ Common endpoints to test:
     }
   }
 
-  await tester.request(method.toUpperCase(), path, body);
+  await tester.request(method.toUpperCase(), urlPath, body);
 }
 
 // Run if called directly
