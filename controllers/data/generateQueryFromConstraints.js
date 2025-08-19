@@ -33,7 +33,7 @@ const checkDatasetHasDepth = (dataset) => {
 
   // If dataset has a variables array (from metadata), check if any variable has depth
   if (dataset.variables && Array.isArray(dataset.variables)) {
-    return dataset.variables.some(variable => variable.Has_Depth === true);
+    return dataset.variables.some((variable) => variable.Has_Depth === true);
   }
 
   // If dataset has Has_Depth directly (some dataset objects may have this at root level)
@@ -42,7 +42,8 @@ const checkDatasetHasDepth = (dataset) => {
   }
 
   // Check for Depth_Min/Depth_Max fields as depth indicators
-  if (dataset.Depth_Min !== undefined || dataset.Depth_Max !== undefined) {
+  if ((dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) || 
+      (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)) {
     return true;
   }
 
