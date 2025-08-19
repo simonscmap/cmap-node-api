@@ -17,28 +17,52 @@ const validateISODate = (dateStr) => {
 const validateSpatialBounds = (spatial) => {
   const { latMin, latMax, lonMin, lonMax } = spatial;
   
-  // Check all values are numbers
-  if ([latMin, latMax, lonMin, lonMax].some(val => typeof val !== 'number' || isNaN(val))) {
-    return { isValid: false, message: 'spatial bounds must be numbers' };
+  // Check if we have any spatial constraints at all
+  const hasLat = latMin !== undefined || latMax !== undefined;
+  const hasLon = lonMin !== undefined || lonMax !== undefined;
+  
+  if (!hasLat && !hasLon) {
+    return { isValid: false, message: 'spatial filters must include latitude or longitude bounds' };
   }
   
-  // Check latitude bounds
-  if (latMin < -90 || latMin > 90 || latMax < -90 || latMax > 90) {
-    return { isValid: false, message: 'latitude must be between -90 and 90' };
+  // Validate latitude constraints if present
+  if (hasLat) {
+    // Check lat values are numbers
+    if ((latMin !== undefined && (typeof latMin !== 'number' || isNaN(latMin))) ||
+        (latMax !== undefined && (typeof latMax !== 'number' || isNaN(latMax)))) {
+      return { isValid: false, message: 'latitude bounds must be numbers' };
+    }
+    
+    // Check latitude ranges
+    if ((latMin !== undefined && (latMin < -90 || latMin > 90)) ||
+        (latMax !== undefined && (latMax < -90 || latMax > 90))) {
+      return { isValid: false, message: 'latitude must be between -90 and 90' };
+    }
+    
+    // Check min <= max constraint if both present
+    if (latMin !== undefined && latMax !== undefined && latMin > latMax) {
+      return { isValid: false, message: 'latMin must be less than or equal to latMax' };
+    }
   }
   
-  // Check longitude bounds
-  if (lonMin < -180 || lonMin > 180 || lonMax < -180 || lonMax > 180) {
-    return { isValid: false, message: 'longitude must be between -180 and 180' };
-  }
-  
-  // Check min <= max constraints
-  if (latMin > latMax) {
-    return { isValid: false, message: 'latMin must be less than or equal to latMax' };
-  }
-  
-  if (lonMin > lonMax) {
-    return { isValid: false, message: 'lonMin must be less than or equal to lonMax' };
+  // Validate longitude constraints if present
+  if (hasLon) {
+    // Check lon values are numbers
+    if ((lonMin !== undefined && (typeof lonMin !== 'number' || isNaN(lonMin))) ||
+        (lonMax !== undefined && (typeof lonMax !== 'number' || isNaN(lonMax)))) {
+      return { isValid: false, message: 'longitude bounds must be numbers' };
+    }
+    
+    // Check longitude ranges
+    if ((lonMin !== undefined && (lonMin < -180 || lonMin > 180)) ||
+        (lonMax !== undefined && (lonMax < -180 || lonMax > 180))) {
+      return { isValid: false, message: 'longitude must be between -180 and 180' };
+    }
+    
+    // Check min <= max constraint if both present
+    if (lonMin !== undefined && lonMax !== undefined && lonMin > lonMax) {
+      return { isValid: false, message: 'lonMin must be less than or equal to lonMax' };
+    }
   }
   
   return { isValid: true };
