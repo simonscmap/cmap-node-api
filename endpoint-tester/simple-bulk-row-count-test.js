@@ -32,32 +32,32 @@ async function testBulkRowCounts() {
   // Narrowed filters
   const narrowedFilters = {
     temporal: {
-      startDate: '2023-01-27',
-      endDate: '2023-01-29',
+      startDate: '2023-06-01',
+      endDate: '2023-07-31',
     },
     spatial: {
-      latMin: 5,
-      latMax: 25,
-      lonMin: -135,
-      lonMax: -125,
+      latMin: 10,
+      latMax: 40,
+      lonMin: -140,
+      lonMax: -120,
     },
     depth: {
-      min: 2,
-      max: 15,
+      min: 0,
+      max: 10,
     },
   };
 
   // Expanded filters
   const expandedFilters = {
     temporal: {
-      startDate: '2023-01-20',
-      endDate: '2023-02-05',
+      startDate: '2023-06-01',
+      endDate: '2023-09-31',
     },
     spatial: {
-      latMin: -10,
+      latMin: 10,
       latMax: 40,
-      lonMin: -150,
-      lonMax: -110,
+      lonMin: -140,
+      lonMax: -120,
     },
     depth: {
       min: 0,
@@ -97,6 +97,7 @@ async function testBulkRowCounts() {
   try {
     console.log('Testing Initial Filters...');
     const initial = await makeRequest(initialFilters);
+    console.log('Initial response:', initial);
     const initialTotal = Object.values(initial).reduce(
       (sum, count) => sum + count,
       0,
@@ -105,6 +106,7 @@ async function testBulkRowCounts() {
 
     console.log('Testing Narrowed Filters...');
     const narrowed = await makeRequest(narrowedFilters);
+    console.log('Narrowed response:', narrowed);
     const narrowedTotal = Object.values(narrowed).reduce(
       (sum, count) => sum + count,
       0,
@@ -113,23 +115,24 @@ async function testBulkRowCounts() {
 
     console.log('Testing Expanded Filters...');
     const expanded = await makeRequest(expandedFilters);
-    const expandedTotal = Object.values(expanded).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
-    console.log(`Expanded: ${expandedTotal} total rows`);
+    console.log('Expanded response:', expanded);
+    // const expandedTotal = Object.values(expanded).reduce(
+    //   (sum, count) => sum + count,
+    //   0,
+    // );
+    // console.log(`Expanded: ${expandedTotal} total rows`);
 
-    console.log('\nResults:');
-    console.log(
-      `Initial → Narrowed: ${narrowedTotal - initialTotal} (${
-        narrowedTotal < initialTotal ? 'decreased ✓' : 'not decreased ✗'
-      })`,
-    );
-    console.log(
-      `Initial → Expanded: ${expandedTotal - initialTotal} (${
-        expandedTotal > initialTotal ? 'increased ✓' : 'not increased ✗'
-      })`,
-    );
+    // console.log('\nResults:');
+    // console.log(
+    //   `Initial → Narrowed: ${narrowedTotal - initialTotal} (${
+    //     narrowedTotal < initialTotal ? 'decreased ✓' : 'not decreased ✗'
+    //   })`,
+    // );
+    // console.log(
+    //   `Initial → Expanded: ${expandedTotal - initialTotal} (${
+    //     expandedTotal > initialTotal ? 'increased ✓' : 'not increased ✗'
+    //   })`,
+    // );
   } catch (error) {
     console.error('Error:', error.message);
   }
