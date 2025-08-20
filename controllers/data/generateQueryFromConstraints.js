@@ -1,5 +1,3 @@
-const { v4: uuidv4 } = require('uuid');
-
 const Monthly_Climatology = 'Monthly Climatology';
 
 const wrap = (val) => (typeof val === 'string' ? `'${val}'` : val);
@@ -148,16 +146,10 @@ const generateQuery = (
     data: 'select *',
   };
 
-  let clause = selectClauses[queryType] || selectClauses['count'];
+  const clause = selectClauses[queryType] || selectClauses['count'];
 
   if (constraints === null) {
     return `${clause} from ${tablename}`;
-  }
-
-  // Add UUID to count queries when constraints are present
-  if (queryType === 'count') {
-    const id = uuidv4().slice(0, 5);
-    clause = `select count(time) as c, 'id${id}' as id`;
   }
 
   const whereClause = buildConstraints(constraints, dataset);
