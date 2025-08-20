@@ -33,7 +33,7 @@ async function testBulkRowCounts() {
   const narrowedFilters = {
     temporal: {
       startDate: '2023-01-26',
-      endDate: '2023-01-31',
+      endDate: '2023-01-27',
     },
     spatial: {
       latMin: 10,
@@ -50,11 +50,11 @@ async function testBulkRowCounts() {
   // Expanded filters
   const expandedFilters = {
     temporal: {
-      startDate: '2023-01-26',
-      endDate: '2023-01-31',
+      startDate: '2023-01-16',
+      endDate: '2023-02-11',
     },
     spatial: {
-      latMin: 10,
+      latMin: 0,
       latMax: 40,
       lonMin: -140,
       lonMax: -120,
