@@ -51,7 +51,7 @@ async function testBulkRowCounts() {
   const expandedFilters = {
     temporal: {
       startDate: '2023-06-01',
-      endDate: '2023-09-31',
+      endDate: '2023-09-29',
     },
     spatial: {
       latMin: 10,

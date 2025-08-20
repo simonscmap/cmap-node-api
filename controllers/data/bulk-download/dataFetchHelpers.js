@@ -4,7 +4,7 @@ const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./createTempDir');
 const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
-const { routeQuery } = require('./fetchAndWriteData');
+const { routeQuery } = require('./routeQueryForBulkDownload');
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
