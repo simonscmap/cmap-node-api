@@ -14,8 +14,8 @@ async function testBulkRowCounts() {
   // Initial filters
   const initialFilters = {
     temporal: {
-      startDate: '2023-06-01',
-      endDate: '2023-08-31',
+      startDate: '2023-01-26',
+      endDate: '2023-01-31',
     },
     spatial: {
       latMin: 10,
@@ -32,8 +32,8 @@ async function testBulkRowCounts() {
   // Narrowed filters
   const narrowedFilters = {
     temporal: {
-      startDate: '2023-06-01',
-      endDate: '2023-07-31',
+      startDate: '2023-01-26',
+      endDate: '2023-01-31',
     },
     spatial: {
       latMin: 10,
@@ -50,8 +50,8 @@ async function testBulkRowCounts() {
   // Expanded filters
   const expandedFilters = {
     temporal: {
-      startDate: '2023-06-01',
-      endDate: '2023-09-29',
+      startDate: '2023-01-26',
+      endDate: '2023-01-31',
     },
     spatial: {
       latMin: 10,
