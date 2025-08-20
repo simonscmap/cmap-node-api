@@ -18,13 +18,11 @@ class EndpointTester {
   }
 
   async login(username, password) {
-    console.log('🔐 Logging in...');
-    
     // Use native http module to get all Set-Cookie headers
     return new Promise((resolve) => {
       const url = new URL(`${this.baseUrl}/api/user/signin`);
       const postData = JSON.stringify({ username, password });
-      
+
       const options = {
         hostname: url.hostname,
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
@@ -39,17 +37,16 @@ class EndpointTester {
       const client = url.protocol === 'https:' ? https : http;
       const req = client.request(options, (res) => {
         let data = '';
-        
+
         res.on('data', (chunk) => {
           data += chunk;
         });
-        
+
         res.on('end', () => {
           if (res.statusCode === 200) {
             // Get all Set-Cookie headers
             const setCookieHeaders = res.headers['set-cookie'] || [];
-            console.log('🍪 All cookies received:', setCookieHeaders);
-            
+
             // Look for JWT cookie
             for (const cookieString of setCookieHeaders) {
               const jwtMatch = cookieString.match(/jwt=([^;]+)/);
@@ -60,7 +57,7 @@ class EndpointTester {
                 return;
               }
             }
-            
+
             console.log('⚠️  Login response OK but no JWT cookie found');
             resolve(false);
           } else {
@@ -92,8 +89,11 @@ class EndpointTester {
       // Convert body object to URLSearchParams for form data
       const formBody = new URLSearchParams();
       if (body) {
-        Object.keys(body).forEach(key => {
-          const value = typeof body[key] === 'object' ? JSON.stringify(body[key]) : body[key];
+        Object.keys(body).forEach((key) => {
+          const value =
+            typeof body[key] === 'object'
+              ? JSON.stringify(body[key])
+              : body[key];
           formBody.append(key, value);
         });
       }
@@ -122,45 +122,47 @@ class EndpointTester {
 
       const duration = Date.now() - startTime;
       const statusIcon = response.ok ? '✅' : '❌';
-      
-      console.log(`${statusIcon} ${response.status} ${response.statusText} (${duration}ms)`);
+
+      console.log(
+        `${statusIcon} ${response.status} ${response.statusText} (${duration}ms)`,
+      );
 
       // Check if response is a file download
       const contentType = response.headers.get('content-type') || '';
-      const contentDisposition = response.headers.get('content-disposition') || '';
-      
-      console.log('🔍 Headers:', {
-        'content-type': contentType,
-        'content-disposition': contentDisposition
-      });
-      
+      const contentDisposition =
+        response.headers.get('content-disposition') || '';
+
+
       // Detect binary file downloads by content type or disposition
-      const isBinaryFile = contentType.includes('application/zip') || 
-                          contentType.includes('application/octet-stream') || 
-                          contentType.includes('application/x-zip') ||
-                          contentDisposition.includes('attachment') ||
-                          // If content type is not text/html or application/json, likely a file
-                          (contentType && !contentType.includes('text/') && !contentType.includes('application/json'));
-      
+      const isBinaryFile =
+        contentType.includes('application/zip') ||
+        contentType.includes('application/octet-stream') ||
+        contentType.includes('application/x-zip') ||
+        contentDisposition.includes('attachment') ||
+        // If content type is not text/html or application/json, likely a file
+        (contentType &&
+          !contentType.includes('text/') &&
+          !contentType.includes('application/json'));
+
       if (isBinaryFile) {
-        console.log('📦 File download detected');
-        
+
         if (response.ok) {
           // Extract filename from content-disposition or use default
           let filename = 'download.zip';
           if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            const filenameMatch = contentDisposition.match(
+              /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+            );
             if (filenameMatch) {
               filename = filenameMatch[1].replace(/['"]/g, '');
             }
           }
-          
+
           // Save file to configured download directory
           const buffer = await response.buffer();
           const filePath = path.join(this.downloadDir, filename);
           fs.writeFileSync(filePath, buffer);
-          
-          console.log(`💾 File saved: ${filePath} (${buffer.length} bytes)`);
+
           return { response, filePath, fileSize: buffer.length };
         } else {
           const text = await response.text();
@@ -173,23 +175,22 @@ class EndpointTester {
       const buffer = await response.buffer();
       const text = buffer.toString('latin1'); // Use latin1 to preserve binary data
       let data;
-      
+
       // Check if this looks like binary data that should have been saved as a file
-      if (text.startsWith('PK') || // ZIP file magic number
-          text.includes('\x00') || // Contains null bytes (likely binary)
-          text.length > 1000 && !text.substring(0, 1000).match(/^[\x20-\x7E\s]*$/)) { // Non-printable chars
-        console.log('📦 Binary data detected (likely a file download)');
-        console.log('💡 Treating as file download despite missing headers...');
-        
+      if (
+        text.startsWith('PK') || // ZIP file magic number
+        text.includes('\x00') || // Contains null bytes (likely binary)
+        (text.length > 1000 &&
+          !text.substring(0, 1000).match(/^[\x20-\x7E\s]*$/))
+      ) {
+        // Non-printable chars
         // Save the file anyway
         const filename = `download-${Date.now()}.zip`;
         const filePath = path.join(this.downloadDir, filename);
         fs.writeFileSync(filePath, buffer);
-        
-        console.log(`💾 File saved: ${filePath} (${buffer.length} bytes)`);
         return { response, filePath, fileSize: buffer.length };
       }
-      
+
       try {
         data = JSON.parse(text);
       } catch {
@@ -201,14 +202,24 @@ class EndpointTester {
         if (Array.isArray(data)) {
           console.log(`📄 Array with ${data.length} items`);
           if (data.length > 0) {
-            console.log(`   First item: ${JSON.stringify(data[0]).substring(0, 100)}...`);
+            console.log(
+              `   First item: ${JSON.stringify(data[0]).substring(0, 100)}...`,
+            );
           }
         } else {
           const keys = Object.keys(data);
-          console.log(`📄 Object with keys: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}`);
+          console.log(
+            `📄 Object with keys: ${keys.slice(0, 5).join(', ')}${
+              keys.length > 5 ? '...' : ''
+            }`,
+          );
         }
       } else {
-        console.log(`📄 ${String(data).substring(0, 200)}${String(data).length > 200 ? '...' : ''}`);
+        console.log(
+          `📄 ${String(data).substring(0, 200)}${
+            String(data).length > 200 ? '...' : ''
+          }`,
+        );
       }
 
       return { response, data };
@@ -238,7 +249,7 @@ class EndpointTester {
 // Command line usage
 async function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length < 2) {
     console.log(`
 📋 Usage: node test-endpoints.js <method> <path> [username] [password]
