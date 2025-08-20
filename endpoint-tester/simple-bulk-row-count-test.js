@@ -11,6 +11,25 @@ async function testBulkRowCounts() {
     'Gradients5_TN412_FluorometricChlorophyll_CTD',
   ];
 
+  // Expected row counts
+  const expectedInitial = {
+    'Gradients5_TN412_Hyperpro_Profiles': 304,
+    'Gradients5_TN412_FluorometricChlorophyll_UW': 17,
+    'Gradients5_TN412_FluorometricChlorophyll_CTD': 7,
+  };
+
+  const expectedNarrowed = {
+    'Gradients5_TN412_Hyperpro_Profiles': 0,
+    'Gradients5_TN412_FluorometricChlorophyll_UW': 3,
+    'Gradients5_TN412_FluorometricChlorophyll_CTD': 0,
+  };
+
+  const expectedExpanded = {
+    'Gradients5_TN412_Hyperpro_Profiles': 769,
+    'Gradients5_TN412_FluorometricChlorophyll_UW': 37,
+    'Gradients5_TN412_FluorometricChlorophyll_CTD': 27,
+  };
+
   // Initial filters
   const initialFilters = {
     temporal: {
@@ -94,47 +113,44 @@ async function testBulkRowCounts() {
     return data;
   }
 
+  function checkResults(actual, expected, testName) {
+    let allMatch = true;
+    console.log(`\n📋 ${testName}`);
+    
+    for (const dataset of shortNames) {
+      const actualCount = actual[dataset] || 0;
+      const expectedCount = expected[dataset] || 0;
+      const match = actualCount === expectedCount;
+      allMatch = allMatch && match;
+      
+      console.log(`   ${dataset}: ${actualCount} ${match ? '✅' : '❌'}`);
+      if (!match) {
+        console.log(`      Expected: ${expectedCount}, Got: ${actualCount}`);
+      }
+    }
+    
+    const actualTotal = Object.values(actual).reduce((sum, count) => sum + count, 0);
+    const expectedTotal = Object.values(expected).reduce((sum, count) => sum + count, 0);
+    console.log(`   Total: ${actualTotal} ${actualTotal === expectedTotal ? '✅' : '❌'}`);
+    
+    return allMatch;
+  }
+
   try {
-    console.log('Testing Initial Filters...', initialFilters);
+    console.log('🧪 Testing Bulk Row Count Endpoint');
+
     const initial = await makeRequest(initialFilters);
-    console.log('Initial response:', initial);
-    const initialTotal = Object.values(initial).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
-    console.log(`Initial: ${initialTotal} total rows`);
+    const initialPass = checkResults(initial, expectedInitial, 'Initial Filters');
 
-    console.log('Testing Narrowed Filters...', narrowedFilters);
     const narrowed = await makeRequest(narrowedFilters);
-    console.log('Narrowed response:', narrowed);
-    const narrowedTotal = Object.values(narrowed).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
-    console.log(`Narrowed: ${narrowedTotal} total rows`);
+    const narrowedPass = checkResults(narrowed, expectedNarrowed, 'Narrowed Filters');
 
-    console.log('Testing Expanded Filters...', expandedFilters);
     const expanded = await makeRequest(expandedFilters);
-    console.log('Expanded response:', expanded);
-    // const expandedTotal = Object.values(expanded).reduce(
-    //   (sum, count) => sum + count,
-    //   0,
-    // );
-    // console.log(`Expanded: ${expandedTotal} total rows`);
+    const expandedPass = checkResults(expanded, expectedExpanded, 'Expanded Filters');
 
-    // console.log('\nResults:');
-    // console.log(
-    //   `Initial → Narrowed: ${narrowedTotal - initialTotal} (${
-    //     narrowedTotal < initialTotal ? 'decreased ✓' : 'not decreased ✗'
-    //   })`,
-    // );
-    // console.log(
-    //   `Initial → Expanded: ${expandedTotal - initialTotal} (${
-    //     expandedTotal > initialTotal ? 'increased ✓' : 'not increased ✗'
-    //   })`,
-    // );
+    console.log(`\n🏁 Test complete: ${initialPass && narrowedPass && expandedPass ? '✅ All tests passed' : '❌ Some tests failed'}`);
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
