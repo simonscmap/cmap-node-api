@@ -4,6 +4,7 @@ const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./createTempDir');
 const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
+const { routeQuery } = require('./fetchAndWriteData');
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
@@ -131,7 +132,6 @@ const fetchAndWriteAllTables = async (
   dirTarget,
   shortName,
   reqId,
-  routeQuery,
   log,
   filters = null,
 ) => {

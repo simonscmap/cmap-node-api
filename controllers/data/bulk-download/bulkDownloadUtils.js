@@ -2,7 +2,7 @@ const safePromise = require('../../../utility/safePromise');
 const { createTempDir } = require('./createTempDir');
 const cleanup = require('./cleanupTempDir');
 const streamArchive = require('./streamArchive');
-const fetchAndWriteData = require('./fetchAndWriteData');
+const { fetchAll } = require('./fetchAndWriteData');
 
 const createWorkspace = async (log) => {
   try {
@@ -18,7 +18,7 @@ const createWorkspace = async (log) => {
 const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = null) => {
   log.debug('shortNames', shortNames);
   
-  const [dataErr, result] = await fetchAndWriteData(
+  const [dataErr, result] = await fetchAll(
     pathToTmpDir,
     shortNames,
     reqId,

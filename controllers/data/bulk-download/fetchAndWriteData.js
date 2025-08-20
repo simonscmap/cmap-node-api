@@ -89,7 +89,6 @@ const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null) => {
     dirTarget,
     shortName,
     reqId,
-    routeQuery,
     log,
     filters,
   );
@@ -111,4 +110,7 @@ const fetchAll = async (dirTarget, shortNames, reqId, filters = null) => {
   }
 };
 
-module.exports = fetchAll;
+module.exports = {
+  fetchAll,
+  routeQuery,
+};
