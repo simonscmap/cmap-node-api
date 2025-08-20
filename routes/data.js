@@ -5,6 +5,16 @@ const dataController = require('../controllers/data');
 const {
   bulkRowCountController,
 } = require('../controllers/data/bulk-download/bulkRowCountController');
+const {
+  bulkDownloadController,
+} = require('../controllers/data/bulk-download/');
+const {
+  namedDataController,
+} = require('../controllers/data/namedDataController');
+const {
+  getVaultFilesInfo,
+  downloadDropboxVaultFilesWithStagedParallel,
+} = require('../controllers/data/dropbox-vault/vaultController');
 const queryAnalysis = require('../middleware/queryAnalysis');
 const checkQuerySize = require('../middleware/checkQuerySize');
 const candidateAnalysis = require('../utility/router/routerMiddleware');
@@ -92,26 +102,23 @@ router.get(
   asyncControllerWrapper(dataController.trajectoryPointCounts),
 );
 
-router.get(
-  '/named/:name',
-  asyncControllerWrapper(dataController.namedDataController),
-);
+router.get('/named/:name', asyncControllerWrapper(namedDataController));
 
 router.get(
   '/dropbox-vault/get-files-info/:shortName',
-  asyncControllerWrapper(dataController.getVaultFilesInfo),
+  asyncControllerWrapper(getVaultFilesInfo),
 );
 
 router.post(
   '/dropbox-vault/download-files',
-  asyncControllerWrapper(dataController.downloadDropboxVaultFiles),
+  asyncControllerWrapper(downloadDropboxVaultFilesWithStagedParallel),
 );
 
 // Bulk-download
 router.post(
   '/bulk-download',
   passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
-  asyncControllerWrapper(dataController.bulkDownloadController),
+  asyncControllerWrapper(bulkDownloadController),
 );
 
 router.post(

@@ -687,5 +687,5 @@ const downloadDropboxVaultFilesWithStagedParallel = async (req, res) => {
 
 module.exports = {
   getVaultFilesInfo,
-  downloadDropboxVaultFiles: downloadDropboxVaultFilesWithStagedParallel, // Use new implementation
+  downloadDropboxVaultFilesWithStagedParallel,
 };
