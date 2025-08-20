@@ -15,6 +15,7 @@ const { parseFiltersToConstraints } = require('./dataFetchHelpers');
 const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { internalRouter } = require('../../../utility/router/internal-router');
+const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 
 /*
    1. validate incoming request
@@ -63,41 +64,31 @@ const bulkDownloadController = async (req, res, next) => {
   scheduleCleanup(pathToTmpDir, moduleLogger);
   next();
 };
+
 const bulkRowCountController = async (req, res) => {
   const requestId = 'bulk-row-count';
   const log = moduleLogger.setReqId(requestId);
 
   log.info('bulk row count request received', { body: req.body });
 
-  // Validate request using existing bulk download validation
-  const validation = validateRequest(req, log);
-  if (!validation.isValid) {
-    log.error('request validation failed', { validation });
-    return res.status(validation.statusCode).json({
-      error: 'Failed to calculate row counts',
-      message: validation.message,
-    });
-  }
-
-  const { shortNames, filters } = validation;
-
-  // Transform filters to constraints format
-  const constraints = parseFiltersToConstraints(filters);
-
   try {
-    // Process all datasets concurrently
-    const datasetPromises = shortNames.map(async (shortName) => {
-      log.info('processing dataset for row count', { shortName });
+    // Use shared pre-query processing
+    const preQueryResult = await processPreQueryLogic(req, requestId);
+    if (!preQueryResult.success) {
+      log.error('request validation failed', {
+        validation: preQueryResult.validation,
+      });
+      return res.status(preQueryResult.validation.statusCode).json({
+        error: 'Failed to calculate row counts',
+        message: preQueryResult.validation.message,
+      });
+    }
 
-      // Get dataset metadata
-      const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
-        shortName,
-        requestId,
-      );
-      if (metadataErr) {
-        log.error('error fetching metadata', { shortName, metadataErr });
-        throw new Error(`Could not find dataset: ${shortName}`);
-      }
+    const { constraints, datasets } = preQueryResult;
+
+    // Continue with controller-specific logic (query execution and counting)
+    const datasetPromises = datasets.map(async ({ shortName, metadata }) => {
+      log.info('processing dataset for row count', { shortName });
 
       // Get table names from metadata
       const tableNames = metadata.tables || [];
@@ -108,7 +99,6 @@ const bulkRowCountController = async (req, res) => {
 
       // Process all tables for this dataset concurrently
       const tablePromises = tableNames.map(async (tableName) => {
-        // Generate count query using existing function
         const query = generateQueryFromConstraints(
           tableName,
           constraints,
@@ -118,7 +108,6 @@ const bulkRowCountController = async (req, res) => {
 
         log.debug('executing count query', { shortName, tableName, query });
 
-        // Execute query using internal router
         const [queryErr, result] = await internalRouter(query, requestId);
         if (queryErr) {
           log.error('query execution failed', {
@@ -132,7 +121,7 @@ const bulkRowCountController = async (req, res) => {
           );
         }
 
-        // Extract count from result
+        // Extract count
         const count =
           result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
         log.debug('table row count result', { shortName, tableName, count });
