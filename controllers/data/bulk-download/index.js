@@ -10,8 +10,7 @@ const {
   sendFetchError,
   sendStreamError,
 } = require('./bulkDownloadUtils');
-const generateQueryFromConstraints = require('../generateQueryFromConstraints');
-const { internalRouter } = require('../../../utility/router/internal-router');
+const fetchRowCountForQuery = require('../fetchRowCountForQuery');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 const { fetchTableNames } = require('./dataFetchHelpers');
 
@@ -101,33 +100,29 @@ const bulkRowCountController = async (req, res) => {
 
         // Process all tables for this dataset concurrently
         const tablePromises = tableNames.map(async (tableName) => {
-          const query = generateQueryFromConstraints(
+          log.debug('executing count query', { shortName, tableName });
+
+          const [queryErr, count] = await fetchRowCountForQuery(
             tableName,
             constraints,
             metadata,
-            'count',
+            requestId,
           );
-
-          log.debug('executing count query', { shortName, tableName, query });
-
-          const [queryErr, result] = await internalRouter(query, requestId);
+          
           if (queryErr) {
             log.error('query execution failed', {
               shortName,
               tableName,
-              query,
               error: queryErr,
             });
             throw new Error(
-              `Query failed for dataset ${shortName}: ${queryErr.message}`,
+              `Query failed for dataset ${shortName}: ${queryErr.message || queryErr}`,
             );
           }
 
-          // Extract count
-          const count =
-            result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
-          log.debug('table row count result', { shortName, tableName, count });
-          return count;
+          const parsedCount = parseInt(count, 10) || 0;
+          log.debug('table row count result', { shortName, tableName, count: parsedCount });
+          return parsedCount;
         });
 
         // Wait for all table counts for this dataset
