@@ -1,9 +1,9 @@
-const initializeLogger = require('../../log-service');
-const { parseFiltersToConstraints } = require('./bulk-download/dataFetchHelpers');
-const { validateRequest } = require('./bulk-download/requestValidation');
-const { fetchAndPrepareDatasetMetadata } = require('../catalog');
-const generateQueryFromConstraints = require('./generateQueryFromConstraints');
-const { internalRouter } = require('../../utility/router/internal-router');
+const initializeLogger = require('../../../log-service');
+const { parseFiltersToConstraints } = require('./dataFetchHelpers');
+const { validateRequest } = require('./requestValidation');
+const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
+const generateQueryFromConstraints = require('../generateQueryFromConstraints');
+const { internalRouter } = require('../../../utility/router/internal-router');
 
 const moduleLogger = initializeLogger('data/bulkRowCountController');
 
@@ -71,11 +71,14 @@ const bulkRowCountController = async (req, res) => {
             query,
             error: queryErr,
           });
-          throw new Error(`Query failed for dataset ${shortName}: ${queryErr.message}`);
+          throw new Error(
+            `Query failed for dataset ${shortName}: ${queryErr.message}`,
+          );
         }
 
         // Extract count from result
-        const count = result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
+        const count =
+          result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
         log.debug('table row count result', { shortName, tableName, count });
         return count;
       });
@@ -99,7 +102,6 @@ const bulkRowCountController = async (req, res) => {
 
     log.info('bulk row count calculation completed', { response });
     res.json(response);
-
   } catch (error) {
     log.error('bulk row count calculation failed', { error: error.message });
     res.status(500).json({

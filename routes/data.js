@@ -2,7 +2,9 @@ const router = require('express').Router();
 const passport = require('../middleware/passport');
 
 const dataController = require('../controllers/data');
-const { bulkRowCountController } = require('../controllers/data/bulkRowCountController');
+const {
+  bulkRowCountController,
+} = require('../controllers/data/bulk-download/bulkRowCountController');
 const queryAnalysis = require('../middleware/queryAnalysis');
 const checkQuerySize = require('../middleware/checkQuerySize');
 const candidateAnalysis = require('../utility/router/routerMiddleware');
