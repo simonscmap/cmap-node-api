@@ -10,9 +10,6 @@ const {
   sendFetchError,
   sendStreamError,
 } = require('./bulkDownloadUtils');
-const { validateRequest } = require('./requestValidation');
-const { parseFiltersToConstraints } = require('./dataFetchHelpers');
-const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { internalRouter } = require('../../../utility/router/internal-router');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
@@ -28,12 +25,15 @@ const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
 
-  // 1. Validate incoming request
-  const validation = validateRequest(req, log);
-  if (!validation.isValid) {
-    return sendValidationError(res, next, validation);
+  // 1. Use shared pre-query processing for validation only
+  const preQueryResult = await processPreQueryLogic(req, req.reqId);
+  if (!preQueryResult.success) {
+    return sendValidationError(res, next, preQueryResult.validation);
   }
-  const { shortNames, filters } = validation;
+
+  // Extract shortNames and original filters from validation
+  const { shortNames } = preQueryResult;
+  const { filters } = preQueryResult.validation;
 
   // 2. Create workspace directory
   const workspaceResult = await createWorkspace(log);
@@ -42,7 +42,7 @@ const bulkDownloadController = async (req, res, next) => {
   }
   const { pathToTmpDir } = workspaceResult;
 
-  // 3. Fetch and write data for each requested dataset
+  // 3. Fetch and write data using existing function
   const fetchResult = await fetchAllDatasets(
     pathToTmpDir,
     shortNames,

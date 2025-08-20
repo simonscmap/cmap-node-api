@@ -37,7 +37,8 @@ const processPreQueryLogic = async (req, reqId) => {
   const datasets = await Promise.all(datasetPromises);
   
   return { 
-    success: true, 
+    success: true,
+    validation, // Include original validation object for bulkDownloadController
     shortNames,
     constraints, 
     datasets 
