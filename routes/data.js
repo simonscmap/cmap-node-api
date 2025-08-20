@@ -3,9 +3,6 @@ const passport = require('../middleware/passport');
 
 const dataController = require('../controllers/data');
 const {
-  bulkRowCountController,
-} = require('../controllers/data/bulk-download/bulkRowCountController');
-const {
   bulkDownloadController,
   bulkRowCountController,
 } = require('../controllers/data/bulk-download/');
