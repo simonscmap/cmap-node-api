@@ -7,6 +7,7 @@ const {
 } = require('../controllers/data/bulk-download/bulkRowCountController');
 const {
   bulkDownloadController,
+  bulkRowCountController,
 } = require('../controllers/data/bulk-download/');
 const {
   namedDataController,
