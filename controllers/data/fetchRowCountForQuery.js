@@ -32,7 +32,7 @@ const getRowCountForQuery = async (
   if (
     Array.isArray(countResult) &&
     countResult.length === 1 &&
-    countResult[0].hasOwnProperty('c')
+    Object.prototype.hasOwnProperty.call(countResult[0], 'c')
   ) {
     return [null, countResult[0].c];
   }
@@ -42,7 +42,7 @@ const getRowCountForQuery = async (
     typeof countResult === 'object' &&
     Array.isArray(countResult.recordset) &&
     countResult.recordset.length &&
-    countResult.recordset[0].hasOwnProperty('c')
+    Object.prototype.hasOwnProperty.call(countResult.recordset[0], 'c')
   ) {
     return [null, countResult.recordset[0].c];
   }
