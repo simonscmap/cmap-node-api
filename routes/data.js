@@ -87,17 +87,6 @@ router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
 // Protobuf test
 router.get('/proto', asyncControllerWrapper(dataController.testProto));
 
-router.post(
-  '/bulk-download',
-  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
-  asyncControllerWrapper(dataController.bulkDownloadController),
-);
-
-router.post(
-  '/bulk-download-row-counts',
-  asyncControllerWrapper(bulkRowCountController),
-);
-
 router.get(
   '/trajectory-point-counts',
   asyncControllerWrapper(dataController.trajectoryPointCounts),
@@ -116,6 +105,18 @@ router.get(
 router.post(
   '/dropbox-vault/download-files',
   asyncControllerWrapper(dataController.downloadDropboxVaultFiles),
+);
+
+// Bulk-download
+router.post(
+  '/bulk-download',
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
+  asyncControllerWrapper(dataController.bulkDownloadController),
+);
+
+router.post(
+  '/bulk-download-row-counts',
+  asyncControllerWrapper(bulkRowCountController),
 );
 
 module.exports = router;
