@@ -139,7 +139,7 @@ const fetchAndWriteAllTables = async (
   const constraints = parseFiltersToConstraints(filters);
 
   // If we have constraints, we need dataset metadata for proper query generation
-  let dataset = null;
+  let datasetMetadata = null;
   if (constraints) {
     const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
       shortName,
@@ -151,20 +151,20 @@ const fetchAndWriteAllTables = async (
         error: metadataErr,
       });
       // Fallback to unfiltered queries if we can't get metadata
-      dataset = null;
+      datasetMetadata = null;
     } else {
-      dataset = metadata.dataset;
+      datasetMetadata = metadata.dataset;
     }
   }
 
   const makeQuery = (tableName) => {
-    if (constraints && dataset) {
+    if (constraints && datasetMetadata) {
       // Use existing generateQueryFromConstraints system with data query type
       const query = generateQueryFromConstraints(
         tableName,
         constraints,
-        dataset,
-        'data'
+        datasetMetadata,
+        'data',
       );
       return query;
     } else {

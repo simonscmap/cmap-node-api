@@ -84,57 +84,62 @@ const bulkRowCountController = async (req, res) => {
       });
     }
 
-    const { constraints, datasets } = preQueryResult;
+    const { constraints, datasetsMetadata } = preQueryResult;
 
     // Continue with controller-specific logic (query execution and counting)
-    const datasetPromises = datasets.map(async ({ shortName, metadata }) => {
-      log.info('processing dataset for row count', { shortName });
+    const datasetPromises = datasetsMetadata.map(
+      async ({ shortName, metadata }) => {
+        log.info('processing dataset for row count', { shortName });
 
-      // Get table names from metadata
-      const tableNames = metadata.tables || [];
-      if (tableNames.length === 0) {
-        log.warn('no tables found for dataset', { shortName });
-        return { shortName, rowCount: 0 };
-      }
-
-      // Process all tables for this dataset concurrently
-      const tablePromises = tableNames.map(async (tableName) => {
-        const query = generateQueryFromConstraints(
-          tableName,
-          constraints,
-          metadata,
-          'count',
-        );
-
-        log.debug('executing count query', { shortName, tableName, query });
-
-        const [queryErr, result] = await internalRouter(query, requestId);
-        if (queryErr) {
-          log.error('query execution failed', {
-            shortName,
-            tableName,
-            query,
-            error: queryErr,
-          });
-          throw new Error(
-            `Query failed for dataset ${shortName}: ${queryErr.message}`,
-          );
+        // Get table names from metadata
+        const tableNames = metadata.tables || [];
+        if (tableNames.length === 0) {
+          log.warn('no tables found for dataset', { shortName });
+          return { shortName, rowCount: 0 };
         }
 
-        // Extract count
-        const count =
-          result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
-        log.debug('table row count result', { shortName, tableName, count });
-        return count;
-      });
+        // Process all tables for this dataset concurrently
+        const tablePromises = tableNames.map(async (tableName) => {
+          const query = generateQueryFromConstraints(
+            tableName,
+            constraints,
+            metadata,
+            'count',
+          );
 
-      // Wait for all table counts for this dataset
-      const tableCounts = await Promise.all(tablePromises);
-      const totalRowCount = tableCounts.reduce((sum, count) => sum + count, 0);
+          log.debug('executing count query', { shortName, tableName, query });
 
-      log.info('dataset row count calculated', { shortName, totalRowCount });
-      return { shortName, rowCount: totalRowCount };
-    });
+          const [queryErr, result] = await internalRouter(query, requestId);
+          if (queryErr) {
+            log.error('query execution failed', {
+              shortName,
+              tableName,
+              query,
+              error: queryErr,
+            });
+            throw new Error(
+              `Query failed for dataset ${shortName}: ${queryErr.message}`,
+            );
+          }
+
+          // Extract count
+          const count =
+            result && result[0] && result[0].c ? parseInt(result[0].c, 10) : 0;
+          log.debug('table row count result', { shortName, tableName, count });
+          return count;
+        });
+
+        // Wait for all table counts for this dataset
+        const tableCounts = await Promise.all(tablePromises);
+        const totalRowCount = tableCounts.reduce(
+          (sum, count) => sum + count,
+          0,
+        );
+
+        log.info('dataset row count calculated', { shortName, totalRowCount });
+        return { shortName, rowCount: totalRowCount };
+      },
+    );
 
     // Wait for all datasets to complete (all-or-nothing)
     const datasetResults = await Promise.all(datasetPromises);
