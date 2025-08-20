@@ -68,7 +68,7 @@ async function testBulkRowCounts() {
   async function makeRequest(filters) {
     const formData = new URLSearchParams();
     formData.append('shortNames', JSON.stringify(shortNames));
-    // formData.append('filters', JSON.stringify(filters));
+    formData.append('filters', JSON.stringify(filters));
 
     const response = await fetch(
       `${BASE_URL}/api/data/bulk-download-row-counts`,
@@ -95,7 +95,7 @@ async function testBulkRowCounts() {
   }
 
   try {
-    console.log('Testing Initial Filters...');
+    console.log('Testing Initial Filters...', initialFilters);
     const initial = await makeRequest(initialFilters);
     console.log('Initial response:', initial);
     const initialTotal = Object.values(initial).reduce(
@@ -104,7 +104,7 @@ async function testBulkRowCounts() {
     );
     console.log(`Initial: ${initialTotal} total rows`);
 
-    console.log('Testing Narrowed Filters...');
+    console.log('Testing Narrowed Filters...', narrowedFilters);
     const narrowed = await makeRequest(narrowedFilters);
     console.log('Narrowed response:', narrowed);
     const narrowedTotal = Object.values(narrowed).reduce(
@@ -113,7 +113,7 @@ async function testBulkRowCounts() {
     );
     console.log(`Narrowed: ${narrowedTotal} total rows`);
 
-    console.log('Testing Expanded Filters...');
+    console.log('Testing Expanded Filters...', expandedFilters);
     const expanded = await makeRequest(expandedFilters);
     console.log('Expanded response:', expanded);
     // const expandedTotal = Object.values(expanded).reduce(
