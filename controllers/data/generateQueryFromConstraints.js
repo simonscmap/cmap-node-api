@@ -3,11 +3,19 @@ const Monthly_Climatology = 'Monthly Climatology';
 const wrap = (val) => (typeof val === 'string' ? `'${val}'` : val);
 
 const makeClause = (name, min, max) => {
-  if (min !== undefined && max !== undefined) {
+  if (min !== undefined && min !== null && max !== undefined && max !== null) {
     return `${name} between ${wrap(min)} and ${wrap(max)}`;
-  } else if (min !== undefined && max === undefined) {
+  } else if (
+    min !== undefined &&
+    min !== null &&
+    (max === undefined || max === null)
+  ) {
     return `${name} > ${wrap(min)}`;
-  } else if (min === undefined && max !== undefined) {
+  } else if (
+    (min === undefined || min === null) &&
+    max !== undefined &&
+    max !== null
+  ) {
     return `${name} < ${wrap(max)}`;
   } else {
     return '';

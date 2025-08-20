@@ -514,7 +514,4 @@ module.exports = {
   storedProcedure,
   tableStats,
   trajectoryPointCounts,
-  ...require('./bulk-download'),
-  ...require('./namedDataController'),
-  ...require('./dropbox-vault/vaultController'),
 };

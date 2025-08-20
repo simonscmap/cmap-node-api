@@ -1,6 +1,7 @@
 const { internalRouter } = require('../../utility/router/internal-router');
 const generateQueryFromConstraints = require('./generateQueryFromConstraints');
-
+const initLog = require('../../log-service');
+const moduleLogger = initLog('getRowCountForQuery');
 // Make routed request to get a count of matching rows for a provided query
 
 // getRowCountForQuery :: TableName -> Constraints -> Dataset -> Request Id -> [ Error?, Result ]
@@ -10,10 +11,19 @@ const getRowCountForQuery = async (
   dataset,
   requestId,
 ) => {
-  let query = generateQueryFromConstraints(tablename, constraints, dataset, 'count');
+  const log = moduleLogger.setReqId('mlep');
+  let query = generateQueryFromConstraints(
+    tablename,
+    constraints,
+    dataset,
+    'count',
+  );
 
   let [queryError, countResult] = await internalRouter(query, requestId);
-
+  log.info('queryError: ', queryError);
+  log.info('countResult: ', countResult);
+  log.info('recordset: ', countResult.recordset);
+  log.info('recordsetS: ', countResult.recordsets[0]);
   if (queryError) {
     return [queryError];
   }
@@ -22,7 +32,7 @@ const getRowCountForQuery = async (
   if (
     Array.isArray(countResult) &&
     countResult.length === 1 &&
-    countResult[0].c
+    Object.prototype.hasOwnProperty.call(countResult[0], 'c')
   ) {
     return [null, countResult[0].c];
   }
@@ -32,7 +42,7 @@ const getRowCountForQuery = async (
     typeof countResult === 'object' &&
     Array.isArray(countResult.recordset) &&
     countResult.recordset.length &&
-    countResult.recordset[0].c
+    Object.prototype.hasOwnProperty.call(countResult.recordset[0], 'c')
   ) {
     return [null, countResult.recordset[0].c];
   }

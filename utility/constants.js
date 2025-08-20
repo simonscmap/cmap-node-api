@@ -13,6 +13,8 @@ const COMMAND_TYPES = {
 
 const QUERY_ROW_LIMIT = 2000000;
 
+const BULK_DOWNLOAD_ROW_LIMIT = 3000000;
+
 const TMP_DIR_PREFIX = 'CMAP-'; // used in bulk download
 
 const TRAJECTORY_POINTS_LIMIT = 20000; // 70000; // used in downsampling program trajectories
@@ -23,6 +25,7 @@ module.exports = {
   CLUSTER_CHUNK_MAX_ROWS,
   COMMAND_TYPES,
   QUERY_ROW_LIMIT,
+  BULK_DOWNLOAD_ROW_LIMIT,
   TMP_DIR_PREFIX,
   TRAJECTORY_POINTS_LIMIT,
 };
