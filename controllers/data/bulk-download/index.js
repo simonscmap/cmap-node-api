@@ -13,6 +13,7 @@ const {
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { internalRouter } = require('../../../utility/router/internal-router');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
+const { fetchTableNames } = require('./dataFetchHelpers');
 
 /*
    1. validate incoming request
@@ -91,8 +92,8 @@ const bulkRowCountController = async (req, res) => {
       async ({ shortName, metadata }) => {
         log.info('processing dataset for row count', { shortName });
 
-        // Get table names from metadata
-        const tableNames = metadata.tables || [];
+        // Get table names from database
+        const tableNames = await fetchTableNames(shortName, log);
         if (tableNames.length === 0) {
           log.warn('no tables found for dataset', { shortName });
           return { shortName, rowCount: 0 };
