@@ -14,14 +14,6 @@ const fetchRowCountForQuery = require('../fetchRowCountForQuery');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 const { fetchTableNames } = require('./dataFetchHelpers');
 
-/*
-   1. validate incoming request
-   2. create a guid-name temp directory
-   3. fetch and write data for each requested dataset (csv + excel metadata sheet)
-   4. (once all data is fetched) create zip and pipe response
-   5. initate clean-up of temp directory
- */
-
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
 
@@ -33,7 +25,6 @@ const bulkDownloadController = async (req, res, next) => {
 
   // Extract shortNames, constraints, original filters, and datasetsMetadata from validation
   const { shortNames, constraints, datasetsMetadata } = preQueryResult;
-  const { filters } = preQueryResult.validation;
 
   // 2. Create workspace directory
   const workspaceResult = await createWorkspace(log);
