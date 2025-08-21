@@ -142,7 +142,7 @@ const fetchAndWriteAllTables = async (
       const query = generateQueryFromConstraints(
         tableName,
         constraints,
-        metadata.dataset,
+        metadata,
         'data',
       );
       return query;

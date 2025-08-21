@@ -8,7 +8,6 @@ const fetchAllDatasetFiles = async (
   dirTarget,
   shortNames,
   reqId,
-  filters = null,
   datasetsMetadata = null,
   constraints = null,
 ) => {
@@ -30,7 +29,6 @@ const fetchAllDatasetFiles = async (
           dirTarget,
           shortName,
           reqId,
-          filters,
           metadata,
           constraints,
         );
@@ -58,7 +56,6 @@ const fetchAllDatasets = async (
   shortNames,
   reqId,
   log,
-  filters = null,
   datasetsMetadata = null,
   constraints = null,
 ) => {
@@ -68,7 +65,6 @@ const fetchAllDatasets = async (
     pathToTmpDir,
     shortNames,
     reqId,
-    filters,
     datasetsMetadata,
     constraints,
   );

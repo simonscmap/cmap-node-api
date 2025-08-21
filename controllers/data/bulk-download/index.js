@@ -48,7 +48,6 @@ const bulkDownloadController = async (req, res, next) => {
     shortNames,
     req.reqId,
     log,
-    filters,
     datasetsMetadata,
     constraints,
   );
@@ -110,7 +109,7 @@ const bulkRowCountController = async (req, res) => {
             metadata,
             requestId,
           );
-          
+
           if (queryErr) {
             log.error('query execution failed', {
               shortName,
@@ -118,12 +117,18 @@ const bulkRowCountController = async (req, res) => {
               error: queryErr,
             });
             throw new Error(
-              `Query failed for dataset ${shortName}: ${queryErr.message || queryErr}`,
+              `Query failed for dataset ${shortName}: ${
+                queryErr.message || queryErr
+              }`,
             );
           }
 
           const parsedCount = parseInt(count, 10) || 0;
-          log.debug('table row count result', { shortName, tableName, count: parsedCount });
+          log.debug('table row count result', {
+            shortName,
+            tableName,
+            count: parsedCount,
+          });
           return parsedCount;
         });
 
