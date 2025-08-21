@@ -1,5 +1,4 @@
 const Monthly_Climatology = 'Monthly Climatology';
-
 const wrap = (val) => (typeof val === 'string' ? `'${val}'` : val);
 
 const makeClause = (name, min, max) => {
@@ -32,14 +31,18 @@ const parseFloatOrNull = (n) => {
 };
 
 const checkDatasetHasDepth = (dataset) => {
-  // Check if dataset is null or undefined
   if (!dataset) {
     return false;
   }
 
   // If dataset has a variables array (from metadata), check if any variable has depth
   if (dataset.variables && Array.isArray(dataset.variables)) {
-    return dataset.variables.some((variable) => variable.Has_Depth === true);
+    return dataset.variables.some(
+      (variable) =>
+        variable.Has_Depth === true ||
+        (variable.Depth_Min !== undefined && variable.Depth_Min !== null) ||
+        (variable.Depth_Max !== undefined && variable.Depth_Max !== null),
+    );
   }
 
   // If dataset has Has_Depth directly (some dataset objects may have this at root level)
@@ -47,7 +50,6 @@ const checkDatasetHasDepth = (dataset) => {
     return dataset.Has_Depth;
   }
 
-  // Check for Depth_Min/Depth_Max fields as depth indicators
   if (
     (dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) ||
     (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)
