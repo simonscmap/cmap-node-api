@@ -2,7 +2,6 @@ const path = require('path');
 const directQuery = require('../../../utility/directQuery');
 const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./createTempDir');
-const { fetchAndPrepareDatasetMetadata } = require('../../catalog');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { routeQuery } = require('./routeQueryForBulkDownload');
 // Transform API filters to internal constraint format
@@ -79,14 +78,15 @@ const createDatasetDirectory = async (tempDir, shortName, log) => {
 };
 
 // Fetch metadata and write to disk
-const fetchAndWriteMetadata = async (shortName, dirTarget, reqId, log) => {
-  const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
-    shortName,
-    reqId,
-  );
-  if (metadataErr) {
-    log.error('error fetching metadata', { shortName, metadataErr });
-    throw new Error(metadataErr);
+const fetchAndWriteMetadata = async (
+  shortName,
+  dirTarget,
+  reqId,
+  log,
+  metadata,
+) => {
+  if (!metadata) {
+    throw new Error('metadata parameter is required');
   }
 
   const metaBuf = toBuffer(metadata);
@@ -133,37 +133,16 @@ const fetchAndWriteAllTables = async (
   shortName,
   reqId,
   log,
-  filters = null,
+  metadata,
+  constraints = null,
 ) => {
-  // Transform filters to constraints if provided
-  const constraints = parseFiltersToConstraints(filters);
-
-  // If we have constraints, we need dataset metadata for proper query generation
-  let datasetMetadata = null;
-  if (constraints) {
-    const [metadataErr, metadata] = await fetchAndPrepareDatasetMetadata(
-      shortName,
-      reqId,
-    );
-    if (metadataErr) {
-      log.error('error fetching dataset metadata for constraint application', {
-        shortName,
-        error: metadataErr,
-      });
-      // Fallback to unfiltered queries if we can't get metadata
-      datasetMetadata = null;
-    } else {
-      datasetMetadata = metadata.dataset;
-    }
-  }
-
   const makeQuery = (tableName) => {
-    if (constraints && datasetMetadata) {
+    if (constraints) {
       // Use existing generateQueryFromConstraints system with data query type
       const query = generateQueryFromConstraints(
         tableName,
         constraints,
-        datasetMetadata,
+        metadata.dataset,
         'data',
       );
       return query;

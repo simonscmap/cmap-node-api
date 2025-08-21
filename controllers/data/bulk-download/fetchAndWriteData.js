@@ -12,7 +12,7 @@ const {
 // Given a temp dir target and information about a dataset,
 // generate and execute the necessary queries to fetch the csv and metadata
 // and write them to disk in the temp directory
-const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null) => {
+const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null, metadata = null, constraints = null) => {
   const log = moduleLogger.setReqId(reqId);
 
   if (typeof shortName !== 'string') {
@@ -28,6 +28,7 @@ const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null) => {
     dirTarget,
     reqId,
     log,
+    metadata,
   );
 
   // 3. fetch table names
@@ -41,25 +42,14 @@ const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null) => {
     reqId,
     log,
     filters,
+    metadata,
+    constraints,
   );
 
   // 5. return results (though nothing is done with the results)
   return [resultOfMetadataWrite, resultOfDataFetchAndWrites];
 };
 
-const fetchAll = async (dirTarget, shortNames, reqId, filters = null) => {
-  try {
-    const result = await Promise.all(
-      shortNames.map((shortName) =>
-        fetchAndWriteData(dirTarget, shortName, reqId, filters),
-      ),
-    );
-    return [null, result];
-  } catch (error) {
-    return [error];
-  }
-};
-
 module.exports = {
-  fetchAll,
+  fetchAndWriteData,
 };
