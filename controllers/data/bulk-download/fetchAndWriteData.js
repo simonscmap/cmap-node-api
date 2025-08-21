@@ -7,12 +7,17 @@ const {
   fetchAndWriteAllTables,
 } = require('./dataFetchHelpers');
 
-
 // Fetch and Write Data
 // Given a temp dir target and information about a dataset,
 // generate and execute the necessary queries to fetch the csv and metadata
 // and write them to disk in the temp directory
-const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null, metadata = null, constraints = null) => {
+const fetchAndWriteData = async (
+  tempDir,
+  shortName,
+  reqId,
+  metadata = null,
+  constraints = null,
+) => {
   const log = moduleLogger.setReqId(reqId);
 
   if (typeof shortName !== 'string') {
@@ -41,7 +46,6 @@ const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null, meta
     shortName,
     reqId,
     log,
-    filters,
     metadata,
     constraints,
   );
