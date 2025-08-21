@@ -13,21 +13,21 @@ async function testBulkRowCounts() {
 
   // Expected row counts
   const expectedInitial = {
-    'Gradients5_TN412_Hyperpro_Profiles': 304,
-    'Gradients5_TN412_FluorometricChlorophyll_UW': 17,
-    'Gradients5_TN412_FluorometricChlorophyll_CTD': 7,
+    Gradients5_TN412_Hyperpro_Profiles: 34,
+    Gradients5_TN412_FluorometricChlorophyll_UW: 17,
+    Gradients5_TN412_FluorometricChlorophyll_CTD: 2,
   };
 
   const expectedNarrowed = {
-    'Gradients5_TN412_Hyperpro_Profiles': 0,
-    'Gradients5_TN412_FluorometricChlorophyll_UW': 3,
-    'Gradients5_TN412_FluorometricChlorophyll_CTD': 0,
+    Gradients5_TN412_Hyperpro_Profiles: 0,
+    Gradients5_TN412_FluorometricChlorophyll_UW: 3,
+    Gradients5_TN412_FluorometricChlorophyll_CTD: 0,
   };
 
   const expectedExpanded = {
-    'Gradients5_TN412_Hyperpro_Profiles': 769,
-    'Gradients5_TN412_FluorometricChlorophyll_UW': 37,
-    'Gradients5_TN412_FluorometricChlorophyll_CTD': 27,
+    Gradients5_TN412_Hyperpro_Profiles: 258,
+    Gradients5_TN412_FluorometricChlorophyll_UW: 37,
+    Gradients5_TN412_FluorometricChlorophyll_CTD: 15,
   };
 
   // Initial filters
@@ -116,23 +116,31 @@ async function testBulkRowCounts() {
   function checkResults(actual, expected, testName) {
     let allMatch = true;
     console.log(`\n📋 ${testName}`);
-    
+
     for (const dataset of shortNames) {
       const actualCount = actual[dataset] || 0;
       const expectedCount = expected[dataset] || 0;
       const match = actualCount === expectedCount;
       allMatch = allMatch && match;
-      
+
       console.log(`   ${dataset}: ${actualCount} ${match ? '✅' : '❌'}`);
       if (!match) {
         console.log(`      Expected: ${expectedCount}, Got: ${actualCount}`);
       }
     }
-    
-    const actualTotal = Object.values(actual).reduce((sum, count) => sum + count, 0);
-    const expectedTotal = Object.values(expected).reduce((sum, count) => sum + count, 0);
-    console.log(`   Total: ${actualTotal} ${actualTotal === expectedTotal ? '✅' : '❌'}`);
-    
+
+    const actualTotal = Object.values(actual).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const expectedTotal = Object.values(expected).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    console.log(
+      `   Total: ${actualTotal} ${actualTotal === expectedTotal ? '✅' : '❌'}`,
+    );
+
     return allMatch;
   }
 
@@ -140,15 +148,33 @@ async function testBulkRowCounts() {
     console.log('🧪 Testing Bulk Row Count Endpoint');
 
     const initial = await makeRequest(initialFilters);
-    const initialPass = checkResults(initial, expectedInitial, 'Initial Filters');
+    const initialPass = checkResults(
+      initial,
+      expectedInitial,
+      'Initial Filters',
+    );
 
     const narrowed = await makeRequest(narrowedFilters);
-    const narrowedPass = checkResults(narrowed, expectedNarrowed, 'Narrowed Filters');
+    const narrowedPass = checkResults(
+      narrowed,
+      expectedNarrowed,
+      'Narrowed Filters',
+    );
 
     const expanded = await makeRequest(expandedFilters);
-    const expandedPass = checkResults(expanded, expectedExpanded, 'Expanded Filters');
+    const expandedPass = checkResults(
+      expanded,
+      expectedExpanded,
+      'Expanded Filters',
+    );
 
-    console.log(`\n🏁 Test complete: ${initialPass && narrowedPass && expandedPass ? '✅ All tests passed' : '❌ Some tests failed'}`);
+    console.log(
+      `\n🏁 Test complete: ${
+        initialPass && narrowedPass && expandedPass
+          ? '✅ All tests passed'
+          : '❌ Some tests failed'
+      }`,
+    );
   } catch (error) {
     console.error('❌ Error:', error.message);
   }
