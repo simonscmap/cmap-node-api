@@ -5,11 +5,11 @@ const streamArchive = require('./streamArchive');
 const { fetchAndWriteData } = require('./fetchAndWriteData');
 
 // Batch operation to fetch all datasets
-const fetchAllDatasetFiles = async (dirTarget, shortNames, reqId, filters = null) => {
+const fetchAllDatasetFiles = async (dirTarget, shortNames, reqId, filters = null, datasetsMetadata = null) => {
   try {
     const result = await Promise.all(
       shortNames.map((shortName) =>
-        fetchAndWriteData(dirTarget, shortName, reqId, filters),
+        fetchAndWriteData(dirTarget, shortName, reqId, filters, datasetsMetadata),
       ),
     );
     return [null, result];
@@ -29,7 +29,7 @@ const createWorkspace = async (log) => {
   }
 };
 
-const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = null) => {
+const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = null, datasetsMetadata = null) => {
   log.debug('shortNames', shortNames);
   
   const [dataErr, result] = await fetchAllDatasetFiles(
@@ -37,6 +37,7 @@ const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = 
     shortNames,
     reqId,
     filters,
+    datasetsMetadata,
   );
   
   if (dataErr) {
