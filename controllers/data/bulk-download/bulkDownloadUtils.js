@@ -1,6 +1,5 @@
 const safePromise = require('../../../utility/safePromise');
-const { createTempDir } = require('./createTempDir');
-const cleanup = require('./cleanupTempDir');
+const { createTempDir, cleanup } = require('./tempDirUtils');
 const streamArchive = require('./streamArchive');
 const { fetchAndWriteData } = require('./fetchAndWriteData');
 

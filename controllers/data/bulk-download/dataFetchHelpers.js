@@ -1,7 +1,7 @@
 const path = require('path');
 const directQuery = require('../../../utility/directQuery');
 const { toBuffer, toDisk } = require('./prepareMetadata');
-const { createSubDir } = require('./createTempDir');
+const { createSubDir } = require('./tempDirUtils');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { routeQuery } = require('./routeQueryForBulkDownload');
 // Transform API filters to internal constraint format
