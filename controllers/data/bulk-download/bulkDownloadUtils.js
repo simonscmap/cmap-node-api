@@ -4,12 +4,37 @@ const streamArchive = require('./streamArchive');
 const { fetchAndWriteData } = require('./fetchAndWriteData');
 
 // Batch operation to fetch all datasets
-const fetchAllDatasetFiles = async (dirTarget, shortNames, reqId, filters = null, datasetsMetadata = null, constraints = null) => {
+const fetchAllDatasetFiles = async (
+  dirTarget,
+  shortNames,
+  reqId,
+  filters = null,
+  datasetsMetadata = null,
+  constraints = null,
+) => {
   try {
     const result = await Promise.all(
-      shortNames.map((shortName) =>
-        fetchAndWriteData(dirTarget, shortName, reqId, filters, datasetsMetadata, constraints),
-      ),
+      shortNames.map((shortName) => {
+        // Extract the specific metadata for this dataset
+        let metadata = null;
+        if (Array.isArray(datasetsMetadata)) {
+          const found = datasetsMetadata.find(
+            (item) => item.shortName === shortName,
+          );
+          metadata = found ? found.metadata : null;
+        } else {
+          metadata = datasetsMetadata;
+        }
+
+        return fetchAndWriteData(
+          dirTarget,
+          shortName,
+          reqId,
+          filters,
+          metadata,
+          constraints,
+        );
+      }),
     );
     return [null, result];
   } catch (error) {
@@ -28,9 +53,17 @@ const createWorkspace = async (log) => {
   }
 };
 
-const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = null, datasetsMetadata = null, constraints = null) => {
+const fetchAllDatasets = async (
+  pathToTmpDir,
+  shortNames,
+  reqId,
+  log,
+  filters = null,
+  datasetsMetadata = null,
+  constraints = null,
+) => {
   log.debug('shortNames', shortNames);
-  
+
   const [dataErr, result] = await fetchAllDatasetFiles(
     pathToTmpDir,
     shortNames,
@@ -39,40 +72,40 @@ const fetchAllDatasets = async (pathToTmpDir, shortNames, reqId, log, filters = 
     datasetsMetadata,
     constraints,
   );
-  
+
   if (dataErr) {
     log.error('fetchAndWriteDataErr', dataErr);
-    
+
     if (dataErr.message === 'could not find dataset id for dataset name') {
-      return { 
-        success: false, 
-        error: { statusCode: 400, message: 'no matching dataset' }
+      return {
+        success: false,
+        error: { statusCode: 400, message: 'no matching dataset' },
       };
     } else {
-      return { 
-        success: false, 
-        error: { statusCode: 500, message: 'error fetching data' }
+      return {
+        success: false,
+        error: { statusCode: 500, message: 'error fetching data' },
       };
     }
   }
-  
+
   return { success: true, result };
 };
 
 const streamResponse = async (pathToTmpDir, res, log) => {
   const safeStreamArchive = safePromise(streamArchive);
   log.info('starting stream response');
-  
+
   const [streamError, streamResolve] = await safeStreamArchive(
     pathToTmpDir,
     res,
   );
-  
+
   if (streamError) {
     log.error('error streaming archive response');
-    return { 
-      success: false, 
-      error: { statusCode: 500, message: 'error streaming archive' }
+    return {
+      success: false,
+      error: { statusCode: 500, message: 'error streaming archive' },
     };
   } else {
     log.debug('streamArchive resolved without error', { streamResolve });
@@ -97,9 +130,10 @@ const sendWorkspaceError = (res, next) => {
 
 const sendFetchError = (res, next, error) => {
   res.status(error.statusCode).send(error.message);
-  const nextMessage = error.statusCode === 400 
-    ? 'error finding dataset id'
-    : 'error fetching data for bulk download';
+  const nextMessage =
+    error.statusCode === 400
+      ? 'error finding dataset id'
+      : 'error fetching data for bulk download';
   return next(nextMessage);
 };
 
