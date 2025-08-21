@@ -1,4 +1,5 @@
 const cache = require('../../../utility/nodeCache');
+// TBD implement using utility/genericCache.js
 
 // Cache configuration for vault file count
 const VAULT_CACHE_TTL = 60 * 60; // 1 hour TTL in seconds
@@ -14,11 +15,11 @@ const setCachedVaultCount = (path, totalCount, log) => {
   const cacheKey = generateCacheKey(path);
   const success = cache.set(cacheKey, totalCount, VAULT_CACHE_TTL);
   if (log && success) {
-    log.info('Cached vault file count', { 
-      path, 
-      cacheKey, 
+    log.info('Cached vault file count', {
+      path,
+      cacheKey,
       fileCount: totalCount,
-      ttl: VAULT_CACHE_TTL 
+      ttl: VAULT_CACHE_TTL,
     });
   }
   return success;
@@ -28,15 +29,15 @@ const setCachedVaultCount = (path, totalCount, log) => {
 const getCachedVaultCount = (path, log) => {
   const cacheKey = generateCacheKey(path);
   const cachedCount = cache.get(cacheKey);
-  
+
   if (cachedCount !== undefined && log) {
-    log.info('Retrieved cached vault file count', { 
-      path, 
-      cacheKey, 
-      fileCount: cachedCount 
+    log.info('Retrieved cached vault file count', {
+      path,
+      cacheKey,
+      fileCount: cachedCount,
     });
   }
-  
+
   return cachedCount;
 };
 
@@ -57,15 +58,15 @@ const getVaultCountByPath = (path, log) => {
     return {
       success: true,
       count: cachedCount,
-      source: 'cache'
+      source: 'cache',
     };
   }
-  
+
   return {
     success: false,
     count: null,
     source: 'cache_miss',
-    message: 'No cached count found for path'
+    message: 'No cached count found for path',
   };
 };
 
@@ -73,8 +74,10 @@ const getVaultCountByPath = (path, log) => {
 const cleanupVaultCache = (log) => {
   try {
     const allKeys = cache.keys();
-    const vaultKeys = allKeys.filter(key => key.startsWith(VAULT_CACHE_PREFIX));
-    
+    const vaultKeys = allKeys.filter((key) =>
+      key.startsWith(VAULT_CACHE_PREFIX),
+    );
+
     if (vaultKeys.length === 0) {
       if (log) {
         log.info('Cache cleanup: No vault cache entries found');
@@ -88,14 +91,14 @@ const cleanupVaultCache = (log) => {
       log.info('Cache cleanup report', {
         vaultCacheEntries: vaultKeys.length,
         totalCacheEntries: allKeys.length,
-        vaultKeys: vaultKeys
+        vaultKeys: vaultKeys,
       });
     }
 
     return {
       cleaned: 0,
       total: vaultKeys.length,
-      message: 'Cleanup function available but no automatic cleanup performed'
+      message: 'Cleanup function available but no automatic cleanup performed',
     };
   } catch (error) {
     if (log) {
@@ -104,7 +107,7 @@ const cleanupVaultCache = (log) => {
     return {
       cleaned: 0,
       total: 0,
-      error: error.message
+      error: error.message,
     };
   }
 };
