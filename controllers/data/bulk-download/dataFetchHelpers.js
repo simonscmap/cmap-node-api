@@ -130,13 +130,14 @@ const fetchAndWriteAllTables = async (
   log,
   filters = null,
   metadata,
+  constraints = null,
 ) => {
-  // Transform filters to constraints if provided
-  const constraints = parseFiltersToConstraints(filters);
+  // Use passed constraints or fallback to parsing filters if constraints not provided
+  const finalConstraints = constraints || parseFiltersToConstraints(filters);
 
   // If we have constraints, we need dataset metadata for proper query generation
   let datasetMetadata = null;
-  if (constraints) {
+  if (finalConstraints) {
     if (!metadata) {
       throw new Error('metadata parameter is required when applying constraints');
     }
@@ -144,11 +145,11 @@ const fetchAndWriteAllTables = async (
   }
 
   const makeQuery = (tableName) => {
-    if (constraints && datasetMetadata) {
+    if (finalConstraints && datasetMetadata) {
       // Use existing generateQueryFromConstraints system with data query type
       const query = generateQueryFromConstraints(
         tableName,
-        constraints,
+        finalConstraints,
         datasetMetadata,
         'data',
       );
