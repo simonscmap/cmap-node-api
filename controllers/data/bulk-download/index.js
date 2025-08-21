@@ -31,8 +31,8 @@ const bulkDownloadController = async (req, res, next) => {
     return sendValidationError(res, next, preQueryResult.validation);
   }
 
-  // Extract shortNames, original filters, and datasetsMetadata from validation
-  const { shortNames, datasetsMetadata } = preQueryResult;
+  // Extract shortNames, constraints, original filters, and datasetsMetadata from validation
+  const { shortNames, constraints, datasetsMetadata } = preQueryResult;
   const { filters } = preQueryResult.validation;
 
   // 2. Create workspace directory
@@ -50,6 +50,7 @@ const bulkDownloadController = async (req, res, next) => {
     log,
     filters,
     datasetsMetadata,
+    constraints,
   );
   if (!fetchResult.success) {
     return sendFetchError(res, next, fetchResult.error);
