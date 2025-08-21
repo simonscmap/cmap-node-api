@@ -30,14 +30,14 @@ const parseFloatOrNull = (n) => {
   }
 };
 
-const checkDatasetHasDepth = (dataset) => {
-  if (!dataset) {
+const checkDatasetHasDepth = (metadata) => {
+  if (!metadata) {
     return false;
   }
 
   // If dataset has a variables array (from metadata), check if any variable has depth
-  if (dataset.variables && Array.isArray(dataset.variables)) {
-    return dataset.variables.some(
+  if (metadata.variables && Array.isArray(metadata.variables)) {
+    return metadata.variables.some(
       (variable) =>
         variable.Has_Depth === true ||
         (variable.Depth_Min !== undefined && variable.Depth_Min !== null) ||
@@ -46,13 +46,13 @@ const checkDatasetHasDepth = (dataset) => {
   }
 
   // If dataset has Has_Depth directly (some dataset objects may have this at root level)
-  if (typeof dataset.Has_Depth === 'boolean') {
-    return dataset.Has_Depth;
+  if (typeof metadata.Has_Depth === 'boolean') {
+    return metadata.Has_Depth;
   }
 
   if (
-    (dataset.Depth_Min !== undefined && dataset.Depth_Min !== null) ||
-    (dataset.Depth_Max !== undefined && dataset.Depth_Max !== null)
+    (metadata.Depth_Min !== undefined && metadata.Depth_Min !== null) ||
+    (metadata.Depth_Max !== undefined && metadata.Depth_Max !== null)
   ) {
     return true;
   }
@@ -85,14 +85,14 @@ const getLonConstraint = (constraints) => {
   return makeClause('lon', lonMin, lonMax);
 };
 
-const getDepthConstraint = (constraints, dataset) => {
+const getDepthConstraint = (constraints, metadata) => {
   // Check if depth constraints are provided
   if (!constraints.depth) {
     return '';
   }
 
   // Only apply depth constraints if the dataset has depth dimensions
-  const hasDepthDimension = checkDatasetHasDepth(dataset);
+  const hasDepthDimension = checkDatasetHasDepth(metadata);
   if (!hasDepthDimension) {
     return '';
   }
@@ -105,12 +105,12 @@ const getDepthConstraint = (constraints, dataset) => {
   return makeClause('depth', depthMin, depthMax);
 };
 
-const getTimeConstraint = (constraints, dataset) => {
+const getTimeConstraint = (constraints, metadata) => {
   if (!constraints.time) {
     return '';
   }
   let isMonthlyClimatology =
-    dataset.Temporal_Resolution === Monthly_Climatology;
+    metadata.Temporal_Resolution === Monthly_Climatology;
   let colName = isMonthlyClimatology ? 'month' : 'time';
   let {
     time: { min, max },
@@ -123,11 +123,11 @@ const joinConstraints = (arr) => {
   return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
 };
 
-const buildConstraints = (constraints, dataset) => {
-  const timeConstraint = getTimeConstraint(constraints, dataset);
+const buildConstraints = (constraints, metadata) => {
+  const timeConstraint = getTimeConstraint(constraints, metadata);
   const latConstraint = getLatConstraint(constraints);
   const lonConstraint = getLonConstraint(constraints);
-  const depthConstraint = getDepthConstraint(constraints, dataset);
+  const depthConstraint = getDepthConstraint(constraints, metadata);
 
   return joinConstraints([
     timeConstraint,
@@ -140,7 +140,7 @@ const buildConstraints = (constraints, dataset) => {
 const generateQuery = (
   tablename,
   constraints,
-  dataset,
+  metadata,
   queryType = 'count',
 ) => {
   const selectClauses = {
@@ -154,7 +154,7 @@ const generateQuery = (
     return `${clause} from ${tablename}`;
   }
 
-  const whereClause = buildConstraints(constraints, dataset);
+  const whereClause = buildConstraints(constraints, metadata);
   return `${clause} from ${tablename} ${whereClause}`.trim();
 };
 
