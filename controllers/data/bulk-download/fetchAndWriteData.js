@@ -47,19 +47,6 @@ const fetchAndWriteData = async (tempDir, shortName, reqId, filters = null) => {
   return [resultOfMetadataWrite, resultOfDataFetchAndWrites];
 };
 
-const fetchAll = async (dirTarget, shortNames, reqId, filters = null) => {
-  try {
-    const result = await Promise.all(
-      shortNames.map((shortName) =>
-        fetchAndWriteData(dirTarget, shortName, reqId, filters),
-      ),
-    );
-    return [null, result];
-  } catch (error) {
-    return [error];
-  }
-};
-
 module.exports = {
-  fetchAll,
+  fetchAndWriteData,
 };
