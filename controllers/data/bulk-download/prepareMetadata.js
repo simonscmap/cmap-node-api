@@ -137,7 +137,6 @@ const writeToDisk = (buffer, targetPath) => {
 };
 
 module.exports = {
-  assemble: datasetMetadataToDownloadFormat,
   toBuffer: makeMetadataWorkbook,
   toDisk: writeToDisk,
 };

@@ -200,9 +200,5 @@ const validateRequest = (req, log) => {
 };
 
 module.exports = {
-  validateISODate,
-  validateSpatialBounds,
-  validateDepthBounds,
-  validateFilters,
   validateRequest,
 };
