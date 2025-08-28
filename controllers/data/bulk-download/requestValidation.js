@@ -147,7 +147,9 @@ const validateRequest = (req, log) => {
 
   let shortNames;
   try {
-    shortNames = JSON.parse(req.body.shortNames);
+    shortNames = typeof req.body.shortNames === 'string' 
+      ? JSON.parse(req.body.shortNames) 
+      : req.body.shortNames;
   } catch (e) {
     log.error('error parsing post body', { error: e, body: req.body });
     return {
