@@ -87,18 +87,31 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       //
     }
   });
-
+  let recordsetColumns = null;
   request.on('recordset', (r) => {
+    recordsetColumns = r;
     log.info('recordset received', { r });
   });
 
-  request.on('done', (data, r) => {
+  request.on('done', (data) => {
     log.info(`request stream done for ${tableName}`, {
       rowsAffected: data.rowsAffected,
       rowCount: count,
       data,
-      r,
+      recordsetColumns,
     });
+    if (count === 0 && recordsetColumns) {
+      // Extract column names from recordset object keys
+      const columnNames = Object.keys(recordsetColumns);
+
+      // Create and write header row
+      const headerRow = {};
+      columnNames.forEach((colName) => {
+        headerRow[colName] = colName;
+      });
+      log.info('HEADERS', { headerRow });
+      csvStream.write(headerRow);
+    }
     if (!requestError) {
       csvStream.end();
     } else {
