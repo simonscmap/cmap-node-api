@@ -97,8 +97,6 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
     log.info(`request stream done for ${tableName}`, {
       rowsAffected: data.rowsAffected,
       rowCount: count,
-      data,
-      recordsetColumns,
     });
 
     // For empty results, write a dummy row to trigger headers
