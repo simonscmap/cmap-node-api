@@ -89,13 +89,15 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
   });
 
   request.on('recordset', (r) => {
-    // log.trace ('recordset received', {r});
+    log.info('recordset received', { r });
   });
 
-  request.on('done', (data) => {
+  request.on('done', (data, r) => {
     log.info(`request stream done for ${tableName}`, {
       rowsAffected: data.rowsAffected,
       rowCount: count,
+      data,
+      r,
     });
     if (!requestError) {
       csvStream.end();
