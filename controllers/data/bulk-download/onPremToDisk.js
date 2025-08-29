@@ -100,16 +100,18 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       data,
       recordsetColumns,
     });
+    
+    // For empty results, write a dummy row to trigger headers, then end
     if (count === 0 && recordsetColumns) {
       const columnNames = Object.keys(recordsetColumns);
-
       const headerRow = {};
       columnNames.forEach((colName) => {
         headerRow[colName] = colName;
       });
-      log.info('HEADERS', { headerRow });
+      log.info('Writing header row for empty result', { headerRow });
       csvStream.write(headerRow);
     }
+    
     if (!requestError) {
       csvStream.end();
     } else {
