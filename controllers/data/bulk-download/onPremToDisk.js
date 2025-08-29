@@ -88,8 +88,9 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
     }
   });
 
+  let recordsetColumns = null;
   request.on('recordset', (r) => {
-    // log.trace ('recordset received', {r});
+    recordsetColumns = r;
   });
 
   request.on('done', (data) => {
@@ -97,6 +98,17 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       rowsAffected: data.rowsAffected,
       rowCount: count,
     });
+
+    // For empty results, write a dummy row to trigger headers
+    if (count === 0 && recordsetColumns) {
+      const columnNames = Object.keys(recordsetColumns);
+      const dummyRow = {};
+      columnNames.forEach((colName) => {
+        dummyRow[colName] = '';
+      });
+      csvStream.write(dummyRow);
+    }
+
     if (!requestError) {
       csvStream.end();
     } else {
