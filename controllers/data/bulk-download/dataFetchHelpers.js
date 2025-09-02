@@ -203,10 +203,20 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
         (
       SELECT
             j.Dataset_Name AS [Dataset_Name],
-            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.min')), 8) AS decimal(18,8)) AS [Lat_Min],
-            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.max')), 8) AS decimal(18,8)) AS [Lat_Max],
-            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.min')), 8) AS decimal(18,8)) AS [Lon_Min],
-            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.max')), 8) AS decimal(18,8)) AS [Lon_Max],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.min')), 8) AS decimal(18,3)) AS [Lat_Min],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.max')), 8) AS decimal(18,3)) AS [Lat_Max],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.min')), 8) AS decimal(18,3)) AS [Lon_Min],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.max')), 8) AS decimal(18,3)) AS [Lon_Max],
+            CASE 
+                WHEN JSON_VALUE(j.JSON_stats, '$.depth.min') IS NOT NULL 
+                THEN CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.depth.min')), 3) AS decimal(18,3))
+                ELSE NULL 
+            END AS [Depth_Min],
+            CASE 
+                WHEN JSON_VALUE(j.JSON_stats, '$.depth.max') IS NOT NULL 
+                THEN CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.depth.max')), 3) AS decimal(18,3))
+                ELSE NULL 
+            END AS [Depth_Max],
             JSON_VALUE(j.JSON_stats, '$.time.min') AS [Time_Min],
             JSON_VALUE(j.JSON_stats, '$.time.max') AS [Time_Max],
             TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.count')) AS bigint) AS [Row_Count]
