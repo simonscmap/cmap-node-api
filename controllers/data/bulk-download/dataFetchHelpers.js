@@ -4,6 +4,7 @@ const { toBuffer, toDisk } = require('./prepareMetadata');
 const { createSubDir } = require('./tempDirUtils');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { routeQuery } = require('./routeQueryForBulkDownload');
+const sql = require('mssql');
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
@@ -169,10 +170,106 @@ const fetchAndWriteAllTables = async (
   }
 };
 
+const fetchDatasetsMetadata = async (shortNames, log) => {
+  const query = `
+    DECLARE @shortNames nvarchar(max) = @shortNamesParam;
+
+    WITH
+        requested
+        AS
+        (
+            SELECT value AS shortName, [key] AS ord
+            FROM OPENJSON(@shortNames)
+        ),
+        resolved
+        AS
+        (
+            SELECT r.ord, r.shortName, d.ID AS Dataset_ID, d.Dataset_Name
+            FROM requested r
+                LEFT JOIN dbo.tblDatasets d
+                ON d.Dataset_Name = r.shortName
+        ),
+        joined
+        AS
+        (
+            SELECT z.ord, z.shortName, z.Dataset_ID, z.Dataset_Name, s.JSON_stats
+            FROM resolved z
+                LEFT JOIN dbo.tblDataset_Stats s
+                ON s.Dataset_ID = z.Dataset_ID
+        )
+    SELECT
+        (
+      SELECT
+            j.Dataset_Name AS [Dataset_Name],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.min')), 8) AS decimal(18,8)) AS [Lat_Min],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.max')), 8) AS decimal(18,8)) AS [Lat_Max],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.min')), 8) AS decimal(18,8)) AS [Lon_Min],
+            CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.max')), 8) AS decimal(18,8)) AS [Lon_Max],
+            JSON_VALUE(j.JSON_stats, '$.time.min') AS [Time_Min],
+            JSON_VALUE(j.JSON_stats, '$.time.max') AS [Time_Max],
+            TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.count')) AS bigint) AS [Row_Count]
+        FROM joined j
+        WHERE j.Dataset_ID IS NOT NULL
+            AND j.JSON_stats IS NOT NULL
+            AND ISJSON(j.JSON_stats) = 1
+        ORDER BY j.ord
+        FOR JSON PATH, INCLUDE_NULL_VALUES
+    ) AS datasetsMetadata
+    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
+  `;
+
+  const [queryErr, result] = await directQuery(query, {
+    input: (request) => {
+      request.input('shortNamesParam', sql.NVarChar, JSON.stringify(shortNames));
+    },
+    description: 'bulk-download-init metadata query'
+  }, log);
+
+  if (queryErr) {
+    log.error('database query failed', { error: queryErr });
+    return {
+      success: false,
+      error: {
+        statusCode: 500,
+        message: 'Failed to fetch dataset metadata'
+      }
+    };
+  }
+
+  try {
+    if (result.recordset && result.recordset.length > 0 && result.recordset[0].datasetsMetadata) {
+      const parsedData = JSON.parse(result.recordset[0].datasetsMetadata);
+      return {
+        success: true,
+        data: {
+          datasetsMetadata: parsedData || []
+        }
+      };
+    } else {
+      return {
+        success: true,
+        data: {
+          datasetsMetadata: []
+        }
+      };
+    }
+  } catch (parseError) {
+    log.error('failed to parse database result', { error: parseError, result });
+    return {
+      success: false,
+      error: {
+        statusCode: 500,
+        message: 'Failed to process dataset metadata'
+      }
+    };
+  }
+};
+
 module.exports = {
   createDatasetDirectory,
   fetchAndWriteMetadata,
   fetchTableNames,
   fetchAndWriteAllTables,
   parseFiltersToConstraints,
+  fetchDatasetsMetadata,
 };
