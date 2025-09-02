@@ -171,6 +171,8 @@ const fetchAndWriteAllTables = async (
 };
 
 const fetchDatasetsMetadata = async (shortNames, log) => {
+  const shortNamesJson = JSON.stringify(shortNames);
+
   const query = `
     DECLARE @shortNames nvarchar(max) = @shortNamesParam;
 
@@ -218,12 +220,21 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
     FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;
   `;
 
-  const [queryErr, result] = await directQuery(query, {
-    input: (request) => {
-      request.input('shortNamesParam', sql.NVarChar, JSON.stringify(shortNames));
+  log.info('executing query with parameters', {
+    queryLength: query.length,
+    shortNamesParam: shortNamesJson,
+  });
+
+  const [queryErr, result] = await directQuery(
+    query,
+    {
+      input: (request) => {
+        request.input('shortNamesParam', sql.NVarChar, shortNamesJson);
+      },
+      description: 'bulk-download-init metadata query',
     },
-    description: 'bulk-download-init metadata query'
-  }, log);
+    log,
+  );
 
   if (queryErr) {
     log.error('database query failed', { error: queryErr });
@@ -231,26 +242,53 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
       success: false,
       error: {
         statusCode: 500,
-        message: 'Failed to fetch dataset metadata'
-      }
+        message: 'Failed to fetch dataset metadata',
+      },
     };
   }
 
+  log.info('database query succeeded', {
+    firstRecord:
+      result && result.recordset && result.recordset.length > 0
+        ? result.recordset[0]
+        : null,
+  });
+
   try {
-    if (result.recordset && result.recordset.length > 0 && result.recordset[0].datasetsMetadata) {
-      const parsedData = JSON.parse(result.recordset[0].datasetsMetadata);
-      return {
-        success: true,
-        data: {
-          datasetsMetadata: parsedData || []
-        }
-      };
+    if (result.recordset && result.recordset.length > 0) {
+      const firstRecord = result.recordset[0];
+      const keys = Object.keys(firstRecord);
+
+      if (keys.length > 0) {
+        const parsedData = JSON.parse(firstRecord[keys[0]]);
+        const datasetsMetadata = parsedData.datasetsMetadata || [];
+
+        return {
+          success: true,
+          data: {
+            datasetsMetadata,
+          },
+        };
+      } else {
+        return {
+          success: true,
+          data: {
+            datasetsMetadata: [],
+          },
+        };
+      }
     } else {
+      log.warn('no records found in result', {
+        hasRecordset: !!(result && result.recordset),
+        recordsetLength:
+          result && result.recordset ? result.recordset.length : 0,
+      });
+
       return {
         success: true,
         data: {
-          datasetsMetadata: []
-        }
+          datasetsMetadata: [],
+        },
       };
     }
   } catch (parseError) {
@@ -259,8 +297,8 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
       success: false,
       error: {
         statusCode: 500,
-        message: 'Failed to process dataset metadata'
-      }
+        message: 'Failed to process dataset metadata',
+      },
     };
   }
 };
