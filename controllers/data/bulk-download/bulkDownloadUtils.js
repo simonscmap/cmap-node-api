@@ -138,6 +138,32 @@ const sendStreamError = (res, next) => {
   return next('error streaming archive for bulk download');
 };
 
+const validateShortNames = (shortNames, log) => {
+  if (!shortNames || !Array.isArray(shortNames) || shortNames.length === 0) {
+    log.error('invalid request: shortNames must be a non-empty array', { shortNames });
+    return {
+      isValid: false,
+      error: {
+        statusCode: 400,
+        message: 'shortNames must be a non-empty array'
+      }
+    };
+  }
+
+  if (shortNames.some(name => typeof name !== 'string' || name.trim() === '')) {
+    log.error('invalid request: all shortNames must be non-empty strings', { shortNames });
+    return {
+      isValid: false,
+      error: {
+        statusCode: 400,
+        message: 'All shortNames must be non-empty strings'
+      }
+    };
+  }
+
+  return { isValid: true };
+};
+
 module.exports = {
   createWorkspace,
   fetchAllDatasets,
@@ -147,4 +173,5 @@ module.exports = {
   sendWorkspaceError,
   sendFetchError,
   sendStreamError,
+  validateShortNames,
 };
