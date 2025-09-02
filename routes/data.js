@@ -5,6 +5,7 @@ const dataController = require('../controllers/data');
 const {
   bulkDownloadController,
   bulkRowCountController,
+  bulkDownloadInitController,
 } = require('../controllers/data/bulk-download/');
 const {
   namedDataController,
@@ -122,6 +123,11 @@ router.post(
 router.post(
   '/bulk-download-row-counts',
   asyncControllerWrapper(bulkRowCountController),
+);
+
+router.post(
+  '/bulk-download-init',
+  asyncControllerWrapper(bulkDownloadInitController),
 );
 
 module.exports = router;
