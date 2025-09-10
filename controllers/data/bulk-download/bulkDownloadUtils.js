@@ -79,9 +79,9 @@ const fetchAllDatasets = async (
       };
     } else if (dataErr.statusCode === 413) {
       // Preserve size-related errors (413 Payload Too Large)
-      log.info('returning size-related error to client', { 
-        statusCode: dataErr.statusCode, 
-        message: dataErr.message 
+      log.error('returning bulk download size-related error to client', {
+        statusCode: dataErr.statusCode,
+        message: dataErr.message,
       });
       return {
         success: false,
@@ -150,24 +150,30 @@ const sendStreamError = (res, next) => {
 
 const validateShortNames = (shortNames, log) => {
   if (!shortNames || !Array.isArray(shortNames) || shortNames.length === 0) {
-    log.error('invalid request: shortNames must be a non-empty array', { shortNames });
+    log.error('invalid request: shortNames must be a non-empty array', {
+      shortNames,
+    });
     return {
       isValid: false,
       error: {
         statusCode: 400,
-        message: 'shortNames must be a non-empty array'
-      }
+        message: 'shortNames must be a non-empty array',
+      },
     };
   }
 
-  if (shortNames.some(name => typeof name !== 'string' || name.trim() === '')) {
-    log.error('invalid request: all shortNames must be non-empty strings', { shortNames });
+  if (
+    shortNames.some((name) => typeof name !== 'string' || name.trim() === '')
+  ) {
+    log.error('invalid request: all shortNames must be non-empty strings', {
+      shortNames,
+    });
     return {
       isValid: false,
       error: {
         statusCode: 400,
-        message: 'All shortNames must be non-empty strings'
-      }
+        message: 'All shortNames must be non-empty strings',
+      },
     };
   }
 
