@@ -5,6 +5,7 @@ const { createSubDir } = require('./tempDirUtils');
 const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { routeQuery } = require('./routeQueryForBulkDownload');
 const sql = require('mssql');
+const { detectBulkDownloadSizeError } = require('./errorDetection');
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
@@ -166,6 +167,23 @@ const fetchAndWriteAllTables = async (
     return await Promise.all(fetchAndWriteJobs);
   } catch (e) {
     log.error('error in dataFetchAndWrite', { error: e });
+
+    // Check if this is a size-related error
+    const sizeError = detectBulkDownloadSizeError(e, log);
+    if (sizeError) {
+      log.error('BULK DOWNLOAD SIZE ERROR - Dataset too large (413)', {
+        errorType: sizeError.type,
+        statusCode: sizeError.statusCode,
+        originalError: e.message,
+        shortName: shortName,
+      });
+      const enhancedError = new Error(sizeError.message);
+      enhancedError.statusCode = sizeError.statusCode;
+      enhancedError.errorType = sizeError.type;
+      throw enhancedError;
+    }
+
+    // Default to generic error for non-size-related issues
     throw new Error('error fething and writing data');
   }
 };
