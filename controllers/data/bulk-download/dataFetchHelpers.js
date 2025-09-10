@@ -205,7 +205,7 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
             SELECT 
                 j.Dataset_ID,
                 (
-                    SELECT STRING_AGG(CONCAT('"', p.Program_Name, '"'), ',')
+                    SELECT STRING_AGG(CONCAT('"', p.Program_Name, '"'), ',') WITHIN GROUP (ORDER BY p.Program_Name)
                     FROM dbo.tblDataset_Programs dp
                         INNER JOIN dbo.tblPrograms p ON dp.Program_ID = p.Program_ID
                     WHERE dp.Dataset_ID = j.Dataset_ID
