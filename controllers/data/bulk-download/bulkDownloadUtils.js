@@ -77,6 +77,16 @@ const fetchAllDatasets = async (
         success: false,
         error: { statusCode: 400, message: 'no matching dataset' },
       };
+    } else if (dataErr.statusCode === 413) {
+      // Preserve size-related errors (413 Payload Too Large)
+      log.info('returning size-related error to client', { 
+        statusCode: dataErr.statusCode, 
+        message: dataErr.message 
+      });
+      return {
+        success: false,
+        error: { statusCode: dataErr.statusCode, message: dataErr.message },
+      };
     } else {
       return {
         success: false,
