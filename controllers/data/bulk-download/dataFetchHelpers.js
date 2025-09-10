@@ -167,20 +167,22 @@ const fetchAndWriteAllTables = async (
     return await Promise.all(fetchAndWriteJobs);
   } catch (e) {
     log.error('error in dataFetchAndWrite', { error: e });
-    
+
     // Check if this is a size-related error
     const sizeError = detectBulkDownloadSizeError(e, log);
     if (sizeError) {
-      log.info('detected size-related error, preserving details', { 
-        errorType: sizeError.type, 
-        statusCode: sizeError.statusCode 
+      log.error('BULK DOWNLOAD SIZE ERROR - Dataset too large (413)', {
+        errorType: sizeError.type,
+        statusCode: sizeError.statusCode,
+        originalError: e.message,
+        shortName: shortName,
       });
       const enhancedError = new Error(sizeError.message);
       enhancedError.statusCode = sizeError.statusCode;
       enhancedError.errorType = sizeError.type;
       throw enhancedError;
     }
-    
+
     // Default to generic error for non-size-related issues
     throw new Error('error fething and writing data');
   }
