@@ -198,6 +198,20 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
             FROM resolved z
                 LEFT JOIN dbo.tblDataset_Stats s
                 ON s.Dataset_ID = z.Dataset_ID
+        ),
+        programs
+        AS
+        (
+            SELECT 
+                j.Dataset_ID,
+                (
+                    SELECT STRING_AGG(CONCAT('"', p.Program_Name, '"'), ',')
+                    FROM dbo.tblDataset_Programs dp
+                        INNER JOIN dbo.tblPrograms p ON dp.Program_ID = p.Program_ID
+                    WHERE dp.Dataset_ID = j.Dataset_ID
+                ) AS programs_json
+            FROM joined j
+            WHERE j.Dataset_ID IS NOT NULL
         )
     SELECT
         (
@@ -219,8 +233,14 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
             END AS [Depth_Max],
             JSON_VALUE(j.JSON_stats, '$.time.min') AS [Time_Min],
             JSON_VALUE(j.JSON_stats, '$.time.max') AS [Time_Max],
-            TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.count')) AS bigint) AS [Row_Count]
+            TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.count')) AS bigint) AS [Row_Count],
+            CASE 
+                WHEN p.programs_json IS NOT NULL 
+                THEN JSON_QUERY(CONCAT('[', p.programs_json, ']'))
+                ELSE JSON_QUERY('[]')
+            END AS [Programs]
         FROM joined j
+            LEFT JOIN programs p ON j.Dataset_ID = p.Dataset_ID
         WHERE j.Dataset_ID IS NOT NULL
             AND j.JSON_stats IS NOT NULL
             AND ISJSON(j.JSON_stats) = 1
