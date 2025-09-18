@@ -2,6 +2,18 @@ const router = require('express').Router();
 const passport = require('../middleware/passport');
 
 const dataController = require('../controllers/data');
+const {
+  bulkDownloadController,
+  bulkRowCountController,
+  bulkDownloadInitController,
+} = require('../controllers/data/bulk-download/');
+const {
+  namedDataController,
+} = require('../controllers/data/namedDataController');
+const {
+  getVaultFilesInfo,
+  downloadDropboxVaultFilesWithStagedParallel,
+} = require('../controllers/data/dropbox-vault/vaultController');
 const queryAnalysis = require('../middleware/queryAnalysis');
 const checkQuerySize = require('../middleware/checkQuerySize');
 const candidateAnalysis = require('../utility/router/routerMiddleware');
@@ -84,36 +96,38 @@ router.get('/tablestats', asyncControllerWrapper(dataController.tableStats));
 // Protobuf test
 router.get('/proto', asyncControllerWrapper(dataController.testProto));
 
-router.post(
-  '/bulk-download',
-  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
-  asyncControllerWrapper(dataController.bulkDownloadController),
-);
-
 router.get(
   '/trajectory-point-counts',
   asyncControllerWrapper(dataController.trajectoryPointCounts),
 );
 
-router.get(
-  '/named/:name',
-  asyncControllerWrapper(dataController.namedDataController),
-);
-
-// Dropbox vault
-router.get(
-  '/share/:shortName',
-  asyncControllerWrapper(dataController.getShareLinkController),
-);
+router.get('/named/:name', asyncControllerWrapper(namedDataController));
 
 router.get(
   '/dropbox-vault/get-files-info/:shortName',
-  asyncControllerWrapper(dataController.getVaultFilesInfo),
+  asyncControllerWrapper(getVaultFilesInfo),
 );
 
 router.post(
   '/dropbox-vault/download-files',
-  asyncControllerWrapper(dataController.downloadDropboxVaultFiles),
+  asyncControllerWrapper(downloadDropboxVaultFilesWithStagedParallel),
+);
+
+// Bulk-download
+router.post(
+  '/bulk-download',
+  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
+  asyncControllerWrapper(bulkDownloadController),
+);
+
+router.post(
+  '/bulk-download-row-counts',
+  asyncControllerWrapper(bulkRowCountController),
+);
+
+router.post(
+  '/bulk-download-init',
+  asyncControllerWrapper(bulkDownloadInitController),
 );
 
 module.exports = router;

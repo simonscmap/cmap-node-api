@@ -2,13 +2,13 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const test = require('ava');
-const cleanup = require('../../../controllers/data/bulk-download/cleanupTempDir');
 const {
   bulkDownloadController,
 } = require('../../../controllers/data/bulk-download');
 const {
+  cleanup,
   createTempDir,
-} = require('../../../controllers/data/bulk-download/createTempDir');
+} = require('../../../controllers/data/bulk-download/tempDirUtils');
 
 const mockNext = () => {
   /* no op */

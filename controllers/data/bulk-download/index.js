@@ -1,99 +1,207 @@
-const safePromise = require('../../../utility/safePromise');
-const { createTempDir } = require('./createTempDir');
-const cleanup = require('./cleanupTempDir');
-const streamArchive = require('./streamArchive');
-const fetchAndWriteData = require('./fetchAndWriteData');
 const initLog = require('../../../log-service');
 const moduleLogger = initLog('bulk-download');
-
-/*
-   1. validate incoming request
-   2. create a guid-name temp directory
-   3. fetch and write data for each requested dataset (csv + excel metadata sheet)
-   4. (once all data is fetched) create zip and pipe response
-   5. initate clean-up of temp directory
- */
+const {
+  createWorkspace,
+  fetchAllDatasets,
+  streamResponse,
+  scheduleCleanup,
+  sendValidationError,
+  sendWorkspaceError,
+  sendFetchError,
+  sendStreamError,
+  validateShortNames,
+} = require('./bulkDownloadUtils');
+const fetchRowCountForQuery = require('../fetchRowCountForQuery');
+const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
+const { fetchTableNames, fetchDatasetsMetadata } = require('./dataFetchHelpers');
 
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
 
-  // 1. TODO validate incoming request
-  if (!req.body.shortNames) {
-    log.error('missing argument', { body: req.body });
-    res.status(400).send('bad request: missing argument');
-    return next('missing argument');
+  // 1. Use shared pre-query processing for validation only
+  const preQueryResult = await processPreQueryLogic(req, req.reqId);
+  if (!preQueryResult.success) {
+    return sendValidationError(res, next, preQueryResult.validation);
   }
 
-  let shortNames;
-  try {
-    shortNames = JSON.parse(req.body.shortNames);
-  } catch (e) {
-    log.error('error parsing post body', { error: e, body: req.body });
-    res.status(400).send('bad request: invalid json');
-    return next('error parsing post body');
+  // Extract shortNames, constraints, original filters, and datasetsMetadata from validation
+  const { shortNames, constraints, datasetsMetadata } = preQueryResult;
+
+  // 2. Create workspace directory
+  const workspaceResult = await createWorkspace(log);
+  if (!workspaceResult.success) {
+    return sendWorkspaceError(res, next);
   }
-  if (!Array.isArray(shortNames) || shortNames.length === 0) {
-    log.error('incorrect argument type: expected non-empty array of strings');
-    res.status(400).send('bad request: incorrect argument type');
-    return next('insufficient argument');
-  }
+  const { pathToTmpDir } = workspaceResult;
 
-  log.debug('shortNames', shortNames);
-
-  // 2. create a guid-name temp directory
-  // TODO make call to createTempDir safe
-  let pathToTmpDir;
-  try {
-    pathToTmpDir = await createTempDir();
-  } catch (e) {
-    log.error('error creating directory', { error: e });
-    res.sendStatus(500);
-    return next('error creating temp directory');
-  }
-
-  log.debug('created temporory directory', pathToTmpDir);
-
-  // 3. fetch and write data for each requested dataset (csv + excel metadata sheet)
-  const [dataErr, result] = await fetchAndWriteData(
+  // 3. Fetch and write data using existing function
+  const fetchResult = await fetchAllDatasets(
     pathToTmpDir,
     shortNames,
     req.reqId,
+    log,
+    datasetsMetadata,
+    constraints,
   );
-  if (dataErr) {
-    log.error('fetchAndWriteDataErr', dataErr);
-    if (dataErr.message === 'could not find dataset id for dataset name') {
-      res.status(400).send('no matching dataset');
-      return next('error finding dataset id');
-    } else {
-      res.status(500).send('error fetching data');
-      return next('error fetching data for bulk download');
+  if (!fetchResult.success) {
+    return sendFetchError(res, next, fetchResult.error);
+  }
+
+  // 4. Create zip and pipe response
+  const streamResult = await streamResponse(pathToTmpDir, res, log);
+  if (!streamResult.success) {
+    return sendStreamError(res, next);
+  }
+
+  // 5. Schedule cleanup of temp directory
+  scheduleCleanup(pathToTmpDir, moduleLogger);
+  next();
+};
+
+const bulkRowCountController = async (req, res) => {
+  const requestId = 'bulk-row-count';
+  const log = moduleLogger.setReqId(requestId);
+
+  log.info('bulk row count request received', { body: req.body });
+
+  try {
+    // Use shared pre-query processing
+    const preQueryResult = await processPreQueryLogic(req, requestId);
+    if (!preQueryResult.success) {
+      log.error('request validation failed', {
+        validation: preQueryResult.validation,
+      });
+      return res.status(preQueryResult.validation.statusCode).json({
+        error: 'Failed to calculate row counts',
+        message: preQueryResult.validation.message,
+      });
     }
+
+    const { constraints, datasetsMetadata } = preQueryResult;
+
+    // Continue with controller-specific logic (query execution and counting)
+    const datasetPromises = datasetsMetadata.map(
+      async ({ shortName, metadata }) => {
+        log.info('processing dataset for row count', { shortName });
+
+        // Get table names from database
+        const tableNames = await fetchTableNames(shortName, log);
+        if (tableNames.length === 0) {
+          log.warn('no tables found for dataset', { shortName });
+          return { shortName, rowCount: 0 };
+        }
+
+        // Process all tables for this dataset concurrently
+        const tablePromises = tableNames.map(async (tableName) => {
+          log.debug('executing count query', { shortName, tableName });
+
+          const [queryErr, count] = await fetchRowCountForQuery(
+            tableName,
+            constraints,
+            metadata,
+            requestId,
+          );
+
+          if (queryErr) {
+            log.error('query execution failed', {
+              shortName,
+              tableName,
+              error: queryErr,
+            });
+            throw new Error(
+              `Query failed for dataset ${shortName}: ${
+                queryErr.message || queryErr
+              }`,
+            );
+          }
+
+          const parsedCount = parseInt(count, 10) || 0;
+          log.debug('table row count result', {
+            shortName,
+            tableName,
+            count: parsedCount,
+          });
+          return parsedCount;
+        });
+
+        // Wait for all table counts for this dataset
+        const tableCounts = await Promise.all(tablePromises);
+        const totalRowCount = tableCounts.reduce(
+          (sum, count) => sum + count,
+          0,
+        );
+
+        log.info('dataset row count calculated', { shortName, totalRowCount });
+        return { shortName, rowCount: totalRowCount };
+      },
+    );
+
+    // Wait for all datasets to complete (all-or-nothing)
+    const datasetResults = await Promise.all(datasetPromises);
+
+    // Transform results to simple response format
+    const response = {};
+    datasetResults.forEach(({ shortName, rowCount }) => {
+      response[shortName] = rowCount;
+    });
+
+    log.info('bulk row count calculation completed', { response });
+    res.json(response);
+  } catch (error) {
+    log.error('bulk row count calculation failed', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to calculate row counts',
+      message: error.message,
+    });
   }
+};
 
-  // 4. (once all data is fetched) create zip and pipe response
+const bulkDownloadInitController = async (req, res) => {
+  const requestId = 'bulk-download-init';
+  const log = moduleLogger.setReqId(requestId);
 
-  const safeStreamArchive = safePromise(streamArchive);
-  log.info('starting stream response');
-  const [streamError, streamResolve] = await safeStreamArchive(
-    pathToTmpDir,
-    res,
-  );
-  if (streamError) {
-    log.error('error streaming archive response');
-    res.status(500).send('error streaming archive');
-    return next('error streaming archive for bulk download');
-  } else {
-    log.debug('streamArchive resolved without error', { streamResolve });
-    next();
+  log.info('bulk download init request received', { body: req.body });
+
+  try {
+    // Input validation using helper function
+    const { shortNames } = req.body;
+    const validationResult = validateShortNames(shortNames, log);
+    
+    if (!validationResult.isValid) {
+      return res.status(validationResult.error.statusCode).json({
+        error: 'Invalid request',
+        message: validationResult.error.message
+      });
+    }
+
+    // Fetch datasets metadata using helper function
+    const metadataResult = await fetchDatasetsMetadata(shortNames, log);
+    
+    if (!metadataResult.success) {
+      return res.status(metadataResult.error.statusCode).json({
+        error: 'Database error',
+        message: metadataResult.error.message
+      });
+    }
+
+    log.info('bulk download init completed', { 
+      requestedCount: shortNames.length, 
+      returnedCount: metadataResult.data.datasetsMetadata.length 
+    });
+    
+    res.json(metadataResult.data);
+
+  } catch (error) {
+    log.error('bulk download init failed', { error: error.message });
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to initialize bulk download'
+    });
   }
-
-  // by now, response has been sent: cleanup
-
-  // 5. initate clean-up of temp directory
-  const msg = await cleanup(pathToTmpDir);
-  moduleLogger.info('cleanup', { msg });
 };
 
 module.exports = {
   bulkDownloadController,
+  bulkRowCountController,
+  bulkDownloadInitController,
 };

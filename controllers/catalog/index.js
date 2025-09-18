@@ -2,6 +2,7 @@ const sql = require('mssql');
 const nodeCache = require('../../utility/nodeCache');
 const queryHandler = require('../../utility/queryHandler');
 const { coerceTimeMinAndMax } = require('../../utility/download/coerce-to-iso');
+const { setDatasetMetadata, getDatasetMetadata, hasDatasetMetadata } = require('../../utility/datasetMetadataCache');
 const pools = require('../../dbHandlers/dbPools');
 const datasetCatalogQuery = require('../../dbHandlers/datasetCatalogQuery');
 const cruiseCatalogQuery = require('../../dbHandlers/cruiseCatalogQuery');
@@ -484,6 +485,16 @@ module.exports.datasetVariableUM = async (req, res, next) => {
 // export full page metadata for bulk query
 const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
   let log = moduleLogger.setReqId(reqId);
+  
+  // Check cache first
+  if (hasDatasetMetadata(shortName)) {
+    const cachedMetadata = getDatasetMetadata(shortName, log);
+    if (cachedMetadata) {
+      return [null, cachedMetadata];
+    }
+  }
+
+  // Cache miss - proceed with existing database logic
   let pool = await pools.dataReadOnlyPool;
 
   let datasetId = await getDatasetId(shortName, log);
@@ -597,6 +608,9 @@ const fetchAndPrepareDatasetMetadata = async (shortName, reqId) => {
     references: references,
     variables: ammendedVariables,
   };
+
+  // Cache the successful result before returning
+  setDatasetMetadata(shortName, payload, log);
 
   return [null, payload];
 };

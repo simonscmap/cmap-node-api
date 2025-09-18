@@ -51,3 +51,16 @@ config/UNSAFE_jwtConfig.js
 
 .vscode/
 .nvmrc
+
+# BMAD Start
+.bmad-core
+.bmad-infrastructure-devops
+.cursor
+.gemini
+.web-bundles
+
+.claude/commands/BMad
+.claude/commands/bmadInfraDevOps
+# BMAD End
+
+/docs/
