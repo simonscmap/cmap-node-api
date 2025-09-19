@@ -22,9 +22,8 @@ const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper'
  * @property {number} filters.spatial.latMax - Maximum latitude (-90 to 90)
  * @property {number} filters.spatial.lonMin - Minimum longitude (-180 to 180)
  * @property {number} filters.spatial.lonMax - Maximum longitude (-180 to 180)
- * @property {Object} [filters.depth] - Depth filtering constraints
- * @property {number} filters.depth.min - Minimum depth
- * @property {number} filters.depth.max - Maximum depth
+ * @property {number} [filters.spatial.depthMin] - Minimum depth
+ * @property {number} [filters.spatial.depthMax] - Maximum depth
  */
 
 /**
@@ -48,11 +47,9 @@ const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper'
  *       "latMin": 10,
  *       "latMax": 50,
  *       "lonMin": -120,
- *       "lonMax": -80
- *     },
- *     "depth": {
- *       "min": 0,
- *       "max": 100
+ *       "lonMax": -80,
+ *       "depthMin": 0,
+ *       "depthMax": 100
  *     }
  *   }
  * }
