@@ -41,10 +41,8 @@ async function testBulkRowCounts() {
       latMax: 40,
       lonMin: -140,
       lonMax: -120,
-    },
-    depth: {
-      min: 0,
-      max: 20,
+      depthMin: 0,
+      depthMax: 20,
     },
   };
 
@@ -59,10 +57,8 @@ async function testBulkRowCounts() {
       latMax: 40,
       lonMin: -140,
       lonMax: -120,
-    },
-    depth: {
-      min: 0,
-      max: 10,
+      depthMin: 0,
+      depthMax: 10,
     },
   };
 
@@ -77,10 +73,8 @@ async function testBulkRowCounts() {
       latMax: 40,
       lonMin: -140,
       lonMax: -120,
-    },
-    depth: {
-      min: 0,
-      max: 50,
+      depthMin: 0,
+      depthMax: 50,
     },
   };
 

@@ -21,10 +21,8 @@ async function testBulkDownload() {
       latMax: 30,
       lonMin: -140,
       lonMax: -120,
-    },
-    depth: {
-      min: 1,
-      max: 5,
+      depthMin: 1,
+      depthMax: 5,
     },
   };
 
