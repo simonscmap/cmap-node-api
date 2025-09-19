@@ -15,14 +15,15 @@ const validateISODate = (dateStr) => {
 
 // Helper function to validate spatial bounds
 const validateSpatialBounds = (spatial) => {
-  const { latMin, latMax, lonMin, lonMax } = spatial;
+  const { latMin, latMax, lonMin, lonMax, depthMin, depthMax } = spatial;
   
   // Check if we have any spatial constraints at all
   const hasLat = latMin !== undefined || latMax !== undefined;
   const hasLon = lonMin !== undefined || lonMax !== undefined;
+  const hasDepth = depthMin !== undefined || depthMax !== undefined;
   
-  if (!hasLat && !hasLon) {
-    return { isValid: false, message: 'spatial filters must include latitude or longitude bounds' };
+  if (!hasLat && !hasLon && !hasDepth) {
+    return { isValid: false, message: 'spatial filters must include latitude, longitude, or depth bounds' };
   }
   
   // Validate latitude constraints if present
@@ -65,25 +66,23 @@ const validateSpatialBounds = (spatial) => {
     }
   }
   
+  // Validate depth constraints if present
+  if (hasDepth) {
+    // Check depth values are numbers
+    if ((depthMin !== undefined && (typeof depthMin !== 'number' || isNaN(depthMin))) ||
+        (depthMax !== undefined && (typeof depthMax !== 'number' || isNaN(depthMax)))) {
+      return { isValid: false, message: 'depth bounds must be numbers' };
+    }
+    
+    // Check min <= max constraint if both present
+    if (depthMin !== undefined && depthMax !== undefined && depthMin > depthMax) {
+      return { isValid: false, message: 'depthMin must be less than or equal to depthMax' };
+    }
+  }
+  
   return { isValid: true };
 };
 
-// Helper function to validate depth bounds
-const validateDepthBounds = (depth) => {
-  const { min, max } = depth;
-  
-  // Check values are numbers
-  if ([min, max].some(val => typeof val !== 'number' || isNaN(val))) {
-    return { isValid: false, message: 'depth bounds must be numbers' };
-  }
-  
-  // Check min <= max constraint
-  if (min > max) {
-    return { isValid: false, message: 'depth min must be less than or equal to depth max' };
-  }
-  
-  return { isValid: true };
-};
 
 // Helper function to validate filters
 const validateFilters = (filters) => {
@@ -91,11 +90,11 @@ const validateFilters = (filters) => {
     return { isValid: false, message: 'filters must be an object' };
   }
   
-  const { temporal, spatial, depth } = filters;
+  const { temporal, spatial } = filters;
   
   // At least one filter type must be present
-  if (!temporal && !spatial && !depth) {
-    return { isValid: false, message: 'filters must include at least one of: temporal, spatial, or depth parameters' };
+  if (!temporal && !spatial) {
+    return { isValid: false, message: 'filters must include at least one of: temporal or spatial parameters' };
   }
   
   // Validate temporal if present
@@ -120,14 +119,6 @@ const validateFilters = (filters) => {
     const spatialValidation = validateSpatialBounds(spatial);
     if (!spatialValidation.isValid) {
       return spatialValidation;
-    }
-  }
-  
-  // Validate depth if present
-  if (depth) {
-    const depthValidation = validateDepthBounds(depth);
-    if (!depthValidation.isValid) {
-      return depthValidation;
     }
   }
   
