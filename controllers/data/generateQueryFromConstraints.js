@@ -126,6 +126,19 @@ const getTimeConstraint = (constraints, metadata) => {
   }
 };
 
+const convertDatesToMonths = (startDate, endDate) => {
+  // Convert date strings to Date objects and extract month numbers (1-12)
+  const startMonth = new Date(startDate).getMonth() + 1;
+  const endMonth = new Date(endDate).getMonth() + 1;
+
+  // Ensure startMonth is always <= endMonth by swapping if necessary
+  if (startMonth > endMonth) {
+    return { startMonth: endMonth, endMonth: startMonth };
+  }
+
+  return { startMonth, endMonth };
+};
+
 const joinConstraints = (arr) => {
   let constraints = arr.filter((str) => !!str.length);
   return constraints.length > 0 ? `where ${constraints.join(' AND ')}` : '';
