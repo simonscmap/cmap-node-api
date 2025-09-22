@@ -109,13 +109,24 @@ const getTimeConstraint = (constraints, metadata) => {
   if (!constraints.time) {
     return '';
   }
-  let isMonthlyClimatology =
-    metadata.Temporal_Resolution === Monthly_Climatology;
-  let colName = isMonthlyClimatology ? 'month' : 'time';
-  let {
-    time: { min, max },
-  } = constraints;
-  return makeClause(colName, min, max);
+
+  const isMonthlyClimatology = metadata.Temporal_Resolution === Monthly_Climatology;
+
+  if (isMonthlyClimatology) {
+    const {
+      time: { min, max },
+    } = constraints;
+
+    // Convert date strings to month numbers for climatology datasets
+    const monthConstraints = convertDatesToMonths(min, max);
+    return makeClause('month', monthConstraints.min, monthConstraints.max);
+  } else {
+    const {
+      time: { min, max },
+    } = constraints;
+
+    return makeClause('time', min, max);
+  }
 };
 
 const joinConstraints = (arr) => {
