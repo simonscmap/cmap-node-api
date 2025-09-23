@@ -59,8 +59,10 @@ config/UNSAFE_jwtConfig.js
 .gemini
 .web-bundles
 
-.claude/commands/BMad
-.claude/commands/bmadInfraDevOps
+.specify
+.claude
+specs/
+
 # BMAD End
 
 /docs/
