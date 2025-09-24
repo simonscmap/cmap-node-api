@@ -52,7 +52,7 @@ async function testAnonymousCollections() {
   // Validate collection structure
   if (data.length > 0) {
     const firstCollection = data[0];
-    const expectedFields = ['id', 'name', 'description', 'isPublic', 'createdAt', 'updatedAt'];
+    const expectedFields = ['id', 'name', 'description', 'isPublic', 'createdDate', 'modifiedDate'];
 
     console.log('\n🔍 Validating collection structure:');
     for (const field of expectedFields) {

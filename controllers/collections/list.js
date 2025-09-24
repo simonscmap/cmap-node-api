@@ -9,13 +9,13 @@ const anonymousQuery = `
   SELECT c.Collection_ID as id,
          c.Collection_Name as name,
          c.Description as description,
-         1 as is_public,
-         c.Created_At as created_date,
-         c.Modified_At as modified_date,
-         u.FirstName + ' ' + u.FamilyName as owner_name,
-         u.Institute as owner_affiliation,
-         COUNT(cd.Dataset_Short_Name) as dataset_count,
-         0 as is_owner
+         1 as isPublic,
+         c.Created_At as createdDate,
+         c.Modified_At as modifiedDate,
+         u.FirstName + ' ' + u.FamilyName as ownerName,
+         u.Institute as ownerAffiliation,
+         COUNT(cd.Dataset_Short_Name) as datasetCount,
+         0 as isOwner
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -30,13 +30,13 @@ const authenticatedQuery = `
   SELECT c.Collection_ID as id,
          c.Collection_Name as name,
          c.Description as description,
-         CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
-         c.Created_At as created_date,
-         c.Modified_At as modified_date,
-         u.FirstName + ' ' + u.FamilyName as owner_name,
-         u.Institute as owner_affiliation,
-         COUNT(cd.Dataset_Short_Name) as dataset_count,
-         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner
+         CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as isPublic,
+         c.Created_At as createdDate,
+         c.Modified_At as modifiedDate,
+         u.FirstName + ' ' + u.FamilyName as ownerName,
+         u.Institute as ownerAffiliation,
+         COUNT(cd.Dataset_Short_Name) as datasetCount,
+         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -51,16 +51,16 @@ const queryWithDatasets = `
   SELECT c.Collection_ID as id,
          c.Collection_Name as name,
          c.Description as description,
-         CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
-         c.Created_At as created_date,
-         c.Modified_At as modified_date,
-         u.FirstName + ' ' + u.FamilyName as owner_name,
-         u.Institute as owner_affiliation,
-         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner,
-         cd.Dataset_Short_Name as dataset_short_name,
-         d.Dataset_Long_Name as dataset_long_name,
-         d.Dataset_Version as dataset_version,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
+         CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as isPublic,
+         c.Created_At as createdDate,
+         c.Modified_At as modifiedDate,
+         u.FirstName + ' ' + u.FamilyName as ownerName,
+         u.Institute as ownerAffiliation,
+         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+         cd.Dataset_Short_Name as datasetShortName,
+         d.Dataset_Long_Name as datasetLongName,
+         d.Dataset_Version as datasetVersion,
+         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -71,16 +71,16 @@ const anonymousQueryWithDatasets = `
   SELECT c.Collection_ID as id,
          c.Collection_Name as name,
          c.Description as description,
-         1 as is_public,
-         c.Created_At as created_date,
-         c.Modified_At as modified_date,
-         u.FirstName + ' ' + u.FamilyName as owner_name,
-         u.Institute as owner_affiliation,
-         0 as is_owner,
-         cd.Dataset_Short_Name as dataset_short_name,
-         d.Dataset_Long_Name as dataset_long_name,
-         d.Dataset_Version as dataset_version,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
+         1 as isPublic,
+         c.Created_At as createdDate,
+         c.Modified_At as modifiedDate,
+         u.FirstName + ' ' + u.FamilyName as ownerName,
+         u.Institute as ownerAffiliation,
+         0 as isOwner,
+         cd.Dataset_Short_Name as datasetShortName,
+         d.Dataset_Long_Name as datasetLongName,
+         d.Dataset_Version as datasetVersion,
+         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -125,29 +125,29 @@ function transformResultsWithDatasets(results, includeDatasets) {
         id: row.id,
         name: row.name,
         description: row.description,
-        is_public: Boolean(row.is_public),
-        created_date: row.created_date,
-        modified_date: row.modified_date,
-        owner_name: row.owner_name,
-        owner_affiliation: row.owner_affiliation,
-        dataset_count: 0,
-        is_owner: Boolean(row.is_owner),
+        isPublic: Boolean(row.isPublic),
+        createdDate: row.createdDate,
+        modifiedDate: row.modifiedDate,
+        ownerName: row.ownerName,
+        ownerAffiliation: row.ownerAffiliation,
+        datasetCount: 0,
+        isOwner: Boolean(row.isOwner),
         datasets: []
       });
     }
 
     const collection = collectionsMap.get(collectionId);
 
-    if (row.dataset_short_name) {
+    if (row.datasetShortName) {
       collection.datasets.push({
-        dataset_short_name: row.dataset_short_name,
-        dataset_long_name: row.dataset_long_name,
-        dataset_version: row.dataset_version,
-        is_valid: Boolean(row.is_valid)
+        datasetShortName: row.datasetShortName,
+        datasetLongName: row.datasetLongName,
+        datasetVersion: row.datasetVersion,
+        isValid: Boolean(row.isValid)
       });
     }
 
-    collection.dataset_count = collection.datasets.length;
+    collection.datasetCount = collection.datasets.length;
   });
 
   return Array.from(collectionsMap.values());
@@ -200,13 +200,13 @@ module.exports = async (req, res) => {
         id: row.id,
         name: row.name,
         description: row.description,
-        is_public: Boolean(row.is_public),
-        created_date: row.created_date,
-        modified_date: row.modified_date,
-        owner_name: row.owner_name,
-        owner_affiliation: row.owner_affiliation,
-        dataset_count: row.dataset_count,
-        is_owner: Boolean(row.is_owner)
+        isPublic: Boolean(row.isPublic),
+        createdDate: row.createdDate,
+        modifiedDate: row.modifiedDate,
+        ownerName: row.ownerName,
+        ownerAffiliation: row.ownerAffiliation,
+        datasetCount: row.datasetCount,
+        isOwner: Boolean(row.isOwner)
       }));
     }
 

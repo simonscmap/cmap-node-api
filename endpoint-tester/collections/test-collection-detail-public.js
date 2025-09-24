@@ -92,8 +92,8 @@ async function testPublicCollectionDetail() {
 
   // Validate collection detail structure
   const expectedFields = [
-    'id', 'name', 'description', 'isPublic', 'createdAt', 'updatedAt',
-    'datasets', 'userId', 'createdBy'
+    'id', 'name', 'description', 'isPublic', 'createdDate', 'modifiedDate',
+    'ownerName', 'ownerAffiliation', 'datasetCount', 'isOwner', 'datasets'
   ];
 
   console.log('\n🔍 Validating collection structure:');

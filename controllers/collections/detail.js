@@ -28,20 +28,20 @@ module.exports = async (req, res) => {
       c.Collection_ID as id,
       c.Collection_Name as name,
       c.Description as description,
-      CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
-      c.Created_At as created_date,
-      c.Modified_At as modified_date,
-      u.FirstName + ' ' + u.FamilyName as owner_name,
-      u.Institute as owner_affiliation,
-      COUNT(cd.Dataset_Short_Name) as dataset_count,
+      CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as isPublic,
+      c.Created_At as createdDate,
+      c.Modified_At as modifiedDate,
+      u.FirstName + ' ' + u.FamilyName as ownerName,
+      u.Institute as ownerAffiliation,
+      COUNT(cd.Dataset_Short_Name) as datasetCount,
       CASE
         WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN 1
         ELSE 0
-      END as is_owner,
+      END as isOwner,
       CASE
         WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN c.Downloads
         ELSE NULL
-      END as total_downloads
+      END as totalDownloads
     FROM tblCollections c
     INNER JOIN tblUsers u ON c.User_ID = u.UserID
     LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -55,10 +55,10 @@ module.exports = async (req, res) => {
   // Query to get collection datasets if requested
   const datasetsQuery = includeDatasets ? `
     SELECT
-      cd.Dataset_Short_Name as dataset_short_name,
-      d.Dataset_Long_Name as dataset_long_name,
-      d.Dataset_Name as dataset_name,
-      CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
+      cd.Dataset_Short_Name as datasetShortName,
+      d.Dataset_Long_Name as datasetLongName,
+      d.Dataset_Name as datasetName,
+      CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
     FROM tblCollection_Datasets cd
     LEFT JOIN tblDatasets d ON cd.Dataset_Short_Name = d.Dataset_Name
     WHERE cd.Collection_ID = @collectionId
@@ -89,10 +89,10 @@ module.exports = async (req, res) => {
   // Add datasets if requested and available
   if (includeDatasets && result.recordsets[1]) {
     collection.datasets = result.recordsets[1].map(dataset => ({
-      dataset_short_name: dataset.dataset_short_name,
-      dataset_long_name: dataset.dataset_long_name,
-      dataset_name: dataset.dataset_name,
-      is_valid: Boolean(dataset.is_valid)
+      datasetShortName: dataset.datasetShortName,
+      datasetLongName: dataset.datasetLongName,
+      datasetName: dataset.datasetName,
+      isValid: Boolean(dataset.isValid)
     }));
   } else {
     collection.datasets = [];
@@ -103,25 +103,25 @@ module.exports = async (req, res) => {
     id: collection.id,
     name: collection.name,
     description: collection.description,
-    is_public: Boolean(collection.is_public),
-    created_date: collection.created_date,
-    modified_date: collection.modified_date,
-    owner_name: collection.owner_name,
-    owner_affiliation: collection.owner_affiliation,
-    dataset_count: collection.dataset_count,
-    is_owner: Boolean(collection.is_owner),
+    isPublic: Boolean(collection.isPublic),
+    createdDate: collection.createdDate,
+    modifiedDate: collection.modifiedDate,
+    ownerName: collection.ownerName,
+    ownerAffiliation: collection.ownerAffiliation,
+    datasetCount: collection.datasetCount,
+    isOwner: Boolean(collection.isOwner),
     datasets: collection.datasets
   };
 
   // Only include total_downloads if user is owner
-  if (collection.total_downloads !== null) {
-    responseData.total_downloads = collection.total_downloads;
+  if (collection.totalDownloads !== null) {
+    responseData.totalDownloads = collection.totalDownloads;
   }
 
   log.trace('Collection detail retrieved successfully', {
     collectionId,
     userId,
-    isOwner: responseData.is_owner,
+    isOwner: responseData.isOwner,
     datasetCount: responseData.datasets.length
   });
 

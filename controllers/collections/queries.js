@@ -7,13 +7,13 @@ const getPublicCollectionsQuery = () => `
 SELECT c.Collection_ID as id,
        c.Collection_Name as name,
        c.Description as description,
-       1 as is_public,
-       c.Created_At as created_date,
-       c.Modified_At as modified_date,
-       u.FirstName + ' ' + u.FamilyName as owner_name,
-       u.Institute as owner_affiliation,
-       COUNT(cd.Dataset_Short_Name) as dataset_count,
-       0 as is_owner
+       1 as isPublic,
+       c.Created_At as createdDate,
+       c.Modified_At as modifiedDate,
+       u.FirstName + ' ' + u.FamilyName as ownerName,
+       u.Institute as ownerAffiliation,
+       COUNT(cd.Dataset_Short_Name) as datasetCount,
+       0 as isOwner
 FROM tblCollections c
 INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -29,15 +29,15 @@ const getCollectionsWithUserQuery = () => `
 SELECT c.Collection_ID as id,
        c.Collection_Name as name,
        c.Description as description,
-       CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
-       c.Created_At as created_date,
-       c.Modified_At as modified_date,
-       u.FirstName + ' ' + u.FamilyName as owner_name,
-       u.Institute as owner_affiliation,
-       COUNT(cd.Dataset_Short_Name) as dataset_count,
-       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner,
-       CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as total_downloads,
-       CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as total_views
+       CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as isPublic,
+       c.Created_At as createdDate,
+       c.Modified_At as modifiedDate,
+       u.FirstName + ' ' + u.FamilyName as ownerName,
+       u.Institute as ownerAffiliation,
+       COUNT(cd.Dataset_Short_Name) as datasetCount,
+       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+       CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as totalDownloads,
+       CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as totalViews
 FROM tblCollections c
 INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -55,18 +55,18 @@ const getCollectionDetailQuery = () => `
 SELECT c.Collection_ID as id,
        c.Collection_Name as name,
        c.Description as description,
-       CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
-       c.Created_At as created_date,
-       c.Modified_At as modified_date,
-       u.FirstName + ' ' + u.FamilyName as owner_name,
-       u.Institute as owner_affiliation,
-       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner,
-       CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as total_downloads,
-       CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as total_views,
-       cd.Dataset_Short_Name as dataset_short_name,
-       d.Dataset_Long_Name as dataset_long_name,
-       d.Dataset_Version as dataset_version,
-       CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
+       CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as isPublic,
+       c.Created_At as createdDate,
+       c.Modified_At as modifiedDate,
+       u.FirstName + ' ' + u.FamilyName as ownerName,
+       u.Institute as ownerAffiliation,
+       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+       CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as totalDownloads,
+       CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as totalViews,
+       cd.Dataset_Short_Name as datasetShortName,
+       d.Dataset_Long_Name as datasetLongName,
+       d.Dataset_Version as datasetVersion,
+       CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
 FROM tblCollections c
 INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -80,8 +80,8 @@ ORDER BY cd.Dataset_Short_Name;
 const getCollectionAccessQuery = () => `
 SELECT c.Collection_ID as id,
        c.Private as private,
-       c.User_ID as owner_id,
-       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner
+       c.User_ID as ownerId,
+       CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner
 FROM tblCollections c
 WHERE c.Collection_ID = @collectionId;
 `;

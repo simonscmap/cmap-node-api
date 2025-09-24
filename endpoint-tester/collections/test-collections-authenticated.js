@@ -86,9 +86,11 @@ async function testAuthenticatedCollections() {
       'name',
       'description',
       'isPublic',
-      'createdAt',
-      'updatedAt',
-      'userId',
+      'createdDate',
+      'modifiedDate',
+      'ownerName',
+      'ownerAffiliation',
+      'datasetCount',
       'isOwner',
     ];
 
