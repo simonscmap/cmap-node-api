@@ -9,6 +9,6 @@ const moduleLogger = logInit('controllers/collections');
 
 module.exports = {
   list: require('./list'),
-  // detail: require('./detail'),
-  // queries: require('./queries'),
+  detail: require('./detail'),
+  queries: require('./queries'),
 };
