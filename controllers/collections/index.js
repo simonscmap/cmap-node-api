@@ -8,8 +8,7 @@ const moduleLogger = logInit('controllers/collections');
 // Individual controllers will be added here as they are implemented
 
 module.exports = {
-  // Placeholder for future collection controllers
-  // list: require('./list'),
+  list: require('./list'),
   // detail: require('./detail'),
   // queries: require('./queries'),
 };
