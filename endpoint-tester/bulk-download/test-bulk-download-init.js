@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const EndpointTester = require('../test-endpoints');
+const { getBulkDownloadAuth } = require('../testAuthHelper');
 
 async function testBulkDownloadInit() {
   const tester = new EndpointTester();
@@ -13,8 +14,9 @@ async function testBulkDownloadInit() {
 
   // Login
   const [cmdUsername, cmdPassword] = process.argv.slice(2);
-  const username = cmdUsername || 'howiewkim@gmail.com';
-  const password = cmdPassword || 'WkT*JDvDfk&Q62';
+  const bulkAuth = getBulkDownloadAuth();
+  const username = cmdUsername || bulkAuth.username;
+  const password = cmdPassword || bulkAuth.password;
 
   console.log('🔐 Logging in...');
   const loginSuccess = await tester.login(username, password);
