@@ -89,25 +89,26 @@ const anonymousQueryWithDatasets = `
   ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name
 `;
 
-function validateQueryParams(query) {
-  const errors = [];
-
-  if (query.limit !== undefined) {
-    const limit = parseInt(query.limit, 10);
-    if (isNaN(limit) || limit < 1 || limit > 100) {
-      errors.push('limit must be between 1 and 100');
-    }
-  }
-
-  if (query.offset !== undefined) {
-    const offset = parseInt(query.offset, 10);
-    if (isNaN(offset) || offset < 0) {
-      errors.push('offset must be 0 or greater');
-    }
-  }
-
-  return errors;
-}
+// Validation is now handled by middleware, this function is no longer needed
+// function validateQueryParams(query) {
+//   const errors = [];
+//
+//   if (query.limit !== undefined) {
+//     const limit = parseInt(query.limit, 10);
+//     if (isNaN(limit) || limit < 1 || limit > 100) {
+//       errors.push('limit must be between 1 and 100');
+//     }
+//   }
+//
+//   if (query.offset !== undefined) {
+//     const offset = parseInt(query.offset, 10);
+//     if (isNaN(offset) || offset < 0) {
+//       errors.push('offset must be 0 or greater');
+//     }
+//   }
+//
+//   return errors;
+// }
 
 function transformResultsWithDatasets(results, includeDatasets) {
   if (!includeDatasets) {
@@ -155,18 +156,8 @@ function transformResultsWithDatasets(results, includeDatasets) {
 module.exports = async (req, res) => {
   log.trace('requesting collections list');
 
-  const validationErrors = validateQueryParams(req.query);
-  if (validationErrors.length > 0) {
-    log.warn('invalid query parameters', { errors: validationErrors });
-    return res.status(400).json({
-      error: 'validation_error',
-      message: validationErrors.join(', ')
-    });
-  }
-
-  const includeDatasets = req.query.includeDatasets === 'true';
-  const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-  const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+  // Use validated parameters from middleware
+  const { includeDatasets, limit, offset } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
   const isAuthenticated = Boolean(userId);
 

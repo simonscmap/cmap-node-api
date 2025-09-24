@@ -5,13 +5,10 @@ const initializeLogger = require('../../log-service');
 const log = initializeLogger('controllers/collections/detail');
 
 module.exports = async (req, res) => {
-  const collectionId = parseInt(req.params.id);
-  const includeDatasets = req.query.includeDatasets !== 'false'; // Default to true for detail endpoint
+  // Use validated parameters from middleware
+  const collectionId = req.validatedParams.id;
+  const { includeDatasets } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
-
-  if (!collectionId || isNaN(collectionId) || collectionId < 1) {
-    return res.status(404).send('Collection does not exist');
-  }
 
   let pool;
   try {
