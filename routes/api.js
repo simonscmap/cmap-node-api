@@ -8,6 +8,7 @@ const userRoutes = require('./user');
 const dataRoutes = require('./data');
 const bulkDownloadRoutes = require('./bulk-download');
 const catalogRoutes = require('./catalog');
+const collectionsRoutes = require('./collections');
 const communityRoutes = require('./community');
 const highlightsRoutes = require('./highlights');
 const dataSubmissionRoutes = require('./dataSubmission');
@@ -90,6 +91,7 @@ router.use('/user', userRoutes);
 router.use('/data', dataRoutes);
 router.use('/data', bulkDownloadRoutes);
 router.use('/catalog', catalogRoutes);
+router.use('/collections', collectionsRoutes);
 router.use('/highlights', highlightsRoutes);
 router.use('/community', communityRoutes);
 router.use(

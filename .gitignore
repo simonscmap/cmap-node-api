@@ -48,7 +48,7 @@ config/UNSAFE_jwtConfig.js
 /utility/googleServiceAccountKeyFile.json
 .env
 .sentryclirc
-
+*/.env
 .vscode/
 .nvmrc
 
@@ -59,8 +59,9 @@ config/UNSAFE_jwtConfig.js
 .gemini
 .web-bundles
 
-.claude/commands/BMad
-.claude/commands/bmadInfraDevOps
+.specify
+.claude
+specs/
+docs/
 # BMAD End
 
-/docs/
