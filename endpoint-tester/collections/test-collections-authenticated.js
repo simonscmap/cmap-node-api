@@ -70,6 +70,14 @@ async function testAuthenticatedCollections() {
 
   console.log(`✅ Received ${data.length} collections`);
 
+  // Debug: Print complete response structure
+  if (data.length > 0) {
+    console.log('\n🔍 Complete Response Structure:');
+    console.log('First collection object:');
+    console.log(JSON.stringify(data[0], null, 2));
+    console.log('\nAll available fields:', Object.keys(data[0]));
+  }
+
   // Validate collection structure
   if (data.length > 0) {
     const firstCollection = data[0];
