@@ -15,7 +15,7 @@ SELECT c.Collection_ID as id,
        COUNT(cd.Dataset_Short_Name) as dataset_count,
        0 as is_owner
 FROM tblCollections c
-INNER JOIN tblUsers u ON c.User_ID = u.ID
+INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
 WHERE c.Private = 0
 GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
@@ -39,7 +39,7 @@ SELECT c.Collection_ID as id,
        CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as total_downloads,
        CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as total_views
 FROM tblCollections c
-INNER JOIN tblUsers u ON c.User_ID = u.ID
+INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
 WHERE c.Private = 0 OR c.User_ID = @userId
 GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
@@ -68,7 +68,7 @@ SELECT c.Collection_ID as id,
        d.Dataset_Version as dataset_version,
        CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
 FROM tblCollections c
-INNER JOIN tblUsers u ON c.User_ID = u.ID
+INNER JOIN tblUsers u ON c.User_ID = u.UserID
 LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
 LEFT JOIN tblDatasets d ON cd.Dataset_Short_Name = d.Dataset_Name
 WHERE c.Collection_ID = @collectionId

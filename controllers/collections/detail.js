@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
         ELSE NULL
       END as total_downloads
     FROM tblCollections c
-    INNER JOIN tblUsers u ON c.User_ID = u.ID
+    INNER JOIN tblUsers u ON c.User_ID = u.UserID
     LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
     WHERE c.Collection_ID = @collectionId
       AND (c.Private = 0 OR (@userId IS NOT NULL AND c.User_ID = @userId))

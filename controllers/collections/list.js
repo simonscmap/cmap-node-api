@@ -17,7 +17,7 @@ const anonymousQuery = `
          COUNT(cd.Dataset_Short_Name) as dataset_count,
          0 as is_owner
   FROM tblCollections c
-  INNER JOIN tblUsers u ON c.User_ID = u.ID
+  INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
@@ -38,7 +38,7 @@ const authenticatedQuery = `
          COUNT(cd.Dataset_Short_Name) as dataset_count,
          CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner
   FROM tblCollections c
-  INNER JOIN tblUsers u ON c.User_ID = u.ID
+  INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0 OR c.User_ID = @userId
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
@@ -62,7 +62,7 @@ const queryWithDatasets = `
          d.Dataset_Version as dataset_version,
          CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
   FROM tblCollections c
-  INNER JOIN tblUsers u ON c.User_ID = u.ID
+  INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   LEFT JOIN tblDatasets d ON cd.Dataset_Short_Name = d.Dataset_Name
   WHERE `;
@@ -82,7 +82,7 @@ const anonymousQueryWithDatasets = `
          d.Dataset_Version as dataset_version,
          CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as is_valid
   FROM tblCollections c
-  INNER JOIN tblUsers u ON c.User_ID = u.ID
+  INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   LEFT JOIN tblDatasets d ON cd.Dataset_Short_Name = d.Dataset_Name
   WHERE c.Private = 0
