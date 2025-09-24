@@ -11,6 +11,7 @@
  */
 
 const EndpointTester = require('../test-endpoints.js');
+const { getBasicAuth } = require('../testAuthHelper');
 
 async function testPublicCollectionDetail() {
   console.log('🧪 Testing Collections API - Public Collection Detail');
@@ -29,9 +30,22 @@ async function testPublicCollectionDetail() {
 
   // Optional authentication for comparison testing
   let authenticated = false;
-  if (username && password) {
-    console.log(`\n🔐 Logging in as: ${username}`);
-    authenticated = await tester.login(username, password);
+  let finalUsername = username;
+  let finalPassword = password;
+
+  // Use default credentials if not provided
+  if (!username || !password) {
+    const defaultAuth = getBasicAuth();
+    finalUsername = username || defaultAuth.username;
+    finalPassword = password || defaultAuth.password;
+    if (!username) {
+      console.log('ℹ️  Using default test credentials (override with: node test-collection-detail-public.js <collection-id> <username> <password>)');
+    }
+  }
+
+  if (finalUsername && finalPassword) {
+    console.log(`\n🔐 Logging in as: ${finalUsername}`);
+    authenticated = await tester.login(finalUsername, finalPassword);
     if (!authenticated) {
       console.log('⚠️  Login failed - continuing with anonymous access...');
     }

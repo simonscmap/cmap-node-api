@@ -11,20 +11,24 @@
  */
 
 const EndpointTester = require('../test-endpoints.js');
+const { getBasicAuth } = require('../testAuthHelper');
 
 async function testAuthenticatedCollections() {
   console.log('🧪 Testing Collections API - Authenticated Access');
   console.log('='.repeat(50));
 
   const args = process.argv.slice(2);
-  if (args.length < 2) {
-    console.log(
-      '❌ Usage: node test-collections-authenticated.js <username> <password>',
-    );
-    process.exit(1);
-  }
+  let username, password;
 
-  const [username, password] = args;
+  if (args.length >= 2) {
+    [username, password] = args;
+  } else {
+    // Use default test credentials
+    const auth = getBasicAuth();
+    username = auth.username;
+    password = auth.password;
+    console.log('ℹ️  Using default test credentials (override with: node test-collections-authenticated.js <username> <password>)');
+  }
   const tester = new EndpointTester();
 
   console.log(`\n🔐 Logging in as: ${username}`);

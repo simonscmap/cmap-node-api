@@ -11,19 +11,35 @@
  */
 
 const EndpointTester = require('../test-endpoints.js');
+const { getBasicAuth } = require('../testAuthHelper');
 
 async function testPrivateCollectionAccessControl() {
   console.log('🧪 Testing Collections API - Private Collection Access Control');
   console.log('='.repeat(50));
 
   const args = process.argv.slice(2);
-  if (args.length < 3) {
-    console.log('❌ Usage: node test-collection-access-control.js <private-collection-id> <owner-username> <owner-password> [non-owner-username] [non-owner-password]');
+  if (args.length < 1) {
+    console.log('❌ Usage: node test-collection-access-control.js <private-collection-id> [owner-username] [owner-password] [non-owner-username] [non-owner-password]');
     console.log('   Example: node test-collection-access-control.js private-123 owner-user owner-pass other-user other-pass');
+    console.log('   Note: If credentials not provided, will use default test credentials');
     process.exit(1);
   }
 
   const [collectionId, ownerUsername, ownerPassword, nonOwnerUsername, nonOwnerPassword] = args;
+
+  // Use default credentials if not provided
+  const defaultAuth = getBasicAuth();
+  const finalOwnerUsername = ownerUsername || defaultAuth.username;
+  const finalOwnerPassword = ownerPassword || defaultAuth.password;
+  const finalNonOwnerUsername = nonOwnerUsername || defaultAuth.username;
+  const finalNonOwnerPassword = nonOwnerPassword || defaultAuth.password;
+
+  if (!ownerUsername) {
+    console.log('ℹ️  Using default test credentials for owner');
+  }
+  if (!nonOwnerUsername) {
+    console.log('ℹ️  Using default test credentials for non-owner');
+  }
 
   console.log('\n📝 Test Case 1: Anonymous access to private collection');
   console.log(`Collection ID: ${collectionId}`);
@@ -55,12 +71,12 @@ async function testPrivateCollectionAccessControl() {
   }
 
   console.log('\n📝 Test Case 2: Owner access to private collection');
-  console.log(`Owner: ${ownerUsername}`);
+  console.log(`Owner: ${finalOwnerUsername}`);
   console.log('Expected: Access granted with full details');
 
   // Test 2: Owner should have access
   const ownerTester = new EndpointTester();
-  const ownerLogin = await ownerTester.login(ownerUsername, ownerPassword);
+  const ownerLogin = await ownerTester.login(finalOwnerUsername, finalOwnerPassword);
 
   if (!ownerLogin) {
     console.log('❌ Owner login failed');
@@ -107,13 +123,13 @@ async function testPrivateCollectionAccessControl() {
   }
 
   // Test 3: Non-owner access (if credentials provided)
-  if (nonOwnerUsername && nonOwnerPassword) {
+  if (finalNonOwnerUsername && finalNonOwnerPassword) {
     console.log('\n📝 Test Case 3: Non-owner access to private collection');
-    console.log(`Non-owner: ${nonOwnerUsername}`);
+    console.log(`Non-owner: ${finalNonOwnerUsername}`);
     console.log('Expected: Access denied (403)');
 
     const nonOwnerTester = new EndpointTester();
-    const nonOwnerLogin = await nonOwnerTester.login(nonOwnerUsername, nonOwnerPassword);
+    const nonOwnerLogin = await nonOwnerTester.login(finalNonOwnerUsername, finalNonOwnerPassword);
 
     if (!nonOwnerLogin) {
       console.log('❌ Non-owner login failed');
@@ -148,7 +164,7 @@ async function testPrivateCollectionAccessControl() {
 
   // Test with invalid credentials
   const invalidTester = new EndpointTester();
-  const invalidLogin = await invalidTester.login(ownerUsername, 'wrong-password');
+  const invalidLogin = await invalidTester.login(finalOwnerUsername, 'wrong-password');
 
   if (invalidLogin) {
     console.log('⚠️  Invalid credentials accepted - authentication may be weak');
