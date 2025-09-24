@@ -10,8 +10,8 @@ SELECT c.Collection_ID as id,
        1 as is_public,
        c.Created_At as created_date,
        c.Modified_At as modified_date,
-       u.firstName + ' ' + u.lastName as owner_name,
-       u.affiliation as owner_affiliation,
+       u.FirstName + ' ' + u.FamilyName as owner_name,
+       u.Institute as owner_affiliation,
        COUNT(cd.Dataset_Short_Name) as dataset_count,
        0 as is_owner
 FROM tblCollections c
@@ -20,7 +20,7 @@ LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
 WHERE c.Private = 0
 GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
          c.Created_At, c.Modified_At,
-         u.firstName, u.lastName, u.affiliation
+         u.FirstName, u.FamilyName, u.Institute
 ORDER BY c.Modified_At DESC;
 `;
 
@@ -32,8 +32,8 @@ SELECT c.Collection_ID as id,
        CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
        c.Created_At as created_date,
        c.Modified_At as modified_date,
-       u.firstName + ' ' + u.lastName as owner_name,
-       u.affiliation as owner_affiliation,
+       u.FirstName + ' ' + u.FamilyName as owner_name,
+       u.Institute as owner_affiliation,
        COUNT(cd.Dataset_Short_Name) as dataset_count,
        CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner,
        CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as total_downloads,
@@ -44,7 +44,7 @@ LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
 WHERE c.Private = 0 OR c.User_ID = @userId
 GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
          c.Created_At, c.Modified_At, c.Downloads, c.Views,
-         u.firstName, u.lastName, u.affiliation, c.User_ID
+         u.FirstName, u.FamilyName, u.Institute, c.User_ID
 ORDER BY c.Modified_At DESC;
 `;
 
@@ -58,8 +58,8 @@ SELECT c.Collection_ID as id,
        CASE WHEN c.Private = 0 THEN 1 ELSE 0 END as is_public,
        c.Created_At as created_date,
        c.Modified_At as modified_date,
-       u.firstName + ' ' + u.lastName as owner_name,
-       u.affiliation as owner_affiliation,
+       u.FirstName + ' ' + u.FamilyName as owner_name,
+       u.Institute as owner_affiliation,
        CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as is_owner,
        CASE WHEN c.User_ID = @userId THEN c.Downloads ELSE NULL END as total_downloads,
        CASE WHEN c.User_ID = @userId THEN c.Views ELSE NULL END as total_views,
