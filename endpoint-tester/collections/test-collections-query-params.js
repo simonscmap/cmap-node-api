@@ -11,7 +11,7 @@
  * - Should provide appropriate error messages
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testQueryParameterValidation() {
   console.log('🧪 Testing Collections API - Query Parameters Validation');

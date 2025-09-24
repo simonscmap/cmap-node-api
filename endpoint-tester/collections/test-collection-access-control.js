@@ -10,7 +10,7 @@
  * - Should validate proper authentication and authorization
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testPrivateCollectionAccessControl() {
   console.log('🧪 Testing Collections API - Private Collection Access Control');

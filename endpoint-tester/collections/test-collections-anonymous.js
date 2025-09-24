@@ -10,7 +10,7 @@
  * - Should include standard collection metadata
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testAnonymousCollections() {
   console.log('🧪 Testing Collections API - Anonymous Access');

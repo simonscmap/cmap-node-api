@@ -10,7 +10,7 @@
  * - Should validate collection ID format
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testPublicCollectionDetail() {
   console.log('🧪 Testing Collections API - Public Collection Detail');

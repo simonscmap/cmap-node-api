@@ -10,7 +10,7 @@
  * - Should validate user context
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testAuthenticatedCollections() {
   console.log('🧪 Testing Collections API - Authenticated Access');
@@ -18,7 +18,9 @@ async function testAuthenticatedCollections() {
 
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.log('❌ Usage: node test-collections-authenticated.js <username> <password>');
+    console.log(
+      '❌ Usage: node test-collections-authenticated.js <username> <password>',
+    );
     process.exit(1);
   }
 
@@ -34,7 +36,7 @@ async function testAuthenticatedCollections() {
   }
 
   console.log('\n📝 Test Case: GET /api/collections (authenticated)');
-  console.log('Expected: Public collections + user\'s private collections');
+  console.log("Expected: Public collections + user's private collections");
   console.log('Expected: User ownership information included');
 
   // Test authenticated collections endpoint
@@ -67,7 +69,16 @@ async function testAuthenticatedCollections() {
   // Validate collection structure
   if (data.length > 0) {
     const firstCollection = data[0];
-    const expectedFields = ['id', 'name', 'description', 'isPublic', 'createdAt', 'updatedAt', 'userId', 'isOwner'];
+    const expectedFields = [
+      'id',
+      'name',
+      'description',
+      'isPublic',
+      'createdAt',
+      'updatedAt',
+      'userId',
+      'isOwner',
+    ];
 
     console.log('\n🔍 Validating collection structure:');
     for (const field of expectedFields) {
@@ -79,9 +90,9 @@ async function testAuthenticatedCollections() {
     }
 
     // Analyze collection access patterns
-    const publicCollections = data.filter(col => col.isPublic === true);
-    const privateCollections = data.filter(col => col.isPublic === false);
-    const ownedCollections = data.filter(col => col.isOwner === true);
+    const publicCollections = data.filter((col) => col.isPublic === true);
+    const privateCollections = data.filter((col) => col.isPublic === false);
+    const ownedCollections = data.filter((col) => col.isOwner === true);
 
     console.log('\n📊 Access Analysis:');
     console.log(`- Public collections: ${publicCollections.length}`);
@@ -89,9 +100,13 @@ async function testAuthenticatedCollections() {
     console.log(`- Owned collections: ${ownedCollections.length}`);
 
     // Validate that all private collections are owned by user
-    const unauthorizedPrivate = privateCollections.filter(col => col.isOwner !== true);
+    const unauthorizedPrivate = privateCollections.filter(
+      (col) => col.isOwner !== true,
+    );
     if (unauthorizedPrivate.length > 0) {
-      console.log(`❌ Found ${unauthorizedPrivate.length} private collections not owned by user`);
+      console.log(
+        `❌ Found ${unauthorizedPrivate.length} private collections not owned by user`,
+      );
       return false;
     } else {
       console.log('✅ All private collections are owned by authenticated user');
@@ -132,7 +147,7 @@ async function testAuthenticatedCollections() {
 // Run test if called directly
 if (require.main === module) {
   testAuthenticatedCollections()
-    .then(success => {
+    .then((success) => {
       if (success) {
         console.log('\n🎉 Authenticated collections test PASSED');
         process.exit(0);
@@ -141,7 +156,7 @@ if (require.main === module) {
         process.exit(1);
       }
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('\n💥 Test error:', error);
       process.exit(1);
     });

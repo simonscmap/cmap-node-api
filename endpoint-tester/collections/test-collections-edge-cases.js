@@ -12,7 +12,7 @@
  * - Should handle various content-type headers
  */
 
-const EndpointTester = require('./test-endpoints.js');
+const EndpointTester = require('../test-endpoints.js');
 
 async function testErrorHandlingEdgeCases() {
   console.log('🧪 Testing Collections API - Error Handling Edge Cases');

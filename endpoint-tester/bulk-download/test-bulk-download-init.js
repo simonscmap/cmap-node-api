@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const EndpointTester = require('./test-endpoints');
+const EndpointTester = require('../test-endpoints');
 
 async function testBulkDownloadInit() {
   const tester = new EndpointTester();
