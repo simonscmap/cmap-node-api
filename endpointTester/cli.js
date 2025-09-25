@@ -12,12 +12,18 @@
 
 const chalk = require('chalk');
 const TestRunner = require('./lib/TestRunner');
+const AuthProvider = require('./lib/AuthProvider');
+const ResponseValidator = require('./lib/ResponseValidator');
+const ErrorFormatter = require('./lib/ErrorFormatter');
 const { endpoints, helpers } = require('./config/endpoints');
 
 class EndpointTesterCLI {
   constructor() {
     this.baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     this.args = process.argv.slice(2);
+    this.authProvider = new AuthProvider();
+    this.responseValidator = new ResponseValidator();
+    this.errorFormatter = new ErrorFormatter();
   }
 
   /**
@@ -98,6 +104,18 @@ class EndpointTesterCLI {
     console.log(chalk.white('\nEnvironment:'));
     console.log(chalk.gray(`  Base URL: ${this.baseUrl}`));
     console.log(chalk.gray(`  Timeout: 10s (configurable per endpoint)`));
+
+    // Show authentication status
+    const credValidation = this.authProvider.validateCredentials();
+    console.log(chalk.white('\nAuthentication Status:'));
+    if (credValidation.isValid) {
+      console.log(chalk.green('  ✅ All authentication credentials configured'));
+    } else {
+      console.log(chalk.yellow(`  ⚠️ ${credValidation.issues.length} authentication issues:`));
+      credValidation.issues.forEach(issue => {
+        console.log(chalk.gray(`     • ${issue}`));
+      });
+    }
   }
 
   /**
@@ -115,6 +133,15 @@ class EndpointTesterCLI {
         console.log(chalk.gray(`  ${ep.method} ${ep.fullPath}`));
       });
       return false;
+    }
+
+    // Show authentication info for this endpoint
+    const authInfo = this.authProvider.getAuthInfo(path, method);
+    if (authInfo.required) {
+      console.log(chalk.cyan(`🔐 Auth: ${authInfo.description}`));
+      if (!authInfo.configuredEndpoint) {
+        console.log(chalk.yellow('⚠️ Using fallback authentication detection'));
+      }
     }
 
     return await this.runEndpointTest(endpoint);
@@ -137,6 +164,19 @@ class EndpointTesterCLI {
     }
 
     console.log(chalk.gray(`Found ${groupEndpoints.length} endpoints in group\n`));
+
+    // Show authentication summary for the group
+    const authStrategies = new Set();
+    groupEndpoints.forEach(endpoint => {
+      const authInfo = this.authProvider.getAuthInfo(endpoint.fullPath, endpoint.method);
+      if (authInfo.required) {
+        authStrategies.add(authInfo.strategy);
+      }
+    });
+
+    if (authStrategies.size > 0) {
+      console.log(chalk.cyan(`🔐 Authentication required: ${Array.from(authStrategies).join(', ')}\n`));
+    }
 
     let allPassed = true;
     for (const endpoint of groupEndpoints) {
@@ -181,6 +221,22 @@ class EndpointTesterCLI {
       console.log(chalk.red(`❌ Failed: ${failedCount}`));
     }
     console.log(chalk.gray(`Total: ${allEndpoints.length}`));
+
+    // Authentication summary
+    const authStrategies = new Set();
+    allEndpoints.forEach(endpoint => {
+      const authInfo = this.authProvider.getAuthInfo(endpoint.fullPath, endpoint.method);
+      if (authInfo.required) {
+        authStrategies.add(authInfo.strategy);
+      }
+    });
+
+    if (authStrategies.size > 0) {
+      console.log(chalk.cyan(`🔐 Auth strategies used: ${Array.from(authStrategies).join(', ')}`));
+    }
+
+    // Validation summary
+    console.log(chalk.gray(`Response validation: enabled`));
 
     return allPassed;
   }
@@ -245,19 +301,62 @@ class EndpointTesterCLI {
         if (result.response) {
           console.log(chalk.gray(`   Status: ${result.response.status} | Time: ${result.executionTime}ms`));
         }
+
+        // Show validation summary for successful tests
+        if (result.validationResults && result.validationResults.length > 0) {
+          const validationSummary = this.responseValidator.generateSummary(result.validationResults);
+          if (validationSummary.total > 0) {
+            console.log(chalk.gray(`   Validations: ${validationSummary.passed}/${validationSummary.total} passed`));
+          }
+        }
+
         return true;
       } else {
         console.log(chalk.red(`   ❌ ${statusText}`));
         if (result.response) {
           console.log(chalk.gray(`   Status: ${result.response.status} | Time: ${result.executionTime}ms`));
         }
+
+        // Enhanced error reporting using ErrorFormatter
         if (result.errors && result.errors.length > 0) {
-          console.log(chalk.yellow(`   Errors: ${result.errors.join(', ')}`));
+          // Check if errors are already formatted objects
+          const formattedErrors = result.errors.map(error => {
+            if (typeof error === 'object' && error.category) {
+              return error; // Already formatted
+            }
+            return { message: error, category: 'test' }; // Simple error
+          });
+
+          formattedErrors.forEach(error => {
+            console.log(chalk.yellow(`   Error: ${error.message || error}`));
+            if (error.suggestions && error.suggestions.length > 0) {
+              console.log(chalk.cyan(`   💡 ${error.suggestions[0]}`)); // Show first suggestion
+            }
+          });
         }
+
+        // Show validation details for failed tests
+        if (result.validationResults && result.validationResults.length > 0) {
+          const failures = result.validationResults.filter(r => !r.passed);
+          if (failures.length > 0) {
+            console.log(chalk.yellow(`   Validation failures: ${failures.length}`));
+            failures.slice(0, 2).forEach(failure => { // Show first 2 failures
+              console.log(chalk.gray(`     • ${failure.message}`));
+            });
+          }
+        }
+
         return false;
       }
     } catch (error) {
       console.log(chalk.red(`   ❌ Test execution failed: ${error.message}`));
+
+      // Use ErrorFormatter for configuration/setup errors
+      const formattedError = this.errorFormatter.formatConfigError(error);
+      if (formattedError.suggestions && formattedError.suggestions.length > 0) {
+        console.log(chalk.cyan(`   💡 ${formattedError.suggestions[0]}`));
+      }
+
       return false;
     }
   }
@@ -289,6 +388,16 @@ class EndpointTesterCLI {
       }
     } catch (error) {
       console.log(chalk.red(`\n❌ CLI Error: ${error.message}`));
+
+      // Use ErrorFormatter for better CLI error messages
+      const formattedError = this.errorFormatter.formatConfigError(error);
+      if (formattedError.suggestions && formattedError.suggestions.length > 0) {
+        console.log(chalk.yellow('\n💡 Suggested Actions:'));
+        formattedError.suggestions.slice(0, 3).forEach((suggestion, index) => {
+          console.log(chalk.gray(`   ${index + 1}. ${suggestion}`));
+        });
+      }
+
       return false;
     }
   }
