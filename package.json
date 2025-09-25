@@ -5,6 +5,8 @@
   "main": "app.js",
   "scripts": {
     "test": "ava -- -- logLevel=1",
+    "test:endpoint": "node endpointTester/cli.js",
+    "test:endpoint:all": "node endpointTester/cli.js --all",
     "start": "./node_modules/pm2/bin/pm2-runtime app.js -i 2"
   },
   "engines": {
