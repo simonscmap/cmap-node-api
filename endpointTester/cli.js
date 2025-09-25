@@ -79,43 +79,136 @@ class EndpointTesterCLI {
   }
 
   /**
+   * Format progress indicator
+   */
+  formatProgress(current, total) {
+    const percentage = Math.round((current / total) * 100);
+    const progressBar = this.createProgressBar(current, total, 20);
+    return `[${progressBar}] ${current}/${total} (${percentage}%)`;
+  }
+
+  /**
+   * Create a visual progress bar
+   */
+  createProgressBar(current, total, width = 20) {
+    const filled = Math.round((current / total) * width);
+    const empty = width - filled;
+    return '█'.repeat(filled) + '░'.repeat(empty);
+  }
+
+  /**
    * Show help message
    */
   showHelp() {
-    console.log(chalk.blue.bold('\n=== Endpoint Tester CLI ===\n'));
+    console.log(chalk.blue.bold('\n╔══════════════════════════════════════════╗'));
+    console.log(chalk.blue.bold('║          Endpoint Tester CLI             ║'));
+    console.log(chalk.blue.bold('╚══════════════════════════════════════════╝\n'));
 
-    console.log(chalk.white('Usage:'));
-    console.log('  node endpointTester/cli.js <endpoint> [method]  # Test single endpoint');
-    console.log('  node endpointTester/cli.js <group>              # Test endpoint group');
-    console.log('  node endpointTester/cli.js --all                # Test all endpoints');
-    console.log('  node endpointTester/cli.js --help               # Show this help\n');
+    console.log(chalk.cyan.bold('DESCRIPTION:'));
+    console.log(chalk.white('  Manual endpoint testing tool with zero-friction CLI interface'));
+    console.log(chalk.white('  and automatic authentication. Test single endpoints, groups,'));
+    console.log(chalk.white('  or all endpoints with comprehensive validation.\n'));
 
-    console.log(chalk.white('Examples:'));
-    console.log('  node endpointTester/cli.js /api/collections GET');
-    console.log('  node endpointTester/cli.js /api/collections');
-    console.log('  node endpointTester/cli.js --all\n');
+    console.log(chalk.cyan.bold('USAGE:'));
+    console.log(chalk.white('  node endpointTester/cli.js <endpoint> [method]  # Test single endpoint'));
+    console.log(chalk.white('  node endpointTester/cli.js <group>              # Test endpoint group'));
+    console.log(chalk.white('  node endpointTester/cli.js --all                # Test all endpoints'));
+    console.log(chalk.white('  node endpointTester/cli.js --help               # Show this help\n'));
 
-    console.log(chalk.white('Available endpoint groups:'));
+    console.log(chalk.cyan.bold('EXAMPLES:'));
+    console.log(chalk.yellow('  # Test a specific endpoint with method:'));
+    console.log(chalk.white('  node endpointTester/cli.js /api/collections GET'));
+    console.log(chalk.white('  node endpointTester/cli.js /api/user/profile POST\n'));
+
+    console.log(chalk.yellow('  # Test all endpoints in a group:'));
+    console.log(chalk.white('  node endpointTester/cli.js /api/collections'));
+    console.log(chalk.white('  node endpointTester/cli.js /api/user\n'));
+
+    console.log(chalk.yellow('  # Test all endpoints (comprehensive test):'));
+    console.log(chalk.white('  node endpointTester/cli.js --all\n'));
+
+    console.log(chalk.yellow('  # Using npm scripts (recommended):'));
+    console.log(chalk.white('  npm run test:endpoint /api/collections GET'));
+    console.log(chalk.white('  npm run test:endpoint /api/collections'));
+    console.log(chalk.white('  npm run test:endpoint:all\n'));
+
+    console.log(chalk.cyan.bold('AVAILABLE ENDPOINT GROUPS:'));
     Object.keys(endpoints).forEach(groupName => {
       const group = endpoints[groupName];
-      console.log(chalk.gray(`  ${group.baseUrl} (${group.endpoints.length} endpoints)`));
+      console.log(chalk.green(`  📁 ${group.baseUrl}`));
+      console.log(chalk.gray(`     ${group.endpoints.length} endpoints | Auth: ${group.auth || 'auto-detect'}`));
+
+      // Show sample endpoints from the group
+      const sampleEndpoints = group.endpoints.slice(0, 3);
+      sampleEndpoints.forEach(endpoint => {
+        console.log(chalk.gray(`     └─ ${endpoint.method} ${endpoint.path}`));
+      });
+      if (group.endpoints.length > 3) {
+        console.log(chalk.gray(`     └─ ... and ${group.endpoints.length - 3} more`));
+      }
+      console.log('');
     });
 
-    console.log(chalk.white('\nEnvironment:'));
-    console.log(chalk.gray(`  Base URL: ${this.baseUrl}`));
-    console.log(chalk.gray(`  Timeout: 10s (configurable per endpoint)`));
+    console.log(chalk.cyan.bold('CONFIGURATION:'));
+    console.log(chalk.white('  Environment Variables:'));
+    console.log(chalk.gray(`    API_BASE_URL=${this.baseUrl}`));
+    console.log(chalk.gray('    JWT_TOKEN=<your-jwt-token> (for authenticated endpoints)'));
+    console.log(chalk.gray('    API_KEY=<your-api-key> (alternative auth method)'));
+    console.log(chalk.gray('    GOOGLE_ACCESS_TOKEN=<token> (for Google OAuth endpoints)\n'));
+
+    console.log(chalk.white('  Default Settings:'));
+    console.log(chalk.gray('    • Timeout: 10s (configurable per endpoint)'));
+    console.log(chalk.gray('    • Auto-authentication detection'));
+    console.log(chalk.gray('    • Response validation enabled'));
+    console.log(chalk.gray('    • Colored output with progress indicators\n'));
 
     // Show authentication status
     const credValidation = this.authProvider.validateCredentials();
-    console.log(chalk.white('\nAuthentication Status:'));
+    console.log(chalk.cyan.bold('AUTHENTICATION STATUS:'));
     if (credValidation.isValid) {
       console.log(chalk.green('  ✅ All authentication credentials configured'));
+      console.log(chalk.gray('     Ready to test protected endpoints'));
     } else {
-      console.log(chalk.yellow(`  ⚠️ ${credValidation.issues.length} authentication issues:`));
+      console.log(chalk.yellow(`  ⚠️ ${credValidation.issues.length} authentication issues found:`));
       credValidation.issues.forEach(issue => {
-        console.log(chalk.gray(`     • ${issue}`));
+        console.log(chalk.red(`     ❌ ${issue}`));
       });
+      console.log(chalk.cyan('\n  💡 Tips:'));
+      console.log(chalk.gray('     • Set JWT_TOKEN for JWT-based auth'));
+      console.log(chalk.gray('     • Set API_KEY for API key-based auth'));
+      console.log(chalk.gray('     • Some endpoints may work with auto-detection'));
     }
+
+    console.log(chalk.cyan.bold('\nFEATURES:'));
+    console.log(chalk.green('  ✅ Auto-authentication detection'));
+    console.log(chalk.green('  ✅ Comprehensive response validation'));
+    console.log(chalk.green('  ✅ Colored output with progress indicators'));
+    console.log(chalk.green('  ✅ Detailed error reporting with suggestions'));
+    console.log(chalk.green('  ✅ Configurable timeouts per endpoint'));
+    console.log(chalk.green('  ✅ Support for multiple auth strategies'));
+    console.log(chalk.green('  ✅ Test data fixtures and cleanup'));
+
+    console.log(chalk.cyan.bold('\nOUTPUT LEGEND:'));
+    console.log(chalk.green('  ✅ PASSED - Test completed successfully'));
+    console.log(chalk.red('  ❌ FAILED - Test failed (see error details)'));
+    console.log(chalk.cyan('  🔐 Auth: <strategy> - Authentication method used'));
+    console.log(chalk.yellow('  ⚠️ Warning - Non-critical issues or fallback behavior'));
+    console.log(chalk.blue('  🧪 <test-name> - Individual test execution'));
+    console.log(chalk.gray('  💡 <suggestion> - Actionable recommendations'));
+
+    console.log(chalk.cyan.bold('\nTROUBLESHOoting:'));
+    console.log(chalk.white('  Common Issues:'));
+    console.log(chalk.gray('  • "Endpoint not found" → Check spelling and available endpoints above'));
+    console.log(chalk.gray('  • "Auth required" → Set appropriate environment variables'));
+    console.log(chalk.gray('  • "Connection failed" → Verify API_BASE_URL and server status'));
+    console.log(chalk.gray('  • "Timeout" → Server may be slow, check endpoint-specific timeouts'));
+
+    console.log(chalk.white('\n  Getting More Help:'));
+    console.log(chalk.gray('  • Check endpoint definitions in endpointTester/config/endpoints.js'));
+    console.log(chalk.gray('  • Review authentication setup in endpointTester/lib/AuthProvider.js'));
+    console.log(chalk.gray('  • Enable verbose logging with DEBUG environment variable'));
+
+    console.log('');
   }
 
   /**
@@ -144,7 +237,13 @@ class EndpointTesterCLI {
       }
     }
 
-    return await this.runEndpointTest(endpoint);
+    // Simple progress indicator for single tests
+    process.stdout.write(chalk.cyan('\r[█████████████████████] 1/1 (100%) Testing... '));
+
+    const result = await this.runEndpointTest(endpoint);
+    console.log(''); // Clear progress line
+
+    return result;
   }
 
   /**
@@ -179,13 +278,26 @@ class EndpointTesterCLI {
     }
 
     let allPassed = true;
-    for (const endpoint of groupEndpoints) {
+    let completedCount = 0;
+
+    for (let i = 0; i < groupEndpoints.length; i++) {
+      const endpoint = groupEndpoints[i];
+
+      // Progress indicator
+      const progress = this.formatProgress(i + 1, groupEndpoints.length);
+      process.stdout.write(chalk.cyan(`\r${progress} Testing... `));
+
       const passed = await this.runEndpointTest(endpoint);
       if (!passed) {
         allPassed = false;
       }
+      completedCount++;
       console.log(''); // Add spacing between tests
     }
+
+    // Final progress summary
+    const finalProgress = this.formatProgress(completedCount, groupEndpoints.length);
+    console.log(chalk.green(`${finalProgress} Group testing complete\n`));
 
     return allPassed;
   }
@@ -203,7 +315,14 @@ class EndpointTesterCLI {
     let passedCount = 0;
     let failedCount = 0;
 
-    for (const endpoint of allEndpoints) {
+    for (let i = 0; i < allEndpoints.length; i++) {
+      const endpoint = allEndpoints[i];
+
+      // Progress indicator with pass/fail stats
+      const progress = this.formatProgress(i + 1, allEndpoints.length);
+      const stats = passedCount + failedCount > 0 ? ` (${passedCount} passed, ${failedCount} failed)` : '';
+      process.stdout.write(chalk.cyan(`\r${progress} Testing...${stats} `));
+
       const passed = await this.runEndpointTest(endpoint);
       if (passed) {
         passedCount++;
