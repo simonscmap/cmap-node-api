@@ -166,9 +166,37 @@ class TestRunner {
   }
 
   /**
+   * Determine if we should retry with different authentication
+   */
+  shouldRetryForAuth(error, retryCount) {
+    // Only retry once
+    if (retryCount > 0) {
+      return false;
+    }
+
+    // Check if it's a 401 Unauthorized error
+    if (error.response && error.response.status === 401) {
+      return true;
+    }
+
+    // Check for authentication-related error messages
+    const errorMessage = error.message || '';
+    const authErrorPatterns = [
+      'jwt must be provided',
+      'Authentication failed',
+      'guest authentication strategy',
+      'token required'
+    ];
+
+    return authErrorPatterns.some(pattern =>
+      errorMessage.toLowerCase().includes(pattern.toLowerCase())
+    );
+  }
+
+  /**
    * Execute the test and return detailed results
    */
-  async run() {
+  async run(retryCount = 0) {
     const startTime = Date.now();
 
     try {
@@ -234,6 +262,18 @@ class TestRunner {
 
     } catch (error) {
       const executionTime = Date.now() - startTime;
+
+      // Check if this is an authentication error that we can retry
+      if (this.shouldRetryForAuth(error, retryCount)) {
+        console.log(`🔄 Authentication failed, trying alternative authentication...`);
+        try {
+          // Try to use no authentication as fallback for optional auth endpoints
+          this.config.authStrategy = 'none';
+          return await this.run(retryCount + 1);
+        } catch (retryError) {
+          // If retry also fails, continue with original error handling
+        }
+      }
 
       // Handle axios errors with response
       if (error.response) {

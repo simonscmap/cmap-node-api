@@ -83,7 +83,7 @@ const authStrategies = {
 
 // Endpoint definitions organized by route groups
 const endpoints = {
-  // Collections endpoints (public access)
+  // Collections endpoints (optional authentication)
   collections: {
     baseUrl: '/api/collections',
     endpoints: [
@@ -91,7 +91,7 @@ const endpoints = {
         method: 'GET',
         path: '/',
         name: 'List Collections',
-        auth: AUTH.NONE,
+        auth: AUTH.MULTIPLE, // Uses passport.authenticate(['headerapikey', 'jwt', 'guest'])
         expectedStatus: 200,
         expectedStructure: ['id', 'name', 'description'],
         timeout: 5000
@@ -100,7 +100,7 @@ const endpoints = {
         method: 'GET',
         path: '/:id',
         name: 'Collection Detail',
-        auth: AUTH.NONE,
+        auth: AUTH.MULTIPLE, // Uses passport.authenticate(['headerapikey', 'jwt', 'guest'])
         expectedStatus: 200,
         expectedStructure: ['id', 'name', 'description', 'datasets'],
         timeout: 5000,
