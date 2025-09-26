@@ -169,8 +169,8 @@ class TestRunner {
    * Determine if we should retry with different authentication
    */
   shouldRetryForAuth(error, retryCount) {
-    // Only retry once
-    if (retryCount > 0) {
+    // Allow up to 2 retries for authentication issues
+    if (retryCount > 1) {
       return false;
     }
 
@@ -185,7 +185,9 @@ class TestRunner {
       'jwt must be provided',
       'Authentication failed',
       'guest authentication strategy',
-      'token required'
+      'token required',
+      'JsonWebTokenError',
+      'TokenExpiredError'
     ];
 
     return authErrorPatterns.some(pattern =>
@@ -265,12 +267,24 @@ class TestRunner {
 
       // Check if this is an authentication error that we can retry
       if (this.shouldRetryForAuth(error, retryCount)) {
-        console.log(`🔄 Authentication failed, trying alternative authentication...`);
+        console.log(`🔄 Authentication failed (attempt ${retryCount + 1}), trying to acquire new credentials...`);
         try {
-          // Try to use no authentication as fallback for optional auth endpoints
-          this.config.authStrategy = 'none';
-          return await this.run(retryCount + 1);
+          // First retry: try to acquire new JWT token
+          if (retryCount === 0) {
+            await this.authProvider.acquireRealJwtToken();
+            console.log(`🔑 Acquired new JWT token, retrying request...`);
+            // Force JWT auth strategy for retry
+            this.config.authStrategy = 'jwt';
+            return await this.run(retryCount + 1);
+          }
+          // Second retry: fall back to no authentication
+          else if (retryCount === 1) {
+            console.log(`🔓 Trying without authentication as fallback...`);
+            this.config.authStrategy = 'none';
+            return await this.run(retryCount + 1);
+          }
         } catch (retryError) {
+          console.log(`❌ Retry failed: ${retryError.message}`);
           // If retry also fails, continue with original error handling
         }
       }

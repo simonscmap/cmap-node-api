@@ -21,8 +21,8 @@ class AuthProvider {
       apiKey: process.env.TEST_API_KEY || process.env.API_KEY || 'test-api-key-12345',
       jwtToken: process.env.TEST_JWT_TOKEN || process.env.JWT_TOKEN || null,
       guestToken: process.env.TEST_GUEST_TOKEN || process.env.GUEST_TOKEN || null,
-      username: process.env.TEST_USERNAME || process.env.USERNAME || 'test@example.com',
-      password: process.env.TEST_PASSWORD || process.env.PASSWORD || 'testpassword'
+      username: process.env.TEST_USER_EMAIL || process.env.TEST_USERNAME || process.env.USERNAME || 'test@example.com',
+      password: process.env.TEST_USER_PASSWORD || process.env.TEST_PASSWORD || process.env.PASSWORD || 'testpassword'
     };
   }
 
@@ -172,15 +172,24 @@ class AuthProvider {
 
   /**
    * Apply JWT authentication
+   * Note: This system uses JWT tokens in cookies, not Authorization headers
    */
   applyJwtAuth(headers) {
     if (!this.credentials.jwtToken) {
       throw new Error('JWT token required but not available. Set TEST_JWT_TOKEN environment variable.');
     }
 
+    // JWT is sent as a cookie, not in Authorization header
+    // Preserve existing cookies if any
+    const existingCookies = headers.Cookie || '';
+    const jwtCookie = `jwt=${this.credentials.jwtToken}`;
+    const allCookies = existingCookies ? `${existingCookies}; ${jwtCookie}` : jwtCookie;
+
+    // Debug: console.log('🍪 Setting JWT cookie:', allCookies.substring(0, 50) + '...');
+
     return {
       ...headers,
-      'Authorization': `Bearer ${this.credentials.jwtToken}`
+      'Cookie': allCookies
     };
   }
 
@@ -330,12 +339,16 @@ class AuthProvider {
    */
   async applyGuestAuthWithAutoGeneration(headers) {
     try {
+      // If we have JWT token, use it instead of guest auth
+      if (this.credentials.jwtToken) {
+        return this.applyJwtAuth(headers);
+      }
       return this.applyGuestAuth(headers);
     } catch (error) {
-      if (!this.credentials.guestToken) {
-        // Try to auto-generate a guest token
-        await this.generateGuestToken();
-        return this.applyGuestAuth(headers);
+      if (!this.credentials.jwtToken) {
+        // Try to acquire a real JWT token
+        await this.acquireRealJwtToken();
+        return this.applyJwtAuth(headers);
       }
       throw error;
     }
@@ -345,10 +358,10 @@ class AuthProvider {
     try {
       return this.applyMultipleAuth(headers);
     } catch (error) {
-      // If no valid credentials, try to generate guest token as fallback
-      if (!this.credentials.apiKey && !this.credentials.jwtToken && !this.credentials.guestToken) {
-        await this.generateGuestToken();
-        return this.applyGuestAuth(headers);
+      // If no valid credentials, try to acquire JWT token as fallback
+      if (!this.credentials.apiKey && !this.credentials.jwtToken) {
+        await this.acquireRealJwtToken();
+        return this.applyJwtAuth(headers);
       }
       throw error;
     }
@@ -358,10 +371,10 @@ class AuthProvider {
     try {
       return this.applyPreferredAuth(headers);
     } catch (error) {
-      // If no valid credentials, try to generate guest token as fallback
-      if (!this.credentials.apiKey && !this.credentials.jwtToken && !this.credentials.guestToken) {
-        await this.generateGuestToken();
-        return this.applyGuestAuth(headers);
+      // If no valid credentials, try to acquire JWT token as fallback
+      if (!this.credentials.apiKey && !this.credentials.jwtToken) {
+        await this.acquireRealJwtToken();
+        return this.applyJwtAuth(headers);
       }
       throw error;
     }
@@ -377,10 +390,11 @@ class AuthProvider {
       'not available',
       'not configured',
       'jwt must be provided',
-      'guest token required'
+      'guest token required',
+      'authentication failed'
     ].some(phrase => errorMessage.includes(phrase));
 
-    const canAutoGenerate = [AUTH.GUEST, AUTH.MULTIPLE, AUTH.REQUIRED].includes(strategy);
+    const canAutoGenerate = [AUTH.JWT, AUTH.GUEST, AUTH.MULTIPLE, AUTH.REQUIRED].includes(strategy);
 
     return authRequired && canAutoGenerate;
   }
@@ -390,10 +404,11 @@ class AuthProvider {
    */
   async generateAuthenticationCredentials(strategy) {
     switch (strategy) {
+      case AUTH.JWT:
       case AUTH.GUEST:
       case AUTH.MULTIPLE:
       case AUTH.REQUIRED:
-        await this.generateGuestToken();
+        await this.acquireRealJwtToken();
         break;
       default:
         throw new Error(`Cannot auto-generate credentials for strategy: ${strategy}`);
@@ -401,43 +416,72 @@ class AuthProvider {
   }
 
   /**
-   * Generate a guest token by making a direct API call
+   * Acquire a real JWT token by authenticating with the API
    */
-  async generateGuestToken() {
+  async acquireRealJwtToken() {
     const axios = require('axios');
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:8080';
 
     try {
-      // Generate a fake guest token for CLI testing
-      // Since we can't easily make the browserOnly auth work in CLI,
-      // we'll create a mock token that works with the guest strategy
-      const jwt = require('jsonwebtoken');
-      const crypto = require('crypto');
+      // Check if we have test credentials
+      if (!this.credentials.username || !this.credentials.password) {
+        throw new Error('Test credentials not available. Set TEST_USER_EMAIL and TEST_USER_PASSWORD environment variables.');
+      }
 
-      // Create a simple hash similar to how the real system works
-      const hash = crypto.createHash('sha256')
-        .update(`cli-test-${Date.now()}`)
-        .digest('hex');
+      console.log('🔑 Acquiring real JWT token via login...');
 
-      // Create a mock token structure
-      const tokenPayload = {
-        id: Math.floor(Math.random() * 1000000),
-        hash: hash
-      };
+      // Make login request to get real JWT - passport local strategy expects 'username' and 'password' fields
+      const loginResponse = await axios.post(`${baseUrl}/api/user/signin`, {
+        username: this.credentials.username,
+        password: this.credentials.password
+      }, {
+        withCredentials: true,
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-      // For testing, we'll use a mock secret (this won't work with real auth but allows testing)
-      const mockSecret = 'test-secret-for-cli';
-      const mockToken = jwt.sign(tokenPayload, mockSecret, { expiresIn: '24h' });
+      // Extract JWT token from cookies
+      const cookies = loginResponse.headers['set-cookie'];
+      let jwtToken = null;
 
-      console.log('📝 Generated mock guest token for CLI testing');
-      this.credentials.guestToken = mockToken;
+      if (cookies) {
+        for (const cookie of cookies) {
+          const match = cookie.match(/jwt=([^;]+)/);
+          if (match) {
+            jwtToken = match[1];
+            break;
+          }
+        }
+      }
+
+      if (!jwtToken) {
+        throw new Error('JWT token not found in login response cookies');
+      }
+
+      console.log('✅ Successfully acquired real JWT token');
+      this.credentials.jwtToken = jwtToken;
 
       // Clear cache since credentials changed
       this.authCache.clear();
 
     } catch (error) {
-      throw new Error(`Failed to generate guest token: ${error.message}`);
+      if (error.response) {
+        const message = error.response.data && error.response.data.message ? error.response.data.message : error.response.statusText;
+        throw new Error(`Login failed (${error.response.status}): ${message}`);
+      }
+      throw new Error(`Failed to acquire JWT token: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate a guest token by making a direct API call
+   * @deprecated Use acquireRealJwtToken() instead for real authentication
+   */
+  async generateGuestToken() {
+    console.log('⚠️ generateGuestToken is deprecated, using acquireRealJwtToken instead');
+    await this.acquireRealJwtToken();
   }
 
   /**
