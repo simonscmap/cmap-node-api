@@ -154,18 +154,29 @@ function transformResultsWithDatasets(results, includeDatasets) {
 }
 
 module.exports = async (req, res) => {
-  log.trace('requesting collections list');
+  log.info('requesting collections list');
 
   // Use validated parameters from middleware
   const { includeDatasets, limit, offset } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
   const isAuthenticated = Boolean(userId);
 
+  log.info('collection list request parameters', {
+    userId,
+    isAuthenticated,
+    includeDatasets,
+    limit,
+    offset
+  });
+
   const cacheKey = `collections:list:${isAuthenticated ? userId : 'anonymous'}:${includeDatasets}:${limit}:${offset}`;
   const cachedResult = nodeCache.get(cacheKey);
 
   if (cachedResult) {
-    log.trace('returning cached collections list');
+    log.info('returning cached collections list', {
+      cacheKey,
+      resultCount: cachedResult.length
+    });
     return res.status(200).json(cachedResult);
   }
 
@@ -190,6 +201,11 @@ module.exports = async (req, res) => {
       }
     }
 
+    log.info('executing query', {
+      queryType: includeDatasets ? 'withDatasets' : 'simple',
+      isAuthenticated
+    });
+
     const result = await request.query(query);
     let collections;
 
@@ -210,12 +226,33 @@ module.exports = async (req, res) => {
       }));
     }
 
+    log.info('query results', {
+      totalCollections: collections.length,
+      requestedLimit: limit,
+      requestedOffset: offset,
+      collections
+    });
+
+    log.info('query results flattened', {
+      totalCollections: collections.length,
+      requestedLimit: limit,
+      requestedOffset: offset,
+      collectionIds: collections.map(c => c.id),
+      collectionNames: collections.map(c => c.name),
+      datasetCounts: collections.map(c => c.datasetCount),
+      isPublic: collections.map(c => c.isPublic),
+      isOwner: collections.map(c => c.isOwner)
+    });
+
     const paginatedResults = collections.slice(offset, offset + limit);
 
     const ttl = isAuthenticated ? 30 * 60 : 60 * 60;
     nodeCache.set(cacheKey, paginatedResults, ttl);
 
-    log.trace('returning collections list', { count: paginatedResults.length });
+    log.info('returning collections list', {
+      count: paginatedResults.length,
+      cacheTTL: ttl
+    });
     res.status(200).json(paginatedResults);
 
   } catch (error) {
