@@ -237,18 +237,6 @@ module.exports = async (req, res) => {
       totalCollections: collections.length,
       requestedLimit: limit,
       requestedOffset: offset,
-      collections,
-    });
-
-    log.info('query results flattened', {
-      totalCollections: collections.length,
-      requestedLimit: limit,
-      requestedOffset: offset,
-      collectionIds: collections.map((c) => c.id),
-      collectionNames: collections.map((c) => c.name),
-      datasetCounts: collections.map((c) => c.datasetCount),
-      isPublic: collections.map((c) => c.isPublic),
-      isOwner: collections.map((c) => c.isOwner),
     });
 
     const paginatedResults = collections.slice(offset, offset + limit);
