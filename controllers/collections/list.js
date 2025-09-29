@@ -117,7 +117,7 @@ function transformResultsWithDatasets(results, includeDatasets) {
 
   const collectionsMap = new Map();
 
-  results.forEach(row => {
+  results.forEach((row) => {
     const collectionId = row.id;
 
     if (!collectionsMap.has(collectionId)) {
@@ -132,7 +132,7 @@ function transformResultsWithDatasets(results, includeDatasets) {
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: 0,
         isOwner: Boolean(row.isOwner),
-        datasets: []
+        datasets: [],
       });
     }
 
@@ -143,7 +143,7 @@ function transformResultsWithDatasets(results, includeDatasets) {
         datasetShortName: row.datasetShortName,
         datasetLongName: row.datasetLongName,
         datasetVersion: row.datasetVersion,
-        isValid: Boolean(row.isValid)
+        isValid: Boolean(row.isValid),
       });
     }
 
@@ -159,23 +159,27 @@ module.exports = async (req, res) => {
   // Use validated parameters from middleware
   const { includeDatasets, limit, offset } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
-  const isAuthenticated = Boolean(userId);
+  const isAuthenticated = req.isAuthenticated();
 
   log.info('collection list request parameters', {
     userId,
-    isAuthenticated,
+    isAuthenticatedFromPassport: isAuthenticated,
+    hasReqUser: Boolean(req.user),
+    reqUser: req.user,
     includeDatasets,
     limit,
-    offset
+    offset,
   });
 
-  const cacheKey = `collections:list:${isAuthenticated ? userId : 'anonymous'}:${includeDatasets}:${limit}:${offset}`;
+  const cacheKey = `collections:list:${
+    isAuthenticated ? userId : 'anonymous'
+  }:${includeDatasets}:${limit}:${offset}`;
   const cachedResult = nodeCache.get(cacheKey);
 
   if (cachedResult) {
     log.info('returning cached collections list', {
       cacheKey,
-      resultCount: cachedResult.length
+      resultCount: cachedResult.length,
     });
     return res.status(200).json(cachedResult);
   }
@@ -187,7 +191,9 @@ module.exports = async (req, res) => {
     let query;
     if (includeDatasets) {
       if (isAuthenticated) {
-        query = queryWithDatasets + 'c.Private = 0 OR c.User_ID = @userId ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name';
+        query =
+          queryWithDatasets +
+          'c.Private = 0 OR c.User_ID = @userId ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name';
         request.input('userId', sql.Int, userId);
       } else {
         query = anonymousQueryWithDatasets;
@@ -203,7 +209,7 @@ module.exports = async (req, res) => {
 
     log.info('executing query', {
       queryType: includeDatasets ? 'withDatasets' : 'simple',
-      isAuthenticated
+      isAuthenticated,
     });
 
     const result = await request.query(query);
@@ -212,7 +218,7 @@ module.exports = async (req, res) => {
     if (includeDatasets) {
       collections = transformResultsWithDatasets(result.recordset, true);
     } else {
-      collections = result.recordset.map(row => ({
+      collections = result.recordset.map((row) => ({
         id: row.id,
         name: row.name,
         description: row.description,
@@ -222,7 +228,7 @@ module.exports = async (req, res) => {
         ownerName: row.ownerName,
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: row.datasetCount,
-        isOwner: Boolean(row.isOwner)
+        isOwner: Boolean(row.isOwner),
       }));
     }
 
@@ -230,18 +236,18 @@ module.exports = async (req, res) => {
       totalCollections: collections.length,
       requestedLimit: limit,
       requestedOffset: offset,
-      collections
+      collections,
     });
 
     log.info('query results flattened', {
       totalCollections: collections.length,
       requestedLimit: limit,
       requestedOffset: offset,
-      collectionIds: collections.map(c => c.id),
-      collectionNames: collections.map(c => c.name),
-      datasetCounts: collections.map(c => c.datasetCount),
-      isPublic: collections.map(c => c.isPublic),
-      isOwner: collections.map(c => c.isOwner)
+      collectionIds: collections.map((c) => c.id),
+      collectionNames: collections.map((c) => c.name),
+      datasetCounts: collections.map((c) => c.datasetCount),
+      isPublic: collections.map((c) => c.isPublic),
+      isOwner: collections.map((c) => c.isOwner),
     });
 
     const paginatedResults = collections.slice(offset, offset + limit);
@@ -251,15 +257,14 @@ module.exports = async (req, res) => {
 
     log.info('returning collections list', {
       count: paginatedResults.length,
-      cacheTTL: ttl
+      cacheTTL: ttl,
     });
     res.status(200).json(paginatedResults);
-
   } catch (error) {
     log.error('error retrieving collections list', { error: error.message });
     res.status(500).json({
       error: 'server_error',
-      message: 'Error retrieving collections'
+      message: 'Error retrieving collections',
     });
   }
 };
