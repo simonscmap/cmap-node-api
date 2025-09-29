@@ -171,18 +171,19 @@ module.exports = async (req, res) => {
     offset,
   });
 
-  const cacheKey = `collections:list:${
-    isAuthenticated ? userId : 'anonymous'
-  }:${includeDatasets}:${limit}:${offset}`;
-  const cachedResult = nodeCache.get(cacheKey);
+  // CACHING DISABLED
+  // const cacheKey = `collections:list:${
+  //   isAuthenticated ? userId : 'anonymous'
+  // }:${includeDatasets}:${limit}:${offset}`;
+  // const cachedResult = nodeCache.get(cacheKey);
 
-  if (cachedResult) {
-    log.info('returning cached collections list', {
-      cacheKey,
-      resultCount: cachedResult.length,
-    });
-    return res.status(200).json(cachedResult);
-  }
+  // if (cachedResult) {
+  //   log.info('returning cached collections list', {
+  //     cacheKey,
+  //     resultCount: cachedResult.length,
+  //   });
+  //   return res.status(200).json(cachedResult);
+  // }
 
   try {
     const pool = await pools.userReadAndWritePool;
@@ -252,12 +253,13 @@ module.exports = async (req, res) => {
 
     const paginatedResults = collections.slice(offset, offset + limit);
 
-    const ttl = isAuthenticated ? 30 * 60 : 60 * 60;
-    nodeCache.set(cacheKey, paginatedResults, ttl);
+    // CACHING DISABLED
+    // const ttl = isAuthenticated ? 30 * 60 : 60 * 60;
+    // nodeCache.set(cacheKey, paginatedResults, ttl);
 
     log.info('returning collections list', {
       count: paginatedResults.length,
-      cacheTTL: ttl,
+      // cacheTTL: ttl,
     });
     res.status(200).json(paginatedResults);
   } catch (error) {
