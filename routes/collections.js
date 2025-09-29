@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const passport = require('../middleware/passport');
+const optionalAuth = require('../middleware/optionalAuth');
 const collectionsController = require('../controllers/collections');
 const {
   validateCollectionsList,
@@ -12,7 +13,7 @@ const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper'
 
 router.get(
   '/',
-  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  optionalAuth(),
   validateCollectionsList,
   asyncControllerWrapper(collectionsController.list),
 );
