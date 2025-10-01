@@ -23,5 +23,10 @@ router.get(
   validateCollectionDetail,
   asyncControllerWrapper(collectionsController.detail),
 );
+router.delete(
+  '/:id',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  asyncControllerWrapper(collectionsController.delete),
+);
 
 module.exports = router;

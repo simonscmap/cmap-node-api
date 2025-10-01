@@ -1,6 +1,5 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
-const nodeCache = require('../../utility/nodeCache');
 const initializeLogger = require('../../log-service');
 
 const log = initializeLogger('controllers/collections/list');
