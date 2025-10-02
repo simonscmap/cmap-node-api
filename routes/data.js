@@ -3,11 +3,6 @@ const passport = require('../middleware/passport');
 
 const dataController = require('../controllers/data');
 const {
-  bulkDownloadController,
-  bulkRowCountController,
-  bulkDownloadInitController,
-} = require('../controllers/data/bulk-download/');
-const {
   namedDataController,
 } = require('../controllers/data/namedDataController');
 const {
@@ -113,21 +108,5 @@ router.post(
   asyncControllerWrapper(downloadDropboxVaultFilesWithStagedParallel),
 );
 
-// Bulk-download
-router.post(
-  '/bulk-download',
-  passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
-  asyncControllerWrapper(bulkDownloadController),
-);
-
-router.post(
-  '/bulk-download-row-counts',
-  asyncControllerWrapper(bulkRowCountController),
-);
-
-router.post(
-  '/bulk-download-init',
-  asyncControllerWrapper(bulkDownloadInitController),
-);
 
 module.exports = router;

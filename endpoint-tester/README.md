@@ -12,7 +12,7 @@ node test-endpoints.js GET /api/catalog/datasets
 node test-endpoints.js GET /api/user/profile myuser mypass
 
 # Test POST requests
-node test-endpoints.js POST /api/user/signin '{"username":"test","password":"test"}'
+node test-endpoints.js POST /api/user/signin '{"username":"test@example.com","password":"testPassword123"}'
 ```
 
 ## Common Endpoints

@@ -15,10 +15,8 @@ module.exports = {
     {
       files: ['*.md', '*.mdx'],
       options: {
-        proseWrap: 'always',
+        proseWrap: 'never',
         embeddedLanguageFormatting: 'off',
-        // printWidth is already 80 globally; keep it explicit for clarity
-        printWidth: 80,
       },
     },
   ],

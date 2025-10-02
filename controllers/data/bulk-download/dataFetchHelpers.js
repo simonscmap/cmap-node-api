@@ -52,16 +52,18 @@ const parseFiltersToConstraints = (filters) => {
         constraints.lon.max = filters.spatial.lonMax;
       }
     }
-  }
 
-  // Transform depth filters
-  if (filters.depth) {
-    constraints.depth = {};
-    if (filters.depth.min !== undefined) {
-      constraints.depth.min = filters.depth.min;
-    }
-    if (filters.depth.max !== undefined) {
-      constraints.depth.max = filters.depth.max;
+    if (
+      filters.spatial.depthMin !== undefined ||
+      filters.spatial.depthMax !== undefined
+    ) {
+      constraints.depth = {};
+      if (filters.spatial.depthMin !== undefined) {
+        constraints.depth.min = filters.spatial.depthMin;
+      }
+      if (filters.spatial.depthMax !== undefined) {
+        constraints.depth.max = filters.spatial.depthMax;
+      }
     }
   }
 

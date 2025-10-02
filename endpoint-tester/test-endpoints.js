@@ -257,7 +257,7 @@ async function main() {
 Examples:
   node test-endpoints.js GET /api/catalog/datasets
   node test-endpoints.js GET /api/data/query username password
-  node test-endpoints.js POST /api/user/signin '{"username":"test","password":"test"}'
+  node test-endpoints.js POST /api/user/signin '{"username":"test@example.com","password":"testPassword123"}'
 
 Common endpoints to test:
   GET  /api/catalog/datasets                    - List all datasets
