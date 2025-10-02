@@ -123,3 +123,4 @@ Connection strings use environment variables prefixed with server names.
 ### Other Rules
 
 - Do not use optional chaining (?.) — it is not supported in Node.js v12. Use traditional null checks instead.
+- Use camelCase for all variable and function names, not snake_case. This is a camelCase codebase.
