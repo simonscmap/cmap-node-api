@@ -5,5 +5,6 @@ module.exports = {
   list: require('./list'),
   detail: require('./detail'),
   delete: require('./delete'),
+  verifyName: require('./verifyName'),
   create: require('./create'),
 };
