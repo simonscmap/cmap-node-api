@@ -5,7 +5,7 @@ const collectionsController = require('../controllers/collections');
 const {
   validateCollectionsList,
   validateCollectionDetail,
-  //   validateCollectionCreate,
+  validateCollectionNameCheck,
 } = require('../middleware/collectionsValidation');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
@@ -18,7 +18,12 @@ router.get(
   validateCollectionsList,
   asyncControllerWrapper(collectionsController.list),
 );
-
+router.get(
+  '/verify-name',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionNameCheck,
+  asyncControllerWrapper(collectionsController.verifyName),
+);
 router.get(
   '/:id',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),

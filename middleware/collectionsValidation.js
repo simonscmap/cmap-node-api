@@ -153,9 +153,58 @@ const validateCollectionDetail = (req, res, next) => {
   next();
 };
 
+// Middleware for validating collection name availability check
+const validateCollectionNameCheck = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
+  const name = req.query.name;
+
+  if (!name) {
+    log.warn('missing collection name parameter');
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'name parameter is required'
+    });
+  }
+
+  if (typeof name !== 'string') {
+    log.warn('invalid collection name type', { name });
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'name must be a string'
+    });
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length === 0) {
+    log.warn('empty collection name provided');
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'name cannot be empty'
+    });
+  }
+
+  if (trimmedName.length > 255) {
+    log.warn('collection name too long', { length: trimmedName.length });
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'name must be 255 characters or less'
+    });
+  }
+
+  // Attach validated name to request
+  req.validatedQuery = {
+    name: trimmedName
+  };
+
+  log.trace('collection name validation passed', { name: trimmedName });
+  next();
+};
+
 module.exports = {
   validateCollectionsList,
   validateCollectionDetail,
+  validateCollectionNameCheck,
   // Export helper functions for testing
   validateCollectionId,
   validateListQueryParams,
