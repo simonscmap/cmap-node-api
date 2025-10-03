@@ -16,7 +16,7 @@ router.get(
   '/',
   optionalAuth(),
   validateCollectionsList,
-  asyncControllerWrapper(collectionsController.list),
+  asyncControllerWrapper(collectionsController.get),
 );
 router.get(
   '/verify-name',
