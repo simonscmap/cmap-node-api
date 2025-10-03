@@ -105,6 +105,33 @@ const endpoints = {
         expectedStructure: ['id', 'name', 'description', 'datasets'],
         timeout: 5000,
         pathParams: { id: 1 } // Default test ID
+      },
+      {
+        method: 'GET',
+        path: '/verify-name',
+        name: 'Verify Collection Name',
+        auth: AUTH.MULTIPLE, // Uses passport.authenticate(['jwt', 'headerapikey'])
+        expectedStatus: 200,
+        expectedStructure: ['name', 'isAvailable'],
+        timeout: 5000,
+        queryParams: {
+          name: 'TEST_' + Math.random().toString(36).substring(2, 10).toUpperCase()
+        }
+      },
+      {
+        method: 'POST',
+        path: '/',
+        name: 'Create Collection',
+        auth: AUTH.MULTIPLE, // Uses passport.authenticate(['jwt', 'headerapikey'])
+        expectedStatus: 201,
+        expectedStructure: ['collection_id', 'invalid_dataset_count'],
+        timeout: 5000,
+        bodyParams: {
+          collection_name: Math.random().toString(36).substring(2, 8).toUpperCase() + '_Test Collection',
+          description: 'Test description',
+          private: Math.random() < 0.8,
+          datasets: []
+        }
       }
     ]
   },
