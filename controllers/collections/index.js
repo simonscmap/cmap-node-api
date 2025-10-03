@@ -2,7 +2,7 @@
 // Individual controllers will be added here as they are implemented
 
 module.exports = {
-  list: require('./list'),
+  get: require('./get'),
   detail: require('./detail'),
   delete: require('./delete'),
   verifyName: require('./verifyName'),
