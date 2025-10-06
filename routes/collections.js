@@ -10,20 +10,20 @@ const {
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
 
-/////////////////// collections root route  ///////////////////
-
 router.get(
   '/',
   optionalAuth(),
   validateCollectionsList,
   asyncControllerWrapper(collectionsController.get),
 );
+
 router.get(
   '/verify-name',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
   validateCollectionNameCheck,
   asyncControllerWrapper(collectionsController.verifyName),
 );
+
 router.get(
   '/:id',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),

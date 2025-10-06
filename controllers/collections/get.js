@@ -14,13 +14,16 @@ const anonymousQuery = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          COUNT(cd.Dataset_Short_Name) as datasetCount,
-         0 as isOwner
+         0 as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
-           c.Created_At, c.Modified_At,
+           c.Created_At, c.Modified_At, c.Downloads, c.Views, c.Copies,
            u.FirstName, u.FamilyName, u.Institute
   ORDER BY c.Modified_At DESC
 `;
@@ -35,13 +38,16 @@ const authenticatedQuery = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          COUNT(cd.Dataset_Short_Name) as datasetCount,
-         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner
+         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0 OR c.User_ID = @userId
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
-           c.Created_At, c.Modified_At, c.Downloads, c.Views,
+           c.Created_At, c.Modified_At, c.Downloads, c.Views, c.Copies,
            u.FirstName, u.FamilyName, u.Institute, c.User_ID
   ORDER BY c.Modified_At DESC
 `;
@@ -56,6 +62,9 @@ const queryWithDatasets = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
@@ -75,6 +84,9 @@ const anonymousQueryWithDatasets = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          0 as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
@@ -85,27 +97,6 @@ const anonymousQueryWithDatasets = `
   WHERE c.Private = 0
   ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name
 `;
-
-// Validation is now handled by middleware, this function is no longer needed
-// function validateQueryParams(query) {
-//   const errors = [];
-//
-//   if (query.limit !== undefined) {
-//     const limit = parseInt(query.limit, 10);
-//     if (isNaN(limit) || limit < 1 || limit > 100) {
-//       errors.push('limit must be between 1 and 100');
-//     }
-//   }
-//
-//   if (query.offset !== undefined) {
-//     const offset = parseInt(query.offset, 10);
-//     if (isNaN(offset) || offset < 0) {
-//       errors.push('offset must be 0 or greater');
-//     }
-//   }
-//
-//   return errors;
-// }
 
 function transformResultsWithDatasets(results, includeDatasets) {
   if (!includeDatasets) {
@@ -129,6 +120,9 @@ function transformResultsWithDatasets(results, includeDatasets) {
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: 0,
         isOwner: Boolean(row.isOwner),
+        downloads: row.downloads,
+        views: row.views,
+        copies: row.copies,
         datasets: [],
       });
     }
@@ -226,6 +220,9 @@ module.exports = async (req, res) => {
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: row.datasetCount,
         isOwner: Boolean(row.isOwner),
+        downloads: row.downloads,
+        views: row.views,
+        copies: row.copies,
       }));
     }
 

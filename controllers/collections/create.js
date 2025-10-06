@@ -75,8 +75,8 @@ module.exports = async (req, res) => {
       .input('description', sql.NVarChar(500), description);
 
     const insertResult = await insertRequest.query(`
-      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Created_At, Modified_At)
-      VALUES (@userId, @name, @private, @description, 0, 0, GETDATE(), GETDATE());
+      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
+      VALUES (@userId, @name, @private, @description, 0, 0, 0, GETDATE(), GETDATE());
       SELECT SCOPE_IDENTITY() AS Collection_ID;
     `);
 
