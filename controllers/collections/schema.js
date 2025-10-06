@@ -18,6 +18,7 @@
  * @property {string} Description - Collection description, nvarchar(500), nullable
  * @property {number} Downloads - Download count, int, default 0
  * @property {number} Views - View count, int, default 0
+ * @property {number} Copies - Copy count, int, default 0
  * @property {Date} Created_At - Creation timestamp, datetime
  * @property {Date} Modified_At - Last modified timestamp, datetime
  *

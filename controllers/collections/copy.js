@@ -159,8 +159,8 @@ module.exports = async (req, res) => {
       .input('description', sql.NVarChar(500), sourceDescription);
 
     const insertResult = await insertRequest.query(`
-      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Created_At, Modified_At)
-      VALUES (@userId, @name, 1, @description, 0, 0, GETDATE(), GETDATE());
+      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
+      VALUES (@userId, @name, 1, @description, 0, 0, 0, GETDATE(), GETDATE());
       SELECT SCOPE_IDENTITY() AS Collection_ID;
     `);
 
@@ -211,6 +211,22 @@ module.exports = async (req, res) => {
         datasetCount: sourceDatasets.length,
       });
     }
+
+    // Step 6: Increment copies count on source collection
+    const updateRequest = new sql.Request(tx)
+      .input('sourceId', sql.Int, sourceId);
+
+    await updateRequest.query(`
+      UPDATE dbo.tblCollections
+      SET Copies = ISNULL(Copies, 0) + 1
+      WHERE Collection_ID = @sourceId
+    `);
+
+    log.info('Source collection copies count incremented', {
+      userId,
+      sourceCollectionId: sourceId,
+      newCollectionId,
+    });
 
     // Commit transaction
     await tx.commit();
