@@ -44,4 +44,10 @@ router.delete(
   asyncControllerWrapper(collectionsController.delete),
 );
 
+router.post(
+  '/:id/copy',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  asyncControllerWrapper(collectionsController.copy),
+);
+
 module.exports = router;
