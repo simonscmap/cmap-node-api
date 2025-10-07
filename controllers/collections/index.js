@@ -8,4 +8,5 @@ module.exports = {
   verifyName: require('./verifyName'),
   create: require('./create'),
   copy: require('./copy'),
+  preview: require('./preview'),
 };

@@ -201,10 +201,59 @@ const validateCollectionNameCheck = (req, res, next) => {
   next();
 };
 
+// Middleware for validating collection preview endpoint
+const validateCollectionPreview = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
+  const datasetsParam = req.query.datasets;
+
+  if (!datasetsParam) {
+    log.warn('missing datasets parameter');
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'datasets parameter is required'
+    });
+  }
+
+  // Parse datasets - supports both comma-separated and repeated params
+  let datasetsList = [];
+  if (Array.isArray(datasetsParam)) {
+    // Repeated params: ?datasets=A&datasets=B
+    datasetsList = datasetsParam;
+  } else {
+    // Comma-separated: ?datasets=A,B,C
+    datasetsList = datasetsParam.split(',');
+  }
+
+  // Trim whitespace from each dataset name and filter out empty strings
+  const cleanedDatasets = datasetsList
+    .map(name => (typeof name === 'string' ? name.trim() : ''))
+    .filter(name => name.length > 0);
+
+  if (cleanedDatasets.length === 0) {
+    log.warn('no valid dataset names provided');
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'at least one valid dataset name is required'
+    });
+  }
+
+  // Attach validated datasets array to request
+  req.validatedQuery = {
+    datasets: cleanedDatasets
+  };
+
+  log.trace('collection preview validation passed', {
+    datasetCount: cleanedDatasets.length
+  });
+  next();
+};
+
 module.exports = {
   validateCollectionsList,
   validateCollectionDetail,
   validateCollectionNameCheck,
+  validateCollectionPreview,
   // Export helper functions for testing
   validateCollectionId,
   validateListQueryParams,
