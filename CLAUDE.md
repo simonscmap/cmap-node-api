@@ -120,7 +120,12 @@ Connection strings use environment variables prefixed with server names.
 
 6. **File Storage**: Uses Dropbox for user-submitted files and temporary download storage.
 
-### Other Rules
+### Coding Standards
 
-- Do not use optional chaining (?.) — it is not supported in Node.js v12. Use traditional null checks instead.
-- Use camelCase for all variable and function names, not snake_case. This is a camelCase codebase.
+- **No Optional Chaining**: Do not use optional chaining (?.) — it is not supported in Node.js v12. Use traditional null checks instead.
+- **camelCase Convention**: Use camelCase for all identifiers including:
+  - Variable names
+  - Function names
+  - API request/response parameters (e.g., `collectionId` not `collection_id`)
+  - Object properties
+  - This is a strict camelCase codebase — avoid snake_case entirely.

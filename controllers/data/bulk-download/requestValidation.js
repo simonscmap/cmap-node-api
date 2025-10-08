@@ -164,8 +164,8 @@ const validateRequest = (req, log) => {
   if (req.body.filters) {
     let parsedFilters;
     try {
-      parsedFilters = typeof req.body.filters === 'string' 
-        ? JSON.parse(req.body.filters) 
+      parsedFilters = typeof req.body.filters === 'string'
+        ? JSON.parse(req.body.filters)
         : req.body.filters;
     } catch (e) {
       log.error('error parsing filters', { error: e, filters: req.body.filters });
@@ -175,7 +175,7 @@ const validateRequest = (req, log) => {
         message: 'bad request: invalid filters json',
       };
     }
-    
+
     const filterValidation = validateFilters(parsedFilters);
     if (!filterValidation.isValid) {
       log.error('invalid filters', { filters: parsedFilters, error: filterValidation.message });
@@ -185,11 +185,30 @@ const validateRequest = (req, log) => {
         message: `bad request: ${filterValidation.message}`,
       };
     }
-    
+
     filters = parsedFilters;
   }
 
-  return { isValid: true, shortNames, filters };
+  // Parse optional collectionId parameter
+  let collectionId = null;
+  if (req.body.collectionId !== undefined && req.body.collectionId !== null) {
+    const parsedId = typeof req.body.collectionId === 'string'
+      ? parseInt(req.body.collectionId, 10)
+      : req.body.collectionId;
+
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      log.error('invalid collectionId', { collectionId: req.body.collectionId });
+      return {
+        isValid: false,
+        statusCode: 400,
+        message: 'bad request: collectionId must be a positive integer',
+      };
+    }
+
+    collectionId = parsedId;
+  }
+
+  return { isValid: true, shortNames, filters, collectionId };
 };
 
 module.exports = {
