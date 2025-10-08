@@ -152,15 +152,20 @@ module.exports = async (req, res) => {
       uniqueName,
     });
 
+    // Generate UTC timestamp for creation
+    const now = new Date().toISOString();
+
     // Step 4: Insert new collection
     const insertRequest = new sql.Request(tx)
       .input('userId', sql.Int, userId)
       .input('name', sql.NVarChar(200), uniqueName)
-      .input('description', sql.NVarChar(500), sourceDescription);
+      .input('description', sql.NVarChar(500), sourceDescription)
+      .input('createdAt', sql.DateTime2, now)
+      .input('modifiedAt', sql.DateTime2, now);
 
     const insertResult = await insertRequest.query(`
       INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
-      VALUES (@userId, @name, 1, @description, 0, 0, 0, GETDATE(), GETDATE());
+      VALUES (@userId, @name, 1, @description, 0, 0, 0, @createdAt, @modifiedAt);
       SELECT SCOPE_IDENTITY() AS Collection_ID;
     `);
 
