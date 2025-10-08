@@ -243,8 +243,25 @@ const validateCollectionPreview = (req, res, next) => {
     datasets: cleanedDatasets
   };
 
+  // Optionally validate and attach collectionId if provided
+  if (req.query.collectionId !== undefined) {
+    const collectionIdValidation = validateCollectionId(req.query.collectionId);
+    if (!collectionIdValidation.isValid) {
+      log.warn('invalid collectionId parameter', {
+        collectionId: req.query.collectionId,
+        error: collectionIdValidation.message
+      });
+      return res.status(400).json({
+        error: 'validation_error',
+        message: collectionIdValidation.message
+      });
+    }
+    req.validatedQuery.collectionId = collectionIdValidation.id;
+  }
+
   log.trace('collection preview validation passed', {
-    datasetCount: cleanedDatasets.length
+    datasetCount: cleanedDatasets.length,
+    collectionId: req.validatedQuery.collectionId
   });
   next();
 };

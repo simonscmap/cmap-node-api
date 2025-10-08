@@ -2,6 +2,8 @@ const safePromise = require('../../../utility/safePromise');
 const { createTempDir, cleanup } = require('./tempDirUtils');
 const streamArchive = require('./streamArchive');
 const { fetchAndWriteData } = require('./fetchAndWriteData');
+const sql = require('mssql');
+const pools = require('../../../dbHandlers/dbPools');
 
 // Batch operation to fetch all datasets
 const fetchAllDatasetFiles = async (
@@ -180,6 +182,33 @@ const validateShortNames = (shortNames, log) => {
   return { isValid: true };
 };
 
+const incrementCollectionDownloads = (collectionId, log) => {
+  // Fire-and-forget: don't block cleanup or response
+  (async () => {
+    try {
+      const pool = await pools.userReadAndWritePool;
+      const updateRequest = new sql.Request(pool);
+      updateRequest.input('collectionId', sql.Int, collectionId);
+
+      await updateRequest.query(`
+        UPDATE dbo.tblCollections
+        SET Downloads = ISNULL(Downloads, 0) + 1
+        WHERE Collection_ID = @collectionId
+      `);
+
+      log.info('collection downloads count incremented', {
+        collectionId: collectionId,
+      });
+    } catch (updateError) {
+      // Log error but don't fail the request
+      log.error('failed to increment collection downloads count', {
+        collectionId: collectionId,
+        error: updateError.message,
+      });
+    }
+  })();
+};
+
 module.exports = {
   createWorkspace,
   fetchAllDatasets,
@@ -190,4 +219,5 @@ module.exports = {
   sendFetchError,
   sendStreamError,
   validateShortNames,
+  incrementCollectionDownloads,
 };

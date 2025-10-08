@@ -10,6 +10,7 @@ const {
   sendFetchError,
   sendStreamError,
   validateShortNames,
+  incrementCollectionDownloads,
 } = require('./bulkDownloadUtils');
 const fetchRowCountForQuery = require('../fetchRowCountForQuery');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
@@ -24,8 +25,8 @@ const bulkDownloadController = async (req, res, next) => {
     return sendValidationError(res, next, preQueryResult.validation);
   }
 
-  // Extract shortNames, constraints, original filters, and datasetsMetadata from validation
-  const { shortNames, constraints, datasetsMetadata } = preQueryResult;
+  // Extract shortNames, constraints, original filters, datasetsMetadata, and collectionId from validation
+  const { shortNames, constraints, datasetsMetadata, collectionId } = preQueryResult;
 
   // 2. Create workspace directory
   const workspaceResult = await createWorkspace(log);
@@ -53,7 +54,12 @@ const bulkDownloadController = async (req, res, next) => {
     return sendStreamError(res, next);
   }
 
-  // 5. Schedule cleanup of temp directory
+  // 5. Increment downloads count if collection_id is provided
+  if (collectionId) {
+    incrementCollectionDownloads(collectionId, log);
+  }
+
+  // 6. Schedule cleanup of temp directory
   scheduleCleanup(pathToTmpDir, moduleLogger);
   next();
 };

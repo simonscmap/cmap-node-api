@@ -5,7 +5,7 @@ const initializeLogger = require('../../log-service');
 const log = initializeLogger('controllers/collections/preview');
 
 module.exports = async (req, res) => {
-  const { datasets } = req.validatedQuery;
+  const { datasets, collectionId } = req.validatedQuery;
 
   log.info('fetching dataset preview metadata', {
     datasetCount: datasets.length,
@@ -84,7 +84,32 @@ module.exports = async (req, res) => {
     log.info('dataset preview metadata retrieved successfully', {
       datasetsFound: processedResults.length,
       datasetsRequested: datasets.length,
+      collectionId,
     });
+
+    // Increment views count if collection_id is provided
+    if (collectionId) {
+      try {
+        const updateRequest = new sql.Request(pool);
+        updateRequest.input('collectionId', sql.Int, collectionId);
+
+        await updateRequest.query(`
+          UPDATE dbo.tblCollections
+          SET Views = ISNULL(Views, 0) + 1
+          WHERE Collection_ID = @collectionId
+        `);
+
+        log.info('collection views count incremented', {
+          collectionId: collectionId,
+        });
+      } catch (updateError) {
+        // Log error but don't fail the request
+        log.error('failed to increment collection views count', {
+          collectionId: collectionId,
+          error: updateError.message,
+        });
+      }
+    }
 
     res.status(200).json(processedResults);
   } catch (error) {
