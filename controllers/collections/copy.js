@@ -24,20 +24,13 @@ const log = initializeLogger('controllers/collections/copy');
  *
  * Response:
  * {
- *   collection_id: number,
+ *   collectionId: number,
  *   name: string
  * }
  */
 module.exports = async (req, res) => {
   const userId = req.user.id;
-  const sourceId = parseInt(req.params.id, 10);
-
-  if (isNaN(sourceId)) {
-    return res.status(400).json({
-      error: 'invalid_id',
-      message: 'Collection ID must be a number',
-    });
-  }
+  const sourceId = req.validatedParams.id;
 
   log.info('Copying collection', {
     userId,
@@ -59,12 +52,9 @@ module.exports = async (req, res) => {
     });
   }
 
-  const tx = new sql.Transaction(pool);
-  await tx.begin();
-
+  // Step 1: Fetch source collection and verify access (BEFORE transaction)
   try {
-    // Step 1: Fetch source collection and verify access
-    const sourceRequest = new sql.Request(tx)
+    const sourceRequest = new sql.Request(pool)
       .input('sourceId', sql.Int, sourceId)
       .input('userId', sql.Int, userId);
 
@@ -76,7 +66,6 @@ module.exports = async (req, res) => {
     `);
 
     if (!sourceResult.recordset || sourceResult.recordset.length === 0) {
-      await tx.rollback();
       log.warn('Collection not found or not accessible', {
         userId,
         sourceCollectionId: sourceId,
@@ -97,8 +86,8 @@ module.exports = async (req, res) => {
       sourceName,
     });
 
-    // Step 2: Fetch source datasets
-    const datasetsRequest = new sql.Request(tx).input(
+    // Step 2: Fetch source datasets (BEFORE transaction)
+    const datasetsRequest = new sql.Request(pool).input(
       'sourceId',
       sql.Int,
       sourceId,
@@ -120,13 +109,13 @@ module.exports = async (req, res) => {
       datasetCount: sourceDatasets.length,
     });
 
-    // Step 3: Generate unique name within transaction
+    // Step 3: Generate unique name (BEFORE transaction)
     let uniqueName = sourceName + ' copy';
     let copyNumber = 2;
     let nameExists = true;
 
     while (nameExists) {
-      const checkRequest = new sql.Request(tx)
+      const checkRequest = new sql.Request(pool)
         .input('candidateName', sql.NVarChar(200), uniqueName)
         .input('userId', sql.Int, userId);
 
@@ -152,113 +141,131 @@ module.exports = async (req, res) => {
       uniqueName,
     });
 
-    // Generate UTC timestamp for creation
-    const now = new Date().toISOString();
+    // Now begin transaction with all data prepared
+    const tx = new sql.Transaction(pool);
+    await tx.begin();
 
-    // Step 4: Insert new collection
-    const insertRequest = new sql.Request(tx)
-      .input('userId', sql.Int, userId)
-      .input('name', sql.NVarChar(200), uniqueName)
-      .input('description', sql.NVarChar(500), sourceDescription)
-      .input('createdAt', sql.DateTime2, now)
-      .input('modifiedAt', sql.DateTime2, now);
+    try {
+      // Generate UTC timestamp for creation
+      const now = new Date().toISOString();
 
-    const insertResult = await insertRequest.query(`
-      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
-      VALUES (@userId, @name, 1, @description, 0, 0, 0, @createdAt, @modifiedAt);
-      SELECT SCOPE_IDENTITY() AS Collection_ID;
-    `);
+      // Step 4: Insert new collection
+      const insertRequest = new sql.Request(tx)
+        .input('userId', sql.Int, userId)
+        .input('name', sql.NVarChar(200), uniqueName)
+        .input('description', sql.NVarChar(500), sourceDescription)
+        .input('createdAt', sql.DateTime2, now)
+        .input('modifiedAt', sql.DateTime2, now);
 
-    if (!insertResult.recordset || insertResult.recordset.length === 0) {
-      await tx.rollback();
-      log.error('Failed to get collection ID after insert', {
+      const insertResult = await insertRequest.query(`
+        INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
+        VALUES (@userId, @name, 1, @description, 0, 0, 0, @createdAt, @modifiedAt);
+        SELECT SCOPE_IDENTITY() AS Collection_ID;
+      `);
+
+      if (!insertResult.recordset || insertResult.recordset.length === 0) {
+        await tx.rollback();
+        log.error('Failed to get collection ID after insert', {
+          userId,
+          sourceCollectionId: sourceId,
+          uniqueName,
+        });
+        return res.status(500).json({
+          error: 'database_error',
+          message: 'Failed to copy collection',
+        });
+      }
+
+      const newCollectionId = parseInt(insertResult.recordset[0].Collection_ID, 10);
+
+      log.info('New collection created', {
         userId,
         sourceCollectionId: sourceId,
+        newCollectionId,
         uniqueName,
       });
+
+      // Step 5: Copy datasets if source had any
+      if (sourceDatasets.length > 0) {
+        const datasetInsertRequest = new sql.Request(tx)
+          .input('collectionId', sql.Int, newCollectionId);
+
+        sourceDatasets.forEach((datasetName, idx) => {
+          datasetInsertRequest.input(`dataset${idx}`, sql.NVarChar(100), datasetName);
+        });
+
+        const valuesClauses = sourceDatasets
+          .map((_, idx) => `(@collectionId, @dataset${idx})`)
+          .join(', ');
+
+        await datasetInsertRequest.query(`
+          INSERT INTO dbo.tblCollection_Datasets (Collection_ID, Dataset_Short_Name)
+          VALUES ${valuesClauses}
+        `);
+
+        log.info('Datasets copied to new collection', {
+          userId,
+          sourceCollectionId: sourceId,
+          newCollectionId,
+          datasetCount: sourceDatasets.length,
+        });
+      }
+
+      // Step 6: Increment copies count on source collection
+      const updateRequest = new sql.Request(tx)
+        .input('sourceId', sql.Int, sourceId);
+
+      await updateRequest.query(`
+        UPDATE dbo.tblCollections
+        SET Copies = ISNULL(Copies, 0) + 1
+        WHERE Collection_ID = @sourceId
+      `);
+
+      log.info('Source collection copies count incremented', {
+        userId,
+        sourceCollectionId: sourceId,
+        newCollectionId,
+      });
+
+      // Commit transaction
+      await tx.commit();
+
+      log.info('Collection copy completed', {
+        userId,
+        sourceCollectionId: sourceId,
+        newCollectionId,
+        uniqueName,
+      });
+
+      // Return response
+      return res.status(201).json({
+        collectionId: newCollectionId,
+        name: uniqueName,
+      });
+    } catch (txErr) {
+      try {
+        await tx.rollback();
+      } catch (rollbackErr) {
+        log.error('Transaction rollback failed', {
+          userId,
+          sourceCollectionId: sourceId,
+          rollbackError: rollbackErr && rollbackErr.message,
+        });
+      }
+
+      log.error('Transaction failed during collection copy', {
+        userId,
+        sourceCollectionId: sourceId,
+        error: txErr && txErr.message,
+        stack: txErr && txErr.stack,
+      });
+
       return res.status(500).json({
         error: 'database_error',
         message: 'Failed to copy collection',
       });
     }
-
-    const newCollectionId = parseInt(insertResult.recordset[0].Collection_ID, 10);
-
-    log.info('New collection created', {
-      userId,
-      sourceCollectionId: sourceId,
-      newCollectionId,
-      uniqueName,
-    });
-
-    // Step 5: Copy datasets if source had any
-    if (sourceDatasets.length > 0) {
-      const insertRequest = new sql.Request(tx)
-        .input('collectionId', sql.Int, newCollectionId);
-
-      sourceDatasets.forEach((datasetName, idx) => {
-        insertRequest.input(`dataset${idx}`, sql.NVarChar(100), datasetName);
-      });
-
-      const valuesClauses = sourceDatasets
-        .map((_, idx) => `(@collectionId, @dataset${idx})`)
-        .join(', ');
-
-      await insertRequest.query(`
-        INSERT INTO dbo.tblCollection_Datasets (Collection_ID, Dataset_Short_Name)
-        VALUES ${valuesClauses}
-      `);
-
-      log.info('Datasets copied to new collection', {
-        userId,
-        sourceCollectionId: sourceId,
-        newCollectionId,
-        datasetCount: sourceDatasets.length,
-      });
-    }
-
-    // Step 6: Increment copies count on source collection
-    const updateRequest = new sql.Request(tx)
-      .input('sourceId', sql.Int, sourceId);
-
-    await updateRequest.query(`
-      UPDATE dbo.tblCollections
-      SET Copies = ISNULL(Copies, 0) + 1
-      WHERE Collection_ID = @sourceId
-    `);
-
-    log.info('Source collection copies count incremented', {
-      userId,
-      sourceCollectionId: sourceId,
-      newCollectionId,
-    });
-
-    // Commit transaction
-    await tx.commit();
-
-    log.info('Collection copy completed', {
-      userId,
-      sourceCollectionId: sourceId,
-      newCollectionId,
-      uniqueName,
-    });
-
-    // Return response
-    return res.status(201).json({
-      collection_id: newCollectionId,
-      name: uniqueName,
-    });
   } catch (err) {
-    try {
-      await tx.rollback();
-    } catch (rollbackErr) {
-      log.error('Transaction rollback failed', {
-        userId,
-        sourceCollectionId: sourceId,
-        rollbackError: rollbackErr && rollbackErr.message,
-      });
-    }
-
     log.error('POST /collections/:id/copy failed', {
       userId,
       sourceCollectionId: sourceId,

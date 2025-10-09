@@ -7,6 +7,9 @@ const {
   validateCollectionDetail,
   validateCollectionNameCheck,
   validateCollectionPreview,
+  validateCollectionCreate,
+  validateCollectionDelete,
+  validateCollectionCopy,
 } = require('../middleware/collectionsValidation');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
@@ -41,19 +44,21 @@ router.get(
 router.post(
   '/',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
-  //   validateCollectionCreate,
+  validateCollectionCreate,
   asyncControllerWrapper(collectionsController.create),
 );
 
 router.delete(
   '/:id',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionDelete,
   asyncControllerWrapper(collectionsController.delete),
 );
 
 router.post(
   '/:id/copy',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionCopy,
   asyncControllerWrapper(collectionsController.copy),
 );
 
