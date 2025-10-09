@@ -2,7 +2,7 @@ const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
 
-const log = initializeLogger('controllers/collections/list');
+const log = initializeLogger('controllers/collections/get');
 
 const anonymousQuery = `
   SELECT c.Collection_ID as id,
@@ -114,8 +114,12 @@ function transformResultsWithDatasets(results, includeDatasets) {
         name: row.name,
         description: row.description,
         isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate ? new Date(row.createdDate).toISOString() : null,
-        modifiedDate: row.modifiedDate ? new Date(row.modifiedDate).toISOString() : null,
+        createdDate: row.createdDate
+          ? new Date(row.createdDate).toISOString()
+          : null,
+        modifiedDate: row.modifiedDate
+          ? new Date(row.modifiedDate).toISOString()
+          : null,
         ownerName: row.ownerName,
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: 0,
@@ -147,7 +151,9 @@ module.exports = async (req, res) => {
   log.info('requesting collections list');
 
   // Use validated parameters from middleware
-  const { includeDatasets, limit, offset } = req.validatedQuery;
+  const { includeDatasets } = req.validatedQuery;
+  // TODO: Re-enable when implementing backend pagination
+  // const { limit, offset } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
   const isAuthenticated = req.isAuthenticated();
 
@@ -157,8 +163,8 @@ module.exports = async (req, res) => {
     hasReqUser: Boolean(req.user),
     reqUser: req.user,
     includeDatasets,
-    limit,
-    offset,
+    // limit,
+    // offset,
   });
 
   // CACHING DISABLED
@@ -214,8 +220,12 @@ module.exports = async (req, res) => {
         name: row.name,
         description: row.description,
         isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate ? new Date(row.createdDate).toISOString() : null,
-        modifiedDate: row.modifiedDate ? new Date(row.modifiedDate).toISOString() : null,
+        createdDate: row.createdDate
+          ? new Date(row.createdDate).toISOString()
+          : null,
+        modifiedDate: row.modifiedDate
+          ? new Date(row.modifiedDate).toISOString()
+          : null,
         ownerName: row.ownerName,
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: row.datasetCount,
@@ -228,21 +238,23 @@ module.exports = async (req, res) => {
 
     log.info('query results', {
       totalCollections: collections.length,
-      requestedLimit: limit,
-      requestedOffset: offset,
+      // requestedLimit: limit,
+      // requestedOffset: offset,
     });
 
-    const paginatedResults = collections.slice(offset, offset + limit);
+    // TODO: Re-enable when implementing backend pagination
+    // Currently returning all collections for frontend pagination
+    // const paginatedResults = collections.slice(offset, offset + limit);
 
     // CACHING DISABLED
     // const ttl = isAuthenticated ? 30 * 60 : 60 * 60;
-    // nodeCache.set(cacheKey, paginatedResults, ttl);
+    // nodeCache.set(cacheKey, collections, ttl);
 
     log.info('returning collections list', {
-      count: paginatedResults.length,
+      count: collections.length,
       // cacheTTL: ttl,
     });
-    res.status(200).json(paginatedResults);
+    res.status(200).json(collections);
   } catch (error) {
     log.error('error retrieving collections list', { error: error.message });
     res.status(500).json({
