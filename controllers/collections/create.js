@@ -9,7 +9,7 @@ const log = initializeLogger('controllers/collections/create');
  * POST /collections
  *
  * Request body:
- * - collection_name (required): string, 1-200 chars
+ * - collectionName (required): string, 1-200 chars
  * - description (optional): string, 0-500 chars
  * - private (optional): boolean, default true
  * - datasets (optional): array of dataset short names
@@ -21,8 +21,8 @@ const log = initializeLogger('controllers/collections/create');
  *
  * Response:
  * {
- *   collection_id: number,
- *   invalid_dataset_count: number
+ *   collectionId: number,
+ *   invalidDatasetCount: number
  * }
  */
 module.exports = async (req, res) => {
@@ -33,15 +33,15 @@ module.exports = async (req, res) => {
 
   const userId = req.user.id;
   const {
-    collection_name,
-    description = null,
-    private: isPrivate = true,
-    datasets = [],
-  } = req.body;
+    collectionName,
+    description,
+    private: isPrivate,
+    datasets,
+  } = req.validatedBody;
 
   log.info('Creating collection', {
     userId,
-    collectionName: collection_name,
+    collectionName,
     isPrivate,
     requestedDatasetCount: datasets.length,
   });
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
     log.error('Failed to get database pool', {
       error,
       userId,
-      collectionName: collection_name,
+      collectionName,
     });
     return res.status(500).json({
       error: 'database_error',
@@ -73,7 +73,7 @@ module.exports = async (req, res) => {
     // Step 1: Insert collection and get the new ID
     const insertRequest = new sql.Request(tx)
       .input('userId', sql.Int, userId)
-      .input('name', sql.NVarChar(200), collection_name)
+      .input('name', sql.NVarChar(200), collectionName)
       .input('private', sql.Bit, isPrivate)
       .input('description', sql.NVarChar(500), description)
       .input('createdAt', sql.DateTime2, now)
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
       await tx.rollback();
       log.error('Failed to get collection ID after insert', {
         userId,
-        collectionName: collection_name,
+        collectionName,
       });
       return res.status(500).json({
         error: 'database_error',
@@ -102,7 +102,7 @@ module.exports = async (req, res) => {
     log.info('Collection created', {
       userId,
       collectionId: newCollectionId,
-      collectionName: collection_name,
+      collectionName,
     });
 
     // Step 2: If datasets are provided, validate and insert them
@@ -175,8 +175,8 @@ module.exports = async (req, res) => {
 
     // Return simplified response
     return res.status(201).json({
-      collection_id: newCollectionId,
-      invalid_dataset_count: invalidDatasetCount,
+      collectionId: newCollectionId,
+      invalidDatasetCount,
     });
   } catch (err) {
     try {
@@ -184,14 +184,14 @@ module.exports = async (req, res) => {
     } catch (rollbackErr) {
       log.error('Transaction rollback failed', {
         userId,
-        collectionName: collection_name,
+        collectionName,
         rollbackError: rollbackErr && rollbackErr.message,
       });
     }
 
     log.error('POST /collections failed', {
       userId,
-      collectionName: collection_name,
+      collectionName,
       error: err && err.message,
       stack: err && err.stack,
     });

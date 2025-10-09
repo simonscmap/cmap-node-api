@@ -41,11 +41,11 @@ module.exports = async (req, res) => {
       CASE
         WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN c.Downloads
         ELSE NULL
-      END as totalDownloads,
+      END as downloads,
       CASE
         WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN c.Copies
         ELSE NULL
-      END as totalCopies
+      END as copies
     FROM tblCollections c
     INNER JOIN tblUsers u ON c.User_ID = u.UserID
     LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -117,12 +117,12 @@ module.exports = async (req, res) => {
     datasets: collection.datasets
   };
 
-  // Only include total_downloads and totalCopies if user is owner
-  if (collection.totalDownloads !== null) {
-    responseData.totalDownloads = collection.totalDownloads;
+  // Only include downloads and copies if user is owner
+  if (collection.downloads !== null) {
+    responseData.downloads = collection.downloads;
   }
-  if (collection.totalCopies !== null) {
-    responseData.totalCopies = collection.totalCopies;
+  if (collection.copies !== null) {
+    responseData.copies = collection.copies;
   }
 
   log.trace('Collection detail retrieved successfully', {

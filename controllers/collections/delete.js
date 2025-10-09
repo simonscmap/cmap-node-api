@@ -13,12 +13,7 @@ const log = initializeLogger('controllers/collections/delete');
  * 3. Delete parent row from tblCollections
  */
 module.exports = async (req, res) => {
-  const collectionId = parseInt(req.params.id, 10);
-
-  // Validate ID
-  if (!collectionId || collectionId < 1) {
-    return res.status(400).end();
-  }
+  const collectionId = req.validatedParams.id;
 
   // Ensure user is authenticated
   if (!req.user || !req.user.id) {

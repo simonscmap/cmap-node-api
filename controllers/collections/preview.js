@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
         shortName: row.shortName,
         timeStart: row.timeStart || null,
         timeEnd: row.timeEnd || null,
-        Row_Count: row.Row_Count,
+        rowCount: row.Row_Count,
         sensors: deduplicateList(row.sensors),
         makes: deduplicateList(row.makes),
         regions: deduplicateList(row.regions),
