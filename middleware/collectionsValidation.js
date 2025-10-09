@@ -21,29 +21,32 @@ const validateListQueryParams = (query) => {
   const errors = [];
   const validatedParams = {};
 
-  // Validate limit parameter
-  if (query.limit !== undefined) {
-    const limit = parseInt(query.limit, 10);
-    if (isNaN(limit) || limit < 1 || limit > 100) {
-      errors.push('limit must be between 1 and 100');
-    } else {
-      validatedParams.limit = limit;
-    }
-  } else {
-    validatedParams.limit = 20; // Default limit
-  }
+  // TODO: Re-enable when implementing backend pagination
+  // Currently using frontend pagination - fetching all collections
+  //
+  // // Validate limit parameter
+  // if (query.limit !== undefined) {
+  //   const limit = parseInt(query.limit, 10);
+  //   if (isNaN(limit) || limit < 1 || limit > 100) {
+  //     errors.push('limit must be between 1 and 100');
+  //   } else {
+  //     validatedParams.limit = limit;
+  //   }
+  // } else {
+  //   validatedParams.limit = 20; // Default limit
+  // }
 
-  // Validate offset parameter
-  if (query.offset !== undefined) {
-    const offset = parseInt(query.offset, 10);
-    if (isNaN(offset) || offset < 0) {
-      errors.push('offset must be 0 or greater');
-    } else {
-      validatedParams.offset = offset;
-    }
-  } else {
-    validatedParams.offset = 0; // Default offset
-  }
+  // // Validate offset parameter
+  // if (query.offset !== undefined) {
+  //   const offset = parseInt(query.offset, 10);
+  //   if (isNaN(offset) || offset < 0) {
+  //     errors.push('offset must be 0 or greater');
+  //   } else {
+  //     validatedParams.offset = offset;
+  //   }
+  // } else {
+  //   validatedParams.offset = 0; // Default offset
+  // }
 
   // Validate includeDatasets parameter
   if (query.includeDatasets !== undefined) {
