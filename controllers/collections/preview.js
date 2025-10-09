@@ -87,31 +87,34 @@ module.exports = async (req, res) => {
       collectionId,
     });
 
-    // Increment views count if collection_id is provided
-    if (collectionId) {
-      try {
-        const updateRequest = new sql.Request(pool);
-        updateRequest.input('collectionId', sql.Int, collectionId);
-
-        await updateRequest.query(`
-          UPDATE dbo.tblCollections
-          SET Views = ISNULL(Views, 0) + 1
-          WHERE Collection_ID = @collectionId
-        `);
-
-        log.info('collection views count incremented', {
-          collectionId: collectionId,
-        });
-      } catch (updateError) {
-        // Log error but don't fail the request
-        log.error('failed to increment collection views count', {
-          collectionId: collectionId,
-          error: updateError.message,
-        });
-      }
-    }
-
+    // Send response immediately
     res.status(200).json(processedResults);
+
+    // Fire-and-forget: increment views count if collection_id is provided
+    if (collectionId) {
+      (async () => {
+        try {
+          const updateRequest = new sql.Request(pool);
+          updateRequest.input('collectionId', sql.Int, collectionId);
+
+          await updateRequest.query(`
+            UPDATE dbo.tblCollections
+            SET Views = ISNULL(Views, 0) + 1
+            WHERE Collection_ID = @collectionId
+          `);
+
+          log.info('collection views count incremented', {
+            collectionId: collectionId,
+          });
+        } catch (updateError) {
+          // Log error but don't fail the request
+          log.error('failed to increment collection views count', {
+            collectionId: collectionId,
+            error: updateError.message,
+          });
+        }
+      })();
+    }
   } catch (error) {
     log.error('error fetching dataset preview metadata', {
       error: error.message,
