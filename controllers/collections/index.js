@@ -9,4 +9,5 @@ module.exports = {
   create: require('./create'),
   copy: require('./copy'),
   preview: require('./preview'),
+  update: require('./update'),
 };
