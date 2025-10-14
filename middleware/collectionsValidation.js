@@ -10,7 +10,10 @@ const validateCollectionId = (id) => {
 
   const parsedId = parseInt(id, 10);
   if (isNaN(parsedId) || parsedId < 1) {
-    return { isValid: false, message: 'collection ID must be a positive integer' };
+    return {
+      isValid: false,
+      message: 'collection ID must be a positive integer',
+    };
   }
 
   return { isValid: true, id: parsedId };
@@ -62,7 +65,7 @@ const validateListQueryParams = (query) => {
   return {
     isValid: errors.length === 0,
     errors,
-    params: validatedParams
+    params: validatedParams,
   };
 };
 
@@ -85,7 +88,7 @@ const validateDetailQueryParams = (query) => {
   return {
     isValid: errors.length === 0,
     errors,
-    params: validatedParams
+    params: validatedParams,
   };
 };
 
@@ -98,18 +101,20 @@ const validateCollectionsList = (req, res, next) => {
   if (!validation.isValid) {
     log.warn('invalid query parameters for collections list', {
       errors: validation.errors,
-      query: req.query
+      query: req.query,
     });
     return res.status(400).json({
       error: 'validation_error',
-      message: validation.errors.join(', ')
+      message: validation.errors.join(', '),
     });
   }
 
   // Attach validated parameters to request object
   req.validatedQuery = validation.params;
 
-  log.trace('collections list validation passed', { validatedParams: validation.params });
+  log.trace('collections list validation passed', {
+    validatedParams: validation.params,
+  });
   next();
 };
 
@@ -122,11 +127,11 @@ const validateCollectionDetail = (req, res, next) => {
   if (!idValidation.isValid) {
     log.warn('invalid collection ID parameter', {
       id: req.params.id,
-      error: idValidation.message
+      error: idValidation.message,
     });
     return res.status(404).json({
       error: 'not_found',
-      message: 'Collection does not exist'
+      message: 'Collection does not exist',
     });
   }
 
@@ -135,23 +140,23 @@ const validateCollectionDetail = (req, res, next) => {
   if (!queryValidation.isValid) {
     log.warn('invalid query parameters for collection detail', {
       errors: queryValidation.errors,
-      query: req.query
+      query: req.query,
     });
     return res.status(400).json({
       error: 'validation_error',
-      message: queryValidation.errors.join(', ')
+      message: queryValidation.errors.join(', '),
     });
   }
 
   // Attach validated parameters to request object
   req.validatedParams = {
-    id: idValidation.id
+    id: idValidation.id,
   };
   req.validatedQuery = queryValidation.params;
 
   log.trace('collection detail validation passed', {
     collectionId: idValidation.id,
-    validatedParams: queryValidation.params
+    validatedParams: queryValidation.params,
   });
   next();
 };
@@ -166,7 +171,7 @@ const validateCollectionNameCheck = (req, res, next) => {
     log.warn('missing collection name parameter');
     return res.status(400).json({
       error: 'validation_error',
-      message: 'name parameter is required'
+      message: 'name parameter is required',
     });
   }
 
@@ -174,7 +179,7 @@ const validateCollectionNameCheck = (req, res, next) => {
     log.warn('invalid collection name type', { name });
     return res.status(400).json({
       error: 'validation_error',
-      message: 'name must be a string'
+      message: 'name must be a string',
     });
   }
 
@@ -183,7 +188,7 @@ const validateCollectionNameCheck = (req, res, next) => {
     log.warn('empty collection name provided');
     return res.status(400).json({
       error: 'validation_error',
-      message: 'name cannot be empty'
+      message: 'name cannot be empty',
     });
   }
 
@@ -191,16 +196,35 @@ const validateCollectionNameCheck = (req, res, next) => {
     log.warn('collection name too long', { length: trimmedName.length });
     return res.status(400).json({
       error: 'validation_error',
-      message: 'name must be 255 characters or less'
+      message: 'name must be 255 characters or less',
     });
   }
 
   // Attach validated name to request
   req.validatedQuery = {
-    name: trimmedName
+    name: trimmedName,
   };
 
-  log.trace('collection name validation passed', { name: trimmedName });
+  // Optionally validate and attach collectionId if provided
+  if (req.query.collectionId !== undefined) {
+    const collectionIdValidation = validateCollectionId(req.query.collectionId);
+    if (!collectionIdValidation.isValid) {
+      log.warn('invalid collectionId parameter', {
+        collectionId: req.query.collectionId,
+        error: collectionIdValidation.message,
+      });
+      return res.status(400).json({
+        error: 'validation_error',
+        message: collectionIdValidation.message,
+      });
+    }
+    req.validatedQuery.collectionId = collectionIdValidation.id;
+  }
+
+  log.trace('collection name validation passed', {
+    name: trimmedName,
+    collectionId: req.validatedQuery.collectionId,
+  });
   next();
 };
 
@@ -214,7 +238,7 @@ const validateCollectionPreview = (req, res, next) => {
     log.warn('missing datasets parameter');
     return res.status(400).json({
       error: 'validation_error',
-      message: 'datasets parameter is required'
+      message: 'datasets parameter is required',
     });
   }
 
@@ -230,20 +254,20 @@ const validateCollectionPreview = (req, res, next) => {
 
   // Trim whitespace from each dataset name and filter out empty strings
   const cleanedDatasets = datasetsList
-    .map(name => (typeof name === 'string' ? name.trim() : ''))
-    .filter(name => name.length > 0);
+    .map((name) => (typeof name === 'string' ? name.trim() : ''))
+    .filter((name) => name.length > 0);
 
   if (cleanedDatasets.length === 0) {
     log.warn('no valid dataset names provided');
     return res.status(400).json({
       error: 'validation_error',
-      message: 'at least one valid dataset name is required'
+      message: 'at least one valid dataset name is required',
     });
   }
 
   // Attach validated datasets array to request
   req.validatedQuery = {
-    datasets: cleanedDatasets
+    datasets: cleanedDatasets,
   };
 
   // Optionally validate and attach collectionId if provided
@@ -252,11 +276,11 @@ const validateCollectionPreview = (req, res, next) => {
     if (!collectionIdValidation.isValid) {
       log.warn('invalid collectionId parameter', {
         collectionId: req.query.collectionId,
-        error: collectionIdValidation.message
+        error: collectionIdValidation.message,
       });
       return res.status(400).json({
         error: 'validation_error',
-        message: collectionIdValidation.message
+        message: collectionIdValidation.message,
       });
     }
     req.validatedQuery.collectionId = collectionIdValidation.id;
@@ -264,7 +288,100 @@ const validateCollectionPreview = (req, res, next) => {
 
   log.trace('collection preview validation passed', {
     datasetCount: cleanedDatasets.length,
-    collectionId: req.validatedQuery.collectionId
+    collectionId: req.validatedQuery.collectionId,
+  });
+  next();
+};
+
+// Middleware for validating collection update endpoint
+const validateCollectionUpdate = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
+  // Validate collection ID parameter
+  const idValidation = validateCollectionId(req.params.id);
+  if (!idValidation.isValid) {
+    log.warn('invalid collection ID parameter', {
+      id: req.params.id,
+      error: idValidation.message,
+    });
+    return res.status(404).json({
+      error: 'not_found',
+      message: 'Collection does not exist',
+    });
+  }
+
+  const errors = [];
+  const {
+    collectionName,
+    description,
+    private: isPrivate,
+    datasets,
+  } = req.body;
+
+  // Validate collectionName
+  if (collectionName === undefined || collectionName === null) {
+    errors.push('collectionName is required');
+  } else if (typeof collectionName !== 'string') {
+    errors.push('collectionName must be a string');
+  } else {
+    const trimmedName = collectionName.trim();
+    if (trimmedName.length < 5) {
+      errors.push('collectionName must be at least 5 characters');
+    } else if (trimmedName.length > 200) {
+      errors.push('collectionName must be at most 200 characters');
+    }
+  }
+
+  // Validate description
+  if (description === undefined || description === null) {
+    errors.push('description is required');
+  } else if (typeof description !== 'string') {
+    errors.push('description must be a string');
+  } else if (description.length > 500) {
+    errors.push('description must be at most 500 characters');
+  }
+
+  // Validate private flag
+  if (isPrivate === undefined || isPrivate === null) {
+    errors.push('private is required');
+  } else if (typeof isPrivate !== 'boolean') {
+    errors.push('private must be a boolean');
+  }
+
+  // Validate datasets
+  if (datasets === undefined || datasets === null) {
+    errors.push('datasets is required');
+  } else if (!Array.isArray(datasets)) {
+    errors.push('datasets must be an array');
+  } else if (!datasets.every((ds) => typeof ds === 'string')) {
+    errors.push('all dataset names must be strings');
+  }
+
+  if (errors.length > 0) {
+    log.warn('validation failed for collection update', {
+      errors,
+      body: req.body,
+    });
+    return res.status(400).json({
+      error: 'validation_error',
+      message: errors.join(', '),
+    });
+  }
+
+  // Attach validated parameters
+  req.validatedParams = {
+    id: idValidation.id,
+  };
+  req.validatedBody = {
+    collectionName: collectionName.trim(),
+    description,
+    private: isPrivate,
+    datasets,
+  };
+
+  log.trace('collection update validation passed', {
+    collectionId: idValidation.id,
+    collectionName: collectionName.trim(),
   });
   next();
 };
@@ -324,8 +441,8 @@ const validateCollectionCreate = (req, res, next) => {
       errors.push('datasets must be an array');
     } else {
       const cleanedDatasets = req.body.datasets
-        .map(name => (typeof name === 'string' ? name.trim() : ''))
-        .filter(name => name.length > 0);
+        .map((name) => (typeof name === 'string' ? name.trim() : ''))
+        .filter((name) => name.length > 0);
       validatedBody.datasets = cleanedDatasets;
     }
   } else {
@@ -335,11 +452,11 @@ const validateCollectionCreate = (req, res, next) => {
   if (errors.length > 0) {
     log.warn('validation errors in collection creation', {
       errors,
-      body: req.body
+      body: req.body,
     });
     return res.status(400).json({
       error: 'validation_error',
-      message: errors.join(', ')
+      message: errors.join(', '),
     });
   }
 
@@ -347,7 +464,7 @@ const validateCollectionCreate = (req, res, next) => {
 
   log.trace('collection creation validation passed', {
     collectionName: validatedBody.collectionName,
-    datasetCount: validatedBody.datasets.length
+    datasetCount: validatedBody.datasets.length,
   });
   next();
 };
@@ -361,21 +478,21 @@ const validateCollectionDelete = (req, res, next) => {
   if (!idValidation.isValid) {
     log.warn('invalid collection ID parameter for delete', {
       id: req.params.id,
-      error: idValidation.message
+      error: idValidation.message,
     });
     return res.status(400).json({
       error: 'invalid_id',
-      message: idValidation.message
+      message: idValidation.message,
     });
   }
 
   // Attach validated parameters to request object
   req.validatedParams = {
-    id: idValidation.id
+    id: idValidation.id,
   };
 
   log.trace('collection delete validation passed', {
-    collectionId: idValidation.id
+    collectionId: idValidation.id,
   });
   next();
 };
@@ -389,21 +506,21 @@ const validateCollectionCopy = (req, res, next) => {
   if (!idValidation.isValid) {
     log.warn('invalid collection ID parameter for copy', {
       id: req.params.id,
-      error: idValidation.message
+      error: idValidation.message,
     });
     return res.status(400).json({
       error: 'invalid_id',
-      message: idValidation.message
+      message: idValidation.message,
     });
   }
 
   // Attach validated parameters to request object
   req.validatedParams = {
-    id: idValidation.id
+    id: idValidation.id,
   };
 
   log.trace('collection copy validation passed', {
-    collectionId: idValidation.id
+    collectionId: idValidation.id,
   });
   next();
 };
@@ -413,11 +530,12 @@ module.exports = {
   validateCollectionDetail,
   validateCollectionNameCheck,
   validateCollectionPreview,
+  validateCollectionUpdate,
   validateCollectionCreate,
   validateCollectionDelete,
   validateCollectionCopy,
   // Export helper functions for testing
   validateCollectionId,
   validateListQueryParams,
-  validateDetailQueryParams
+  validateDetailQueryParams,
 };
