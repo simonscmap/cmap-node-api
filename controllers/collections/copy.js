@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const retrieveCollectionResponse = require('./helpers/retrieveCollection');
 
 const log = initializeLogger('controllers/collections/copy');
 
@@ -21,12 +22,10 @@ const log = initializeLogger('controllers/collections/copy');
  * 3. Generate unique name within transaction
  * 4. Insert new collection
  * 5. Copy datasets to new collection
+ * 6. Increment copies count on source collection
+ * 7. Retrieve and return complete collection object with datasets
  *
- * Response:
- * {
- *   collectionId: number,
- *   name: string
- * }
+ * Response: Full collection object matching detail endpoint format
  */
 module.exports = async (req, res) => {
   const userId = req.user.id;
@@ -109,6 +108,41 @@ module.exports = async (req, res) => {
       datasetCount: sourceDatasets.length,
     });
 
+    // Step 2.5: Validate datasets and filter out invalid ones
+    let validDatasets = sourceDatasets;
+
+    if (sourceDatasets.length > 0) {
+      const validationRequest = new sql.Request(pool);
+      sourceDatasets.forEach((datasetName, idx) => {
+        validationRequest.input(`dataset${idx}`, sql.NVarChar(100), datasetName);
+      });
+
+      const datasetParams = sourceDatasets.map((_, idx) => `@dataset${idx}`).join(', ');
+
+      const validationResult = await validationRequest.query(`
+        SELECT Dataset_Name
+        FROM dbo.tblDatasets
+        WHERE Dataset_Name IN (${datasetParams})
+      `);
+
+      const validDatasetSet = new Set(
+        validationResult.recordset.map(row => row.Dataset_Name)
+      );
+
+      validDatasets = sourceDatasets.filter(name => validDatasetSet.has(name));
+
+      const invalidCount = sourceDatasets.length - validDatasets.length;
+      if (invalidCount > 0) {
+        log.info('Filtered out invalid datasets', {
+          userId,
+          sourceCollectionId: sourceId,
+          totalDatasets: sourceDatasets.length,
+          validDatasets: validDatasets.length,
+          invalidDatasets: invalidCount,
+        });
+      }
+    }
+
     // Step 3: Generate unique name (BEFORE transaction)
     let uniqueName = sourceName + ' copy';
     let copyNumber = 2;
@@ -185,16 +219,16 @@ module.exports = async (req, res) => {
         uniqueName,
       });
 
-      // Step 5: Copy datasets if source had any
-      if (sourceDatasets.length > 0) {
+      // Step 5: Copy datasets if source had any valid ones
+      if (validDatasets.length > 0) {
         const datasetInsertRequest = new sql.Request(tx)
           .input('collectionId', sql.Int, newCollectionId);
 
-        sourceDatasets.forEach((datasetName, idx) => {
+        validDatasets.forEach((datasetName, idx) => {
           datasetInsertRequest.input(`dataset${idx}`, sql.NVarChar(100), datasetName);
         });
 
-        const valuesClauses = sourceDatasets
+        const valuesClauses = validDatasets
           .map((_, idx) => `(@collectionId, @dataset${idx})`)
           .join(', ');
 
@@ -207,7 +241,7 @@ module.exports = async (req, res) => {
           userId,
           sourceCollectionId: sourceId,
           newCollectionId,
-          datasetCount: sourceDatasets.length,
+          datasetCount: validDatasets.length,
         });
       }
 
@@ -237,11 +271,24 @@ module.exports = async (req, res) => {
         uniqueName,
       });
 
-      // Return response
-      return res.status(201).json({
-        collectionId: newCollectionId,
-        name: uniqueName,
-      });
+      // Step 7: Retrieve complete collection object with datasets
+      try {
+        const collectionData = await retrieveCollectionResponse(pool, newCollectionId, userId);
+        return res.status(201).json(collectionData);
+      } catch (retrievalErr) {
+        log.error('Failed to retrieve collection after successful copy', {
+          userId,
+          sourceCollectionId: sourceId,
+          newCollectionId,
+          error: retrievalErr && retrievalErr.message,
+        });
+        // Collection was copied successfully, but we can't return full data
+        return res.status(201).json({
+          collectionId: newCollectionId,
+          name: uniqueName,
+          message: 'Collection copied successfully but full details unavailable'
+        });
+      }
     } catch (txErr) {
       try {
         await tx.rollback();

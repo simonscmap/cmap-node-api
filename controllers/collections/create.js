@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const retrieveCollectionResponse = require('./helpers/retrieveCollection');
 
 const log = initializeLogger('controllers/collections/create');
 
@@ -18,12 +19,9 @@ const log = initializeLogger('controllers/collections/create');
  * 1. Insert collection into tblCollections
  * 2. Validate requested datasets exist
  * 3. Insert valid datasets into tblCollection_Datasets
+ * 4. Retrieve and return complete collection object with datasets
  *
- * Response:
- * {
- *   collectionId: number,
- *   invalidDatasetCount: number
- * }
+ * Response: Full collection object matching detail endpoint format
  */
 module.exports = async (req, res) => {
   // Ensure user is authenticated
@@ -106,8 +104,6 @@ module.exports = async (req, res) => {
     });
 
     // Step 2: If datasets are provided, validate and insert them
-    let invalidDatasetCount = 0;
-
     if (datasets.length > 0) {
       // Validate which datasets exist
       const validationRequest = new sql.Request(tx);
@@ -129,7 +125,7 @@ module.exports = async (req, res) => {
       const validDatasets = validationResult.recordset.map(
         (row) => row.Dataset_Name,
       );
-      invalidDatasetCount = datasets.length - validDatasets.length;
+      const invalidDatasetCount = datasets.length - validDatasets.length;
 
       if (invalidDatasetCount > 0) {
         const invalidDatasets = datasets.filter(
@@ -146,8 +142,8 @@ module.exports = async (req, res) => {
       // Step 3: Insert valid datasets into junction table
       if (validDatasets.length > 0) {
         const table = new sql.Table('dbo.tblCollection_Datasets');
-        table.columns.add('Collection_ID', sql.Int);
-        table.columns.add('Dataset_Short_Name', sql.NVarChar(100));
+        table.columns.add('Collection_ID', sql.Int, { nullable: false });
+        table.columns.add('Dataset_Short_Name', sql.NVarChar(100), { nullable: false });
 
         validDatasets.forEach((datasetName) => {
           table.rows.add(newCollectionId, datasetName);
@@ -170,14 +166,24 @@ module.exports = async (req, res) => {
     log.info('Collection creation completed', {
       userId,
       collectionId: newCollectionId,
-      invalidDatasetCount,
     });
 
-    // Return simplified response
-    return res.status(201).json({
-      collectionId: newCollectionId,
-      invalidDatasetCount,
-    });
+    // Step 4: Retrieve complete collection object with datasets
+    try {
+      const collectionData = await retrieveCollectionResponse(pool, newCollectionId, userId);
+      return res.status(201).json(collectionData);
+    } catch (retrievalErr) {
+      log.error('Failed to retrieve collection after successful creation', {
+        userId,
+        collectionId: newCollectionId,
+        error: retrievalErr && retrievalErr.message,
+      });
+      // Collection was created successfully, but we can't return full data
+      return res.status(201).json({
+        collectionId: newCollectionId,
+        message: 'Collection created successfully but full details unavailable'
+      });
+    }
   } catch (err) {
     try {
       await tx.rollback();

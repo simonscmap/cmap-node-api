@@ -34,7 +34,19 @@ process.on('warning', ({ name, message, stack }) => {
 });
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    exposedHeaders: [
+      'X-CMAP-Request-Id',
+      'X-Catalog-Checksum',
+      'X-Catalog-Version',
+      'X-Catalog-Dataset-Count',
+      'X-Catalog-Generated-At',
+    ],
+  }),
+);
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cookieParser());

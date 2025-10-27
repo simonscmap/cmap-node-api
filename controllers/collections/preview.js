@@ -16,19 +16,24 @@ module.exports = async (req, res) => {
     const pool = await pools.userReadAndWritePool;
     const request = new sql.Request(pool);
 
-    // Dynamically add input parameters for each dataset
-    datasets.forEach((datasetName, index) => {
-      request.input('shortName' + index, sql.NVarChar, datasetName);
-    });
-
-    // Build WHERE clause with dynamic parameter names
-    const paramNames = datasets
-      .map((_, index) => '@shortName' + index)
+    // Create a CTE (Common Table Expression) with requested datasets
+    // Build a VALUES clause with all requested dataset names
+    const valuesClause = datasets
+      .map((_, index) => {
+        request.input('shortName' + index, sql.NVarChar, datasets[index]);
+        return `(@shortName${index})`;
+      })
       .join(', ');
 
     const query = `
+      WITH RequestedDatasets AS (
+        SELECT shortName
+        FROM (VALUES ${valuesClause}) AS v(shortName)
+      )
       SELECT
-        ds.Dataset_Name as shortName,
+        requested.shortName as shortName,
+        ds.Dataset_Long_Name as longName,
+        ds.Description as description,
         JSON_VALUE(stats.JSON_stats, '$.time.min') as timeStart,
         JSON_VALUE(stats.JSON_stats, '$.time.max') as timeEnd,
         CAST(JSON_VALUE(stats.JSON_stats, '$.lon.count') AS float) AS [Row_Count],
@@ -42,14 +47,15 @@ module.exports = async (req, res) => {
         CASE WHEN v.Table_Name IN (SELECT table_name FROM dbo.udfDatasetBadges())
             THEN 1 ELSE 0 END as isContinuouslyUpdated,
         CASE WHEN v.Table_Name IN (SELECT table_name FROM dbo.udfDatasetsWithAncillary())
-            THEN 1 ELSE 0 END as hasAncillaryData
-      FROM tblDatasets ds
-      JOIN tblDataset_Stats stats ON ds.ID = stats.Dataset_ID
+            THEN 1 ELSE 0 END as hasAncillaryData,
+        CASE WHEN ds.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
+      FROM RequestedDatasets requested
+      LEFT JOIN tblDatasets ds ON requested.shortName = ds.Dataset_Name
+      LEFT JOIN tblDataset_Stats stats ON ds.ID = stats.Dataset_ID
       LEFT JOIN tblVariables v ON ds.ID = v.Dataset_ID
       LEFT JOIN tblSensors s ON v.Sensor_ID = s.ID
       LEFT JOIN tblMakes m ON v.Make_ID = m.ID
-      WHERE ds.Dataset_Name IN (${paramNames})
-      GROUP BY ds.ID, ds.Dataset_Name, stats.JSON_stats, v.Table_Name
+      GROUP BY requested.shortName, ds.ID, ds.Dataset_Name, ds.Dataset_Long_Name, ds.Description, stats.JSON_stats, v.Table_Name
     `;
 
     const result = await request.query(query);
@@ -68,22 +74,40 @@ module.exports = async (req, res) => {
         return Array.from(new Set(items));
       };
 
+      const isInvalid = row.isInvalid === 1;
+
       return {
         shortName: row.shortName,
+        longName: row.longName || null,
+        description: row.description || null,
         timeStart: row.timeStart || null,
         timeEnd: row.timeEnd || null,
-        rowCount: row.Row_Count,
+        rowCount: row.Row_Count || null,
         sensors: deduplicateList(row.sensors),
         makes: deduplicateList(row.makes),
         regions: deduplicateList(row.regions),
         isContinuouslyUpdated: row.isContinuouslyUpdated === 1,
         hasAncillaryData: row.hasAncillaryData === 1,
+        isInvalid: isInvalid,
       };
     });
+
+    // Identify invalid datasets for logging
+    const invalidDatasets = processedResults.filter((r) => r.isInvalid);
+
+    if (invalidDatasets.length > 0) {
+      log.warn('invalid datasets requested in preview', {
+        invalidDatasets: invalidDatasets.map((d) => d.shortName),
+        invalidCount: invalidDatasets.length,
+        collectionId,
+      });
+    }
 
     log.info('dataset preview metadata retrieved successfully', {
       datasetsFound: processedResults.length,
       datasetsRequested: datasets.length,
+      validDatasets: processedResults.length - invalidDatasets.length,
+      invalidDatasets: invalidDatasets.length,
       collectionId,
     });
 
