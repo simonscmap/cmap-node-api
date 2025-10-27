@@ -4,6 +4,21 @@ const initializeLogger = require('../../log-service');
 
 const log = initializeLogger('controllers/collections/detail');
 
+/**
+ * @deprecated This endpoint is deprecated and will be removed in a future version.
+ *
+ * Get collection details by ID.
+ * GET /collections/:id
+ *
+ * Query Parameters:
+ * - includeDatasets: boolean (optional) - Include dataset list in response
+ *
+ * Response includes:
+ * - Collection metadata (name, description, dates, owner info)
+ * - Dataset count
+ * - Datasets array (if includeDatasets=true)
+ * - Owner-only fields (downloads, copies) if authenticated user is owner
+ */
 module.exports = async (req, res) => {
   // Use validated parameters from middleware
   const collectionId = req.validatedParams.id;

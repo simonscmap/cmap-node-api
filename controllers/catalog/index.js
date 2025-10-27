@@ -1600,3 +1600,5 @@ module.exports.programData = async (req, res, next) => {
   res.json(payload);
   next();
 };
+
+module.exports.fullCatalogDb = require('./fullCatalogDb');

@@ -67,7 +67,7 @@ const queryWithDatasets = `
          c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
+         CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -89,7 +89,7 @@ const anonymousQueryWithDatasets = `
          c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
+         CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -137,7 +137,7 @@ function transformResultsWithDatasets(results, includeDatasets) {
       collection.datasets.push({
         datasetShortName: row.datasetShortName,
         datasetLongName: row.datasetLongName,
-        isValid: Boolean(row.isValid),
+        isInvalid: Boolean(row.isInvalid),
       });
     }
 

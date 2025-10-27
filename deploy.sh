@@ -70,6 +70,9 @@ rm .sentryclirc
 
 cd "$SCRIPT_DIR"
 
+echo "⭐️ create public dir if needed";
+mkdir -p "$SCRIPT_DIR/public"
+
 echo "⭐️ remove static dir from node api";
 rm -rf "$SCRIPT_DIR/public/static/"
 

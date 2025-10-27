@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const retrieveCollectionResponse = require('./helpers/retrieveCollection');
 
 const log = initializeLogger('controllers/collections/update');
 
@@ -22,11 +23,9 @@ const log = initializeLogger('controllers/collections/update');
  * 5. Remove datasets no longer in collection
  * 6. Add new datasets to collection
  * 7. Update Modified_At timestamp
+ * 8. Retrieve and return complete collection object with datasets
  *
- * Response:
- * {
- *   collectionId: number
- * }
+ * Response: Full collection object matching detail endpoint format
  */
 module.exports = async (req, res) => {
   // Authentication already verified by passport middleware
@@ -223,8 +222,8 @@ module.exports = async (req, res) => {
     // Step 6: Add new datasets to collection
     if (datasetsToAdd.length > 0) {
       const table = new sql.Table('dbo.tblCollection_Datasets');
-      table.columns.add('Collection_ID', sql.Int);
-      table.columns.add('Dataset_Short_Name', sql.NVarChar(100));
+      table.columns.add('Collection_ID', sql.Int, { nullable: false });
+      table.columns.add('Dataset_Short_Name', sql.NVarChar(100), { nullable: false });
 
       datasetsToAdd.forEach(datasetName => {
         table.rows.add(collectionId, datasetName);
@@ -248,9 +247,22 @@ module.exports = async (req, res) => {
       collectionId
     });
 
-    return res.status(200).json({
-      collectionId
-    });
+    // Step 8: Retrieve complete collection object with datasets
+    try {
+      const collectionData = await retrieveCollectionResponse(pool, collectionId, userId);
+      return res.status(200).json(collectionData);
+    } catch (retrievalErr) {
+      log.error('Failed to retrieve collection after successful update', {
+        userId,
+        collectionId,
+        error: retrievalErr && retrievalErr.message,
+      });
+      // Collection was updated successfully, but we can't return full data
+      return res.status(200).json({
+        collectionId,
+        message: 'Collection updated successfully but full details unavailable'
+      });
+    }
   } catch (err) {
     try {
       await tx.rollback();

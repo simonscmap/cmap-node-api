@@ -117,7 +117,17 @@ class TestRunner {
 
     // Add query parameters
     Object.keys(this.config.queryParams).forEach(key => {
-      url.searchParams.append(key, this.config.queryParams[key]);
+      const value = this.config.queryParams[key];
+
+      // Handle array values - append each element separately
+      // This creates URLs like ?keywords=sst&keywords=sat
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          url.searchParams.append(key, item);
+        });
+      } else {
+        url.searchParams.append(key, value);
+      }
     });
 
     return url.toString();
