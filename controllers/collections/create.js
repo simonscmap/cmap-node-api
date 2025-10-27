@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const retrieveCollectionResponse = require('./helpers/retrieveCollection');
 
 const log = initializeLogger('controllers/collections/create');
 
@@ -9,7 +10,7 @@ const log = initializeLogger('controllers/collections/create');
  * POST /collections
  *
  * Request body:
- * - collection_name (required): string, 1-200 chars
+ * - collectionName (required): string, 1-200 chars
  * - description (optional): string, 0-500 chars
  * - private (optional): boolean, default true
  * - datasets (optional): array of dataset short names
@@ -18,12 +19,9 @@ const log = initializeLogger('controllers/collections/create');
  * 1. Insert collection into tblCollections
  * 2. Validate requested datasets exist
  * 3. Insert valid datasets into tblCollection_Datasets
+ * 4. Retrieve and return complete collection object with datasets
  *
- * Response:
- * {
- *   collection_id: number,
- *   invalid_dataset_count: number
- * }
+ * Response: Full collection object matching detail endpoint format
  */
 module.exports = async (req, res) => {
   // Ensure user is authenticated
@@ -33,15 +31,15 @@ module.exports = async (req, res) => {
 
   const userId = req.user.id;
   const {
-    collection_name,
-    description = null,
-    private: isPrivate = true,
-    datasets = [],
-  } = req.body;
+    collectionName,
+    description,
+    private: isPrivate,
+    datasets,
+  } = req.validatedBody;
 
   log.info('Creating collection', {
     userId,
-    collectionName: collection_name,
+    collectionName,
     isPrivate,
     requestedDatasetCount: datasets.length,
   });
@@ -53,7 +51,7 @@ module.exports = async (req, res) => {
     log.error('Failed to get database pool', {
       error,
       userId,
-      collectionName: collection_name,
+      collectionName,
     });
     return res.status(500).json({
       error: 'database_error',
@@ -67,16 +65,21 @@ module.exports = async (req, res) => {
   try {
     let newCollectionId;
 
+    // Generate UTC timestamp for creation
+    const now = new Date().toISOString();
+
     // Step 1: Insert collection and get the new ID
     const insertRequest = new sql.Request(tx)
       .input('userId', sql.Int, userId)
-      .input('name', sql.NVarChar(200), collection_name)
+      .input('name', sql.NVarChar(200), collectionName)
       .input('private', sql.Bit, isPrivate)
-      .input('description', sql.NVarChar(500), description);
+      .input('description', sql.NVarChar(500), description)
+      .input('createdAt', sql.DateTime2, now)
+      .input('modifiedAt', sql.DateTime2, now);
 
     const insertResult = await insertRequest.query(`
-      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Created_At, Modified_At)
-      VALUES (@userId, @name, @private, @description, 0, 0, GETDATE(), GETDATE());
+      INSERT INTO dbo.tblCollections (User_ID, Collection_Name, Private, Description, Downloads, Views, Copies, Created_At, Modified_At)
+      VALUES (@userId, @name, @private, @description, 0, 0, 0, @createdAt, @modifiedAt);
       SELECT SCOPE_IDENTITY() AS Collection_ID;
     `);
 
@@ -84,7 +87,7 @@ module.exports = async (req, res) => {
       await tx.rollback();
       log.error('Failed to get collection ID after insert', {
         userId,
-        collectionName: collection_name,
+        collectionName,
       });
       return res.status(500).json({
         error: 'database_error',
@@ -97,12 +100,10 @@ module.exports = async (req, res) => {
     log.info('Collection created', {
       userId,
       collectionId: newCollectionId,
-      collectionName: collection_name,
+      collectionName,
     });
 
     // Step 2: If datasets are provided, validate and insert them
-    let invalidDatasetCount = 0;
-
     if (datasets.length > 0) {
       // Validate which datasets exist
       const validationRequest = new sql.Request(tx);
@@ -124,7 +125,7 @@ module.exports = async (req, res) => {
       const validDatasets = validationResult.recordset.map(
         (row) => row.Dataset_Name,
       );
-      invalidDatasetCount = datasets.length - validDatasets.length;
+      const invalidDatasetCount = datasets.length - validDatasets.length;
 
       if (invalidDatasetCount > 0) {
         const invalidDatasets = datasets.filter(
@@ -141,8 +142,8 @@ module.exports = async (req, res) => {
       // Step 3: Insert valid datasets into junction table
       if (validDatasets.length > 0) {
         const table = new sql.Table('dbo.tblCollection_Datasets');
-        table.columns.add('Collection_ID', sql.Int);
-        table.columns.add('Dataset_Short_Name', sql.NVarChar(100));
+        table.columns.add('Collection_ID', sql.Int, { nullable: false });
+        table.columns.add('Dataset_Short_Name', sql.NVarChar(100), { nullable: false });
 
         validDatasets.forEach((datasetName) => {
           table.rows.add(newCollectionId, datasetName);
@@ -165,28 +166,38 @@ module.exports = async (req, res) => {
     log.info('Collection creation completed', {
       userId,
       collectionId: newCollectionId,
-      invalidDatasetCount,
     });
 
-    // Return simplified response
-    return res.status(201).json({
-      collection_id: newCollectionId,
-      invalid_dataset_count: invalidDatasetCount,
-    });
+    // Step 4: Retrieve complete collection object with datasets
+    try {
+      const collectionData = await retrieveCollectionResponse(pool, newCollectionId, userId);
+      return res.status(201).json(collectionData);
+    } catch (retrievalErr) {
+      log.error('Failed to retrieve collection after successful creation', {
+        userId,
+        collectionId: newCollectionId,
+        error: retrievalErr && retrievalErr.message,
+      });
+      // Collection was created successfully, but we can't return full data
+      return res.status(201).json({
+        collectionId: newCollectionId,
+        message: 'Collection created successfully but full details unavailable'
+      });
+    }
   } catch (err) {
     try {
       await tx.rollback();
     } catch (rollbackErr) {
       log.error('Transaction rollback failed', {
         userId,
-        collectionName: collection_name,
+        collectionName,
         rollbackError: rollbackErr && rollbackErr.message,
       });
     }
 
     log.error('POST /collections failed', {
       userId,
-      collectionName: collection_name,
+      collectionName,
       error: err && err.message,
       stack: err && err.stack,
     });

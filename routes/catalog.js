@@ -7,6 +7,10 @@ const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper'
 
 router.get('/', asyncControllerWrapper(catalogController.retrieve));
 router.get(
+  '/full-catalog-db',
+  asyncControllerWrapper(catalogController.fullCatalogDb),
+);
+router.get(
   '/auditcatalogvariablenames',
   asyncControllerWrapper(catalogController.auditCatalogVariableNames),
 );

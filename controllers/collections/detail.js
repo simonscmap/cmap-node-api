@@ -4,6 +4,21 @@ const initializeLogger = require('../../log-service');
 
 const log = initializeLogger('controllers/collections/detail');
 
+/**
+ * @deprecated This endpoint is deprecated and will be removed in a future version.
+ *
+ * Get collection details by ID.
+ * GET /collections/:id
+ *
+ * Query Parameters:
+ * - includeDatasets: boolean (optional) - Include dataset list in response
+ *
+ * Response includes:
+ * - Collection metadata (name, description, dates, owner info)
+ * - Dataset count
+ * - Datasets array (if includeDatasets=true)
+ * - Owner-only fields (downloads, copies) if authenticated user is owner
+ */
 module.exports = async (req, res) => {
   // Use validated parameters from middleware
   const collectionId = req.validatedParams.id;
@@ -41,14 +56,18 @@ module.exports = async (req, res) => {
       CASE
         WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN c.Downloads
         ELSE NULL
-      END as totalDownloads
+      END as downloads,
+      CASE
+        WHEN @userId IS NOT NULL AND c.User_ID = @userId THEN c.Copies
+        ELSE NULL
+      END as copies
     FROM tblCollections c
     INNER JOIN tblUsers u ON c.User_ID = u.UserID
     LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
     WHERE c.Collection_ID = @collectionId
       AND (c.Private = 0 OR (@userId IS NOT NULL AND c.User_ID = @userId))
     GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
-             c.Created_At, c.Modified_At, c.Downloads,
+             c.Created_At, c.Modified_At, c.Downloads, c.Copies,
              u.FirstName, u.FamilyName, u.Institute, c.User_ID
   `;
 
@@ -104,8 +123,8 @@ module.exports = async (req, res) => {
     name: collection.name,
     description: collection.description,
     isPublic: Boolean(collection.isPublic),
-    createdDate: collection.createdDate,
-    modifiedDate: collection.modifiedDate,
+    createdDate: collection.createdDate ? new Date(collection.createdDate).toISOString() : null,
+    modifiedDate: collection.modifiedDate ? new Date(collection.modifiedDate).toISOString() : null,
     ownerName: collection.ownerName,
     ownerAffiliation: collection.ownerAffiliation,
     datasetCount: collection.datasetCount,
@@ -113,9 +132,12 @@ module.exports = async (req, res) => {
     datasets: collection.datasets
   };
 
-  // Only include total_downloads if user is owner
-  if (collection.totalDownloads !== null) {
-    responseData.totalDownloads = collection.totalDownloads;
+  // Only include downloads and copies if user is owner
+  if (collection.downloads !== null) {
+    responseData.downloads = collection.downloads;
+  }
+  if (collection.copies !== null) {
+    responseData.copies = collection.copies;
   }
 
   log.trace('Collection detail retrieved successfully', {

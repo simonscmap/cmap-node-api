@@ -18,8 +18,9 @@
  * @property {string} Description - Collection description, nvarchar(500), nullable
  * @property {number} Downloads - Download count, int, default 0
  * @property {number} Views - View count, int, default 0
- * @property {Date} Created_At - Creation timestamp, datetime
- * @property {Date} Modified_At - Last modified timestamp, datetime
+ * @property {number} Copies - Copy count, int, default 0
+ * @property {Date} Created_At - Creation timestamp in UTC, datetime2
+ * @property {Date} Modified_At - Last modified timestamp in UTC, datetime2
  *
  * @example
  * // Query example

@@ -2,7 +2,7 @@ const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
 
-const log = initializeLogger('controllers/collections/list');
+const log = initializeLogger('controllers/collections/get');
 
 const anonymousQuery = `
   SELECT c.Collection_ID as id,
@@ -14,13 +14,16 @@ const anonymousQuery = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          COUNT(cd.Dataset_Short_Name) as datasetCount,
-         0 as isOwner
+         0 as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
-           c.Created_At, c.Modified_At,
+           c.Created_At, c.Modified_At, c.Downloads, c.Views, c.Copies,
            u.FirstName, u.FamilyName, u.Institute
   ORDER BY c.Modified_At DESC
 `;
@@ -35,13 +38,16 @@ const authenticatedQuery = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          COUNT(cd.Dataset_Short_Name) as datasetCount,
-         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner
+         CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
   WHERE c.Private = 0 OR c.User_ID = @userId
   GROUP BY c.Collection_ID, c.Collection_Name, c.Description, c.Private,
-           c.Created_At, c.Modified_At, c.Downloads, c.Views,
+           c.Created_At, c.Modified_At, c.Downloads, c.Views, c.Copies,
            u.FirstName, u.FamilyName, u.Institute, c.User_ID
   ORDER BY c.Modified_At DESC
 `;
@@ -56,9 +62,12 @@ const queryWithDatasets = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
+         CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -75,9 +84,12 @@ const anonymousQueryWithDatasets = `
          u.FirstName + ' ' + u.FamilyName as ownerName,
          u.Institute as ownerAffiliation,
          0 as isOwner,
+         c.Downloads as downloads,
+         c.Views as views,
+         c.Copies as copies,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
-         CASE WHEN d.Dataset_Name IS NOT NULL THEN 1 ELSE 0 END as isValid
+         CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -85,27 +97,6 @@ const anonymousQueryWithDatasets = `
   WHERE c.Private = 0
   ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name
 `;
-
-// Validation is now handled by middleware, this function is no longer needed
-// function validateQueryParams(query) {
-//   const errors = [];
-//
-//   if (query.limit !== undefined) {
-//     const limit = parseInt(query.limit, 10);
-//     if (isNaN(limit) || limit < 1 || limit > 100) {
-//       errors.push('limit must be between 1 and 100');
-//     }
-//   }
-//
-//   if (query.offset !== undefined) {
-//     const offset = parseInt(query.offset, 10);
-//     if (isNaN(offset) || offset < 0) {
-//       errors.push('offset must be 0 or greater');
-//     }
-//   }
-//
-//   return errors;
-// }
 
 function transformResultsWithDatasets(results, includeDatasets) {
   if (!includeDatasets) {
@@ -123,12 +114,19 @@ function transformResultsWithDatasets(results, includeDatasets) {
         name: row.name,
         description: row.description,
         isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate,
-        modifiedDate: row.modifiedDate,
+        createdDate: row.createdDate
+          ? new Date(row.createdDate).toISOString()
+          : null,
+        modifiedDate: row.modifiedDate
+          ? new Date(row.modifiedDate).toISOString()
+          : null,
         ownerName: row.ownerName,
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: 0,
         isOwner: Boolean(row.isOwner),
+        downloads: row.downloads,
+        views: row.views,
+        copies: row.copies,
         datasets: [],
       });
     }
@@ -139,7 +137,7 @@ function transformResultsWithDatasets(results, includeDatasets) {
       collection.datasets.push({
         datasetShortName: row.datasetShortName,
         datasetLongName: row.datasetLongName,
-        isValid: Boolean(row.isValid),
+        isInvalid: Boolean(row.isInvalid),
       });
     }
 
@@ -153,7 +151,9 @@ module.exports = async (req, res) => {
   log.info('requesting collections list');
 
   // Use validated parameters from middleware
-  const { includeDatasets, limit, offset } = req.validatedQuery;
+  const { includeDatasets } = req.validatedQuery;
+  // TODO: Re-enable when implementing backend pagination
+  // const { limit, offset } = req.validatedQuery;
   const userId = req.user ? req.user.id : null;
   const isAuthenticated = req.isAuthenticated();
 
@@ -163,8 +163,8 @@ module.exports = async (req, res) => {
     hasReqUser: Boolean(req.user),
     reqUser: req.user,
     includeDatasets,
-    limit,
-    offset,
+    // limit,
+    // offset,
   });
 
   // CACHING DISABLED
@@ -220,32 +220,41 @@ module.exports = async (req, res) => {
         name: row.name,
         description: row.description,
         isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate,
-        modifiedDate: row.modifiedDate,
+        createdDate: row.createdDate
+          ? new Date(row.createdDate).toISOString()
+          : null,
+        modifiedDate: row.modifiedDate
+          ? new Date(row.modifiedDate).toISOString()
+          : null,
         ownerName: row.ownerName,
         ownerAffiliation: row.ownerAffiliation,
         datasetCount: row.datasetCount,
         isOwner: Boolean(row.isOwner),
+        downloads: row.downloads,
+        views: row.views,
+        copies: row.copies,
       }));
     }
 
     log.info('query results', {
       totalCollections: collections.length,
-      requestedLimit: limit,
-      requestedOffset: offset,
+      // requestedLimit: limit,
+      // requestedOffset: offset,
     });
 
-    const paginatedResults = collections.slice(offset, offset + limit);
+    // TODO: Re-enable when implementing backend pagination
+    // Currently returning all collections for frontend pagination
+    // const paginatedResults = collections.slice(offset, offset + limit);
 
     // CACHING DISABLED
     // const ttl = isAuthenticated ? 30 * 60 : 60 * 60;
-    // nodeCache.set(cacheKey, paginatedResults, ttl);
+    // nodeCache.set(cacheKey, collections, ttl);
 
     log.info('returning collections list', {
-      count: paginatedResults.length,
+      count: collections.length,
       // cacheTTL: ttl,
     });
-    res.status(200).json(paginatedResults);
+    res.status(200).json(collections);
   } catch (error) {
     log.error('error retrieving collections list', { error: error.message });
     res.status(500).json({

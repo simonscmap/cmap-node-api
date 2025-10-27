@@ -1,6 +1,6 @@
 {
   "name": "SimonsCMAPAPI",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "description": "The API layer supporting Simons CMAP Web App and SDKs",
   "main": "app.js",
   "scripts": {
@@ -39,6 +39,7 @@
     "archiver": "^6.0.1",
     "base64-url": "^2.3.3",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^7.6.2",
     "body-parser": "^1.19.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.5",

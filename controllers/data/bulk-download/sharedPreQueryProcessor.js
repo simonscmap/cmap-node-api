@@ -19,7 +19,7 @@ const processPreQueryLogic = async (req, reqId) => {
     return { success: false, validation };
   }
 
-  const { shortNames, filters } = validation;
+  const { shortNames, filters, collectionId } = validation;
 
   // 2. Transform filters to constraints
   const constraints = parseFiltersToConstraints(filters);
@@ -45,6 +45,7 @@ const processPreQueryLogic = async (req, reqId) => {
     shortNames,
     constraints,
     datasetsMetadata,
+    collectionId,
   };
 };
 

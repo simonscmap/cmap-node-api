@@ -6,11 +6,14 @@ const {
   validateCollectionsList,
   validateCollectionDetail,
   validateCollectionNameCheck,
+  validateCollectionPreview,
+  validateCollectionCreate,
+  validateCollectionDelete,
+  validateCollectionCopy,
+  validateCollectionUpdate,
 } = require('../middleware/collectionsValidation');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
-
-/////////////////// collections root route  ///////////////////
 
 router.get(
   '/',
@@ -18,12 +21,20 @@ router.get(
   validateCollectionsList,
   asyncControllerWrapper(collectionsController.get),
 );
+
 router.get(
   '/verify-name',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
   validateCollectionNameCheck,
   asyncControllerWrapper(collectionsController.verifyName),
 );
+
+router.get(
+  '/preview',
+  validateCollectionPreview,
+  asyncControllerWrapper(collectionsController.preview),
+);
+
 router.get(
   '/:id',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
@@ -34,14 +45,29 @@ router.get(
 router.post(
   '/',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
-  //   validateCollectionCreate,
+  validateCollectionCreate,
   asyncControllerWrapper(collectionsController.create),
+);
+
+router.patch(
+  '/:id',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionUpdate,
+  asyncControllerWrapper(collectionsController.update),
 );
 
 router.delete(
   '/:id',
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionDelete,
   asyncControllerWrapper(collectionsController.delete),
+);
+
+router.post(
+  '/:id/copy',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionCopy,
+  asyncControllerWrapper(collectionsController.copy),
 );
 
 module.exports = router;

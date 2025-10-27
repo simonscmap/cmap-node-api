@@ -7,4 +7,7 @@ module.exports = {
   delete: require('./delete'),
   verifyName: require('./verifyName'),
   create: require('./create'),
+  copy: require('./copy'),
+  preview: require('./preview'),
+  update: require('./update'),
 };
