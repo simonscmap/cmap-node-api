@@ -11,6 +11,7 @@ const {
   validateCollectionDelete,
   validateCollectionCopy,
   validateCollectionUpdate,
+  validateCalculateRowCounts,
 } = require('../middleware/collectionsValidation');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
@@ -33,6 +34,12 @@ router.get(
   '/preview',
   validateCollectionPreview,
   asyncControllerWrapper(collectionsController.preview),
+);
+
+router.post(
+  '/calculate-row-counts',
+  validateCalculateRowCounts,
+  asyncControllerWrapper(collectionsController.calculateRowCounts),
 );
 
 router.get(

@@ -29,16 +29,16 @@ module.exports = async (req, res) => {
   // TODO stringify can throw, but that case is not handled here
   res.cookie('UserInfo', JSON.stringify(new UnsafeUser(req.user).makeSafe()), {
     ...standardCookieOptions,
-    expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
+    expires: new Date(Date.now() + jwtConfig.cookieMaxAgeMs),
   });
 
   const jwtPayload = jwt.sign(user.getJWTPayload(), jwtConfig.secret, {
-    expiresIn: '2h',
+    expiresIn: jwtConfig.expiresIn,
   });
 
   const jwtOptions = {
     ...jwtCookieOptions,
-    expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
+    expires: new Date(Date.now() + jwtConfig.cookieMaxAgeMs),
   };
 
   res.cookie('jwt', jwtPayload, jwtOptions);
