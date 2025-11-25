@@ -192,6 +192,14 @@ const validateCollectionNameCheck = (req, res, next) => {
     });
   }
 
+  if (trimmedName.length < 5) {
+    log.warn('collection name too short', { length: trimmedName.length });
+    return res.status(400).json({
+      error: 'validation_error',
+      message: 'name must be at least 5 characters',
+    });
+  }
+
   if (trimmedName.length > 255) {
     log.warn('collection name too long', { length: trimmedName.length });
     return res.status(400).json({
@@ -392,7 +400,7 @@ const validateCollectionCreate = (req, res, next) => {
   const errors = [];
   const validatedBody = {};
 
-  // Validate collectionName (required, 1-200 chars)
+  // Validate collectionName (required, 5-200 chars)
   const collectionName = req.body.collectionName;
   if (!collectionName) {
     errors.push('collectionName is required');
@@ -402,6 +410,8 @@ const validateCollectionCreate = (req, res, next) => {
     const trimmedName = collectionName.trim();
     if (trimmedName.length === 0) {
       errors.push('collectionName cannot be empty');
+    } else if (trimmedName.length < 5) {
+      errors.push('collectionName must be at least 5 characters');
     } else if (trimmedName.length > 200) {
       errors.push('collectionName must be 200 characters or less');
     } else {
@@ -525,6 +535,48 @@ const validateCollectionCopy = (req, res, next) => {
   next();
 };
 
+// Middleware for validating calculate row counts endpoint
+const validateCalculateRowCounts = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+  const errors = [];
+
+  const { shortNames, constraints } = req.body;
+
+  // Validate shortNames
+  if (!shortNames) {
+    errors.push('shortNames is required');
+  } else if (!Array.isArray(shortNames)) {
+    errors.push('shortNames must be an array');
+  } else if (shortNames.length === 0) {
+    errors.push('shortNames must contain at least one dataset name');
+  } else if (!shortNames.every((name) => typeof name === 'string')) {
+    errors.push('all dataset names in shortNames must be strings');
+  }
+
+  // Validate constraints
+  if (!constraints) {
+    errors.push('constraints is required');
+  } else if (typeof constraints !== 'object' || Array.isArray(constraints)) {
+    errors.push('constraints must be an object');
+  }
+
+  if (errors.length > 0) {
+    log.warn('validation errors in calculate row counts', {
+      errors,
+      body: req.body,
+    });
+    return res.status(400).json({
+      error: 'validation_error',
+      message: errors.join(', '),
+    });
+  }
+
+  log.trace('calculate row counts validation passed', {
+    datasetCount: shortNames.length,
+  });
+  next();
+};
+
 module.exports = {
   validateCollectionsList,
   validateCollectionDetail,
@@ -534,6 +586,7 @@ module.exports = {
   validateCollectionCreate,
   validateCollectionDelete,
   validateCollectionCopy,
+  validateCalculateRowCounts,
   // Export helper functions for testing
   validateCollectionId,
   validateListQueryParams,

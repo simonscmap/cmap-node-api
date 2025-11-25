@@ -278,9 +278,320 @@ const serializeDatabase = (db, log) => {
   return buffer;
 };
 
+/**
+ * Returns hardcoded spatial resolution mappings
+ * Resolution string -> numeric degree value (or null for irregular) with units
+ *
+ * NOTE: Some datasets have kilometer labels but their actual data resolution is
+ * degree-based. 
+ * Confirmed values: 70km X 70km and 9km X 9km were verified by examining actual 
+ * data points and measuring differences in spatial values.
+ * Estimated values: 4km X 4km and 25km X 25km are estimates as we do not have
+ * datasets to confirm these resolutions.
+ *
+ * @returns {Array<{resolution: string, value: number|null, units: string|null}>}
+ */
+const getSpatialResolutionMappings = () => {
+  return [
+    { resolution: 'Irregular', value: null, units: null },
+    { resolution: '15 arc-second interval grid', value: 0.004166667, units: 'degrees' }, // 15 ÷ 3600 = 0.004166
+    { resolution: '1/48° X 1/48°', value: 0.020833333, units: 'degrees' }, // 1 ÷ 48 = 0.020833
+    { resolution: '1/25° X 1/25°', value: 0.04, units: 'degrees' },        // 1 ÷ 25 = 0.04
+    { resolution: '1/12° X 1/12°', value: 0.083333, units: 'degrees' },    // 1 ÷ 12 = 0.083333
+    { resolution: '1/8° X 1/8°', value: 0.125, units: 'degrees' },         // 1 ÷ 8 = 0.125
+    { resolution: '1/4° X 1/4°', value: 0.25, units: 'degrees' },          // 1 ÷ 4 = 0.25
+    { resolution: '1/2° X 1/2°', value: 0.5, units: 'degrees' },           // 1 ÷ 2 = 0.5
+    { resolution: '1° X 1°', value: 1, units: 'degrees' },                 // 1 degree
+    { resolution: '4km X 4km', value: 0.041672, units: 'degrees' },        // Estimated 1/24°
+    { resolution: '9km X 9km', value: 0.083333, units: 'degrees' },        // 1/12°
+    { resolution: '25km X 25km', value: 0.125, units: 'degrees' },         // Estimated 1/8°
+    { resolution: '70km X 70km', value: 0.25, units: 'degrees' },          // 1/4°
+  ];
+};
+
+/**
+ * Returns hardcoded temporal resolution mappings
+ * Resolution string -> numeric seconds value (or null for irregular/monthly climatology) with units
+ * @returns {Array<{resolution: string, value: number|null, units: string|null}>}
+ */
+const getTemporalResolutionMappings = () => {
+  return [
+    { resolution: 'Irregular', value: null, units: null },
+    { resolution: 'Monthly Climatology', value: null, units: null },
+    { resolution: '1/6 s', value: 0.166666666666667, units: 'seconds' },
+    { resolution: 'One Second', value: 1, units: 'seconds' },
+    { resolution: 'Three Seconds', value: 3, units: 'seconds' },
+    { resolution: '10 Seconds', value: 10, units: 'seconds' },
+    { resolution: '30 seconds', value: 30, units: 'seconds' },
+    { resolution: 'One Minute', value: 60, units: 'seconds' },
+    { resolution: 'Three Minutes', value: 180, units: 'seconds' },
+    { resolution: 'Hourly', value: 3600, units: 'seconds' },
+    { resolution: 'Six Hourly', value: 21600, units: 'seconds' },
+    { resolution: 'Daily', value: 86400, units: 'seconds' },
+    { resolution: 'Three Days', value: 259200, units: 'seconds' },
+    { resolution: 'Weekly', value: 604800, units: 'seconds' },
+    { resolution: 'Eight Day Running', value: 691200, units: 'seconds' },
+    { resolution: 'Eight Days', value: 691200, units: 'seconds' },
+    { resolution: 'Monthly', value: 2592000, units: 'seconds' },
+    { resolution: 'Annual', value: 31536000, units: 'seconds' },
+  ];
+};
+
+/**
+ * Creates spatial resolution mappings table in SQLite database
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const createSpatialResolutionMappingsTable = (db, log) => {
+  log.debug('creating spatial_resolution_mappings table');
+
+  db.exec(`
+    CREATE TABLE spatial_resolution_mappings (
+      resolution TEXT PRIMARY KEY,
+      value REAL,
+      units TEXT
+    );
+  `);
+
+  log.debug('spatial_resolution_mappings table created');
+};
+
+/**
+ * Creates temporal resolution mappings table in SQLite database
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const createTemporalResolutionMappingsTable = (db, log) => {
+  log.debug('creating temporal_resolution_mappings table');
+
+  db.exec(`
+    CREATE TABLE temporal_resolution_mappings (
+      resolution TEXT PRIMARY KEY,
+      value REAL,
+      units TEXT
+    );
+  `);
+
+  log.debug('temporal_resolution_mappings table created');
+};
+
+/**
+ * Creates depth tables (darwin_depth and pisces_depth) in SQLite database
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const createDepthTables = (db, log) => {
+  log.debug('creating darwin_depth and pisces_depth tables');
+
+  db.exec(`
+    CREATE TABLE darwin_depth (
+      depth_level REAL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE pisces_depth (
+      depth_level REAL
+    );
+  `);
+
+  log.debug('depth tables created');
+};
+
+/**
+ * Creates dataset_depth_models table in SQLite database
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const createDatasetDepthModelsTable = (db, log) => {
+  log.debug('creating dataset_depth_models table');
+
+  db.exec(`
+    CREATE TABLE dataset_depth_models (
+      short_name TEXT PRIMARY KEY,
+      depth_model TEXT
+    );
+  `);
+
+  log.debug('dataset_depth_models table created');
+};
+
+/**
+ * Populates spatial resolution mappings table with hardcoded values
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const populateSpatialResolutionMappings = (db, log) => {
+  log.debug('populating spatial_resolution_mappings table');
+
+  const mappings = getSpatialResolutionMappings();
+
+  const insert = db.prepare(`
+    INSERT INTO spatial_resolution_mappings (resolution, value, units)
+    VALUES (@resolution, @value, @units)
+  `);
+
+  const insertMany = db.transaction((data) => {
+    for (const mapping of data) {
+      insert.run({
+        resolution: mapping.resolution,
+        value: mapping.value,
+        units: mapping.units,
+      });
+    }
+  });
+
+  insertMany(mappings);
+
+  log.info('spatial_resolution_mappings table populated', { mappingCount: mappings.length });
+};
+
+/**
+ * Populates temporal resolution mappings table with hardcoded values
+ * @param {Database} db - SQLite database instance
+ * @param {Object} log - Logger instance
+ */
+const populateTemporalResolutionMappings = (db, log) => {
+  log.debug('populating temporal_resolution_mappings table');
+
+  const mappings = getTemporalResolutionMappings();
+
+  const insert = db.prepare(`
+    INSERT INTO temporal_resolution_mappings (resolution, value, units)
+    VALUES (@resolution, @value, @units)
+  `);
+
+  const insertMany = db.transaction((data) => {
+    for (const mapping of data) {
+      insert.run({
+        resolution: mapping.resolution,
+        value: mapping.value,
+        units: mapping.units,
+      });
+    }
+  });
+
+  insertMany(mappings);
+
+  log.info('temporal_resolution_mappings table populated', { mappingCount: mappings.length });
+};
+
+/**
+ * Populates depth tables from backend query results
+ * @param {Database} db - SQLite database instance
+ * @param {Array} darwinDepthData - Array of {depth_level} objects from tblDarwin_Depth
+ * @param {Array} piscesDepthData - Array of {depth_level} objects from tblPisces_Depth
+ * @param {Object} log - Logger instance
+ */
+const populateDepthTables = (db, darwinDepthData, piscesDepthData, log) => {
+  log.debug('populating depth tables', {
+    darwinCount: darwinDepthData.length,
+    piscesCount: piscesDepthData.length,
+  });
+
+  const darwinInsert = db.prepare(`
+    INSERT INTO darwin_depth (depth_level)
+    VALUES (@depth)
+  `);
+
+  const piscesInsert = db.prepare(`
+    INSERT INTO pisces_depth (depth_level)
+    VALUES (@depth)
+  `);
+
+  const insertDarwin = db.transaction((data) => {
+    for (const row of data) {
+      darwinInsert.run({ depth: row.depth_level });
+    }
+  });
+
+  const insertPisces = db.transaction((data) => {
+    for (const row of data) {
+      piscesInsert.run({ depth: row.depth_level });
+    }
+  });
+
+  insertDarwin(darwinDepthData);
+  insertPisces(piscesDepthData);
+
+  log.info('depth tables populated', {
+    darwinCount: darwinDepthData.length,
+    piscesCount: piscesDepthData.length,
+  });
+};
+
+/**
+ * Populates dataset_depth_models table by searching catalog for Darwin/PISCES datasets
+ * @param {Database} db - SQLite database instance
+ * @param {Array} catalogData - Array of dataset objects
+ * @param {Object} log - Logger instance
+ */
+const populateDatasetDepthModels = (db, catalogData, log) => {
+  log.debug('searching catalog for Darwin/PISCES datasets', {
+    totalDatasets: catalogData.length,
+  });
+
+  const depthModelDatasets = [];
+
+  for (const dataset of catalogData) {
+    if (!dataset.tableName) continue;
+
+    const tableNameLower = dataset.tableName.toLowerCase();
+
+    if (tableNameLower.includes('darwin')) {
+      depthModelDatasets.push({
+        shortName: dataset.shortName,
+        depthModel: 'darwin',
+      });
+    } else if (tableNameLower.includes('pisces')) {
+      depthModelDatasets.push({
+        shortName: dataset.shortName,
+        depthModel: 'pisces',
+      });
+    }
+  }
+
+  log.debug('found datasets with depth models', {
+    depthModelCount: depthModelDatasets.length,
+  });
+
+  if (depthModelDatasets.length === 0) {
+    log.info('no Darwin/PISCES datasets found in catalog');
+    return;
+  }
+
+  const insert = db.prepare(`
+    INSERT INTO dataset_depth_models (short_name, depth_model)
+    VALUES (@shortName, @depthModel)
+  `);
+
+  const insertMany = db.transaction((data) => {
+    for (const dataset of data) {
+      insert.run({
+        shortName: dataset.shortName,
+        depthModel: dataset.depthModel,
+      });
+    }
+  });
+
+  insertMany(depthModelDatasets);
+
+  log.info('dataset_depth_models table populated', {
+    depthModelCount: depthModelDatasets.length,
+  });
+};
+
 module.exports = {
   createCatalogDatabase,
   populateCatalogDatabase,
   populateRegionsTable,
   serializeDatabase,
+  createSpatialResolutionMappingsTable,
+  createTemporalResolutionMappingsTable,
+  createDepthTables,
+  createDatasetDepthModelsTable,
+  populateSpatialResolutionMappings,
+  populateTemporalResolutionMappings,
+  populateDepthTables,
+  populateDatasetDepthModels,
 };

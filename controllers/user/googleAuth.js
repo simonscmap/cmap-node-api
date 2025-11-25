@@ -26,17 +26,17 @@ const jwtCookieOptions = {
 const attachCookieCredentials = (res, user) => {
   res.cookie('UserInfo', JSON.stringify(user.makeSafe()), {
     ...standardCookieOptions,
-    expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
+    expires: new Date(Date.now() + jwtConfig.cookieMaxAgeMs),
   });
 
   res.cookie(
     'jwt',
     jwt.sign(user.getJWTPayload(), jwtConfig.secret, {
-      expiresIn: '2h',
+      expiresIn: jwtConfig.expiresIn,
     }),
     {
       ...jwtCookieOptions,
-      expires: new Date(Date.now() + 1000 * 60 * 60 * 2),
+      expires: new Date(Date.now() + jwtConfig.cookieMaxAgeMs),
     },
   );
 };

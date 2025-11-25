@@ -10,4 +10,5 @@ module.exports = {
   copy: require('./copy'),
   preview: require('./preview'),
   update: require('./update'),
+  calculateRowCounts: require('./calculateRowCounts'),
 };
