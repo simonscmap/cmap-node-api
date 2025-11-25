@@ -22,8 +22,6 @@ const getRowCountForQuery = async (
   let [queryError, countResult] = await internalRouter(query, requestId);
   log.info('queryError: ', queryError);
   log.info('countResult: ', countResult);
-  log.info('recordset: ', countResult.recordset);
-  log.info('recordsetS: ', countResult.recordsets[0]);
   if (queryError) {
     return [queryError];
   }

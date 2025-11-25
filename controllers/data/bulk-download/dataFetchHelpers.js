@@ -253,7 +253,7 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
             END AS [Depth_Max],
             JSON_VALUE(j.JSON_stats, '$.time.min') AS [Time_Min],
             JSON_VALUE(j.JSON_stats, '$.time.max') AS [Time_Max],
-            TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lon.count')) AS bigint) AS [Row_Count],
+            TRY_CAST(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.lat.count')) AS bigint) AS [Row_Count],
             CASE 
                 WHEN p.programs_json IS NOT NULL 
                 THEN JSON_QUERY(CONCAT('[', p.programs_json, ']'))

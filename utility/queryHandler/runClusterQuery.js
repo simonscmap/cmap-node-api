@@ -96,6 +96,9 @@ const runClusterQuery = async (query = '', requestId) => {
       transformedQuery,
       tableName,
       error: e.message,
+      errorMessage: e.response && e.response.errorMessage,
+      displayMessage: e.response && e.response.displayMessage,
+      sqlState: e.response && e.response.sqlState,
       durationMs: Date.now() - startTime,
       success: false,
     });

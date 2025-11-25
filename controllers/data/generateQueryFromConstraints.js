@@ -9,16 +9,24 @@ const makeClause = (name, min, max) => {
     min !== null &&
     (max === undefined || max === null)
   ) {
-    return `${name} > ${wrap(min)}`;
+    return `${name} >= ${wrap(min)}`;
   } else if (
     (min === undefined || min === null) &&
     max !== undefined &&
     max !== null
   ) {
-    return `${name} < ${wrap(max)}`;
+    return `${name} <= ${wrap(max)}`;
   } else {
     return '';
   }
+};
+
+const makeInClause = (name, values) => {
+  if (!values || !Array.isArray(values) || values.length === 0) {
+    return '';
+  }
+  const wrappedValues = values.map((v) => wrap(v)).join(', ');
+  return `${name} IN (${wrappedValues})`;
 };
 
 const parseFloatOrNull = (n) => {
@@ -105,17 +113,67 @@ const getDepthConstraint = (constraints, metadata) => {
   return makeClause('depth', depthMin, depthMax);
 };
 
+const convertDatesToMonths = (startDate, endDate) => {
+  // Convert date strings to Date objects
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Calculate the duration in milliseconds
+  const durationMs = end - start;
+  const oneYearMs = 365.25 * 24 * 60 * 60 * 1000; // Account for leap years
+
+  // If the range is >= 1 year, include all 12 months
+  if (durationMs >= oneYearMs) {
+    return { months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] };
+  }
+
+  // If the range is < 1 year, extract the specific months in the range
+  const startMonth = start.getMonth() + 1; // 1-12
+  const endMonth = end.getMonth() + 1; // 1-12
+
+  // Generate array of months in the range
+  const months = [];
+  if (startMonth <= endMonth) {
+    // Same year or non-wrapping range (e.g., March to August)
+    for (let m = startMonth; m <= endMonth; m++) {
+      months.push(m);
+    }
+  } else {
+    // Cross-year range (e.g., November to February)
+    // Add months from start to December
+    for (let m = startMonth; m <= 12; m++) {
+      months.push(m);
+    }
+    // Add months from January to end
+    for (let m = 1; m <= endMonth; m++) {
+      months.push(m);
+    }
+  }
+
+  return { months };
+};
+
 const getTimeConstraint = (constraints, metadata) => {
   if (!constraints.time) {
     return '';
   }
-  let isMonthlyClimatology =
-    metadata.Temporal_Resolution === Monthly_Climatology;
-  let colName = isMonthlyClimatology ? 'month' : 'time';
-  let {
+
+  const {
     time: { min, max },
   } = constraints;
-  return makeClause(colName, min, max);
+
+  // Check for Temporal_Resolution in both metadata.dataset and metadata (for backwards compatibility)
+  const temporalResolution = (metadata && metadata.dataset && metadata.dataset.Temporal_Resolution) ||
+                              (metadata && metadata.Temporal_Resolution);
+  const isMonthlyClimatology = temporalResolution === Monthly_Climatology;
+
+  if (isMonthlyClimatology) {
+    // Convert date strings to month array for climatology datasets
+    const { months } = convertDatesToMonths(min, max);
+    return makeInClause('month', months);
+  } else {
+    return makeClause('time', min, max);
+  }
 };
 
 const joinConstraints = (arr) => {
@@ -143,8 +201,15 @@ const generateQuery = (
   metadata,
   queryType = 'count',
 ) => {
+  // Determine the appropriate time column based on temporal resolution
+  // Check for Temporal_Resolution in both metadata.dataset and metadata (for backwards compatibility)
+  const temporalResolution = (metadata && metadata.dataset && metadata.dataset.Temporal_Resolution) ||
+                              (metadata && metadata.Temporal_Resolution);
+  const isMonthlyClimatology = temporalResolution === Monthly_Climatology;
+  const timeColumnName = isMonthlyClimatology ? 'month' : 'time';
+
   const selectClauses = {
-    count: 'select count(time) as c',
+    count: `select count(${timeColumnName}) as c`,
     data: 'select *',
   };
 

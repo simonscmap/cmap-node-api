@@ -6,11 +6,20 @@ const fullCatalogQuery = require('../../dbHandlers/fullCatalogQuery');
 const getExcludedDatasets = require('../../queries/excludedDatasets');
 const nodeCache = require('../../utility/nodeCache');
 const initializeLogger = require('../../log-service');
+const { getDatasetType } = require('../../utility/datasetType');
 const {
   createCatalogDatabase,
   populateCatalogDatabase,
   populateRegionsTable,
   serializeDatabase,
+  createSpatialResolutionMappingsTable,
+  createTemporalResolutionMappingsTable,
+  createDepthTables,
+  createDatasetDepthModelsTable,
+  populateSpatialResolutionMappings,
+  populateTemporalResolutionMappings,
+  populateDepthTables,
+  populateDatasetDepthModels,
 } = require('../../utility/sqlite/catalogDb');
 
 const gzip = util.promisify(zlib.gzip);
@@ -19,7 +28,7 @@ const moduleLogger = initializeLogger('controllers/catalog/fullCatalogDb');
 
 const CACHE_KEY = 'full_catalog_db';
 const CACHE_TTL = 86400; // 24 hours in seconds
-const SCHEMA_VERSION = '2.0'; // Bump when schema changes (last change: added rowCount column)
+const SCHEMA_VERSION = '4.0'; // Bump when schema changes (last change: standardized resolution tables to use resolution, value, units)
 
 /**
  * Get a checksum representing the current state of the catalog data
@@ -51,37 +60,59 @@ const getDatasetChecksum = async (pool, log) => {
 };
 
 /**
- * Determine dataset type based on makes and sensors
- * @param {string[]} makes - Array of make values
- * @param {string[]} sensors - Array of sensor values
- * @returns {string} Dataset type: 'Model', 'Satellite', or 'In-Situ'
+ * Clamp latitude to valid range [-90, 90]
+ * @param {number|null} lat - Latitude value
+ * @param {string} datasetName - Dataset name for tracking
+ * @param {string} coordType - Coordinate type ('latMin' or 'latMax')
+ * @param {object} stats - Statistics object to track clamped values
+ * @returns {number|null} Clamped latitude
  */
-const getDatasetType = (makes = [], sensors = []) => {
-  // Convert arrays to lowercase for case-insensitive comparison
-  const makesLower = makes.map((make) => make.toLowerCase());
-  const sensorsLower = sensors.map((sensor) => sensor.toLowerCase());
+const clampLatitude = (lat, datasetName, coordType, stats) => {
+  if (lat == null) return null;
 
-  // Make: Model -> Type: Model
-  if (makesLower.includes('model')) {
-    return 'Model';
+  const clamped = Math.max(-90, Math.min(90, lat));
+
+  if (clamped !== lat) {
+    stats.clampedCoordinates.push({
+      dataset: datasetName,
+      coordinate: coordType,
+      original: lat,
+      clamped: clamped,
+    });
   }
 
-  // Make: Observation + Sensor: Satellite -> Type: Satellite
-  if (
-    makesLower.includes('observation') &&
-    sensorsLower.includes('satellite')
-  ) {
-    return 'Satellite';
+  return clamped;
+};
+
+/**
+ * Clamp longitude to valid range [-180, 180]
+ * @param {number|null} lon - Longitude value
+ * @param {string} datasetName - Dataset name for tracking
+ * @param {string} coordType - Coordinate type ('lonMin' or 'lonMax')
+ * @param {object} stats - Statistics object to track clamped values
+ * @returns {number|null} Clamped longitude
+ */
+const clampLongitude = (lon, datasetName, coordType, stats) => {
+  if (lon == null) return null;
+
+  const clamped = Math.max(-180, Math.min(180, lon));
+
+  if (clamped !== lon) {
+    stats.clampedCoordinates.push({
+      dataset: datasetName,
+      coordinate: coordType,
+      original: lon,
+      clamped: clamped,
+    });
   }
 
-  // Else, Type: In-Situ
-  return 'In-Situ';
+  return clamped;
 };
 
 module.exports = async (req, res) => {
   const log = moduleLogger.setReqId(req.requestId);
 
-  log.info('full catalog db request received');
+  log.info('full catalog db request received', { method: req.method });
 
   try {
     // Get database pool first (needed for checksum)
@@ -89,6 +120,46 @@ module.exports = async (req, res) => {
 
     // Calculate current dataset checksum
     const currentChecksum = await getDatasetChecksum(pool, log);
+
+    // For HEAD requests, return headers only (for version checking)
+    if (req.method === 'HEAD') {
+      const cached = nodeCache.get(CACHE_KEY);
+      if (cached && cached.checksum === currentChecksum) {
+        log.info('head request - returning cached metadata', {
+          checksum: currentChecksum,
+          schemaVersion: SCHEMA_VERSION,
+        });
+        res.writeHead(200, {
+          'Cache-Control': `max-age=${CACHE_TTL}`,
+          'Content-Type': 'application/x-sqlite3',
+          'Content-Encoding': 'gzip',
+          'X-Catalog-Checksum': cached.checksum,
+          'X-Catalog-Version': SCHEMA_VERSION,
+          'X-Catalog-Dataset-Count': cached.datasetCount.toString(),
+          'X-Catalog-Generated-At': cached.generatedAt,
+        });
+        return res.end();
+      }
+
+      // No cache or stale cache - query dataset count for HEAD response
+      log.info('head request - querying current dataset count');
+      const request = new sql.Request(pool);
+      const countResult = await request.query(
+        "SELECT COUNT(*) as count FROM tblDatasets WHERE Dataset_Name <> 'z33P4nA1Raj'",
+      );
+      const datasetCount = countResult.recordset[0].count;
+
+      res.writeHead(200, {
+        'Cache-Control': `max-age=${CACHE_TTL}`,
+        'Content-Type': 'application/x-sqlite3',
+        'Content-Encoding': 'gzip',
+        'X-Catalog-Checksum': currentChecksum,
+        'X-Catalog-Version': SCHEMA_VERSION,
+        'X-Catalog-Dataset-Count': datasetCount.toString(),
+        'X-Catalog-Generated-At': new Date().toISOString(),
+      });
+      return res.end();
+    }
 
     // Check cache with checksum validation
     const cached = nodeCache.get(CACHE_KEY);
@@ -147,6 +218,11 @@ module.exports = async (req, res) => {
       return [...new Set(items)].join(', ');
     };
 
+    // Initialize statistics for tracking clamped coordinates
+    const clampingStats = {
+      clampedCoordinates: [],
+    };
+
     // Filter out excluded datasets and transform to camelCase
     const catalogData = result.recordset
       .filter((record) => !excludedDatasets.includes(record.Short_Name))
@@ -174,10 +250,10 @@ module.exports = async (req, res) => {
           spatialResolution: record.Spatial_Resolution,
           temporalResolution: record.Temporal_Resolution,
           studyDomain: record.Study_Domain,
-          latMin: record.Lat_Min,
-          latMax: record.Lat_Max,
-          lonMin: record.Lon_Min,
-          lonMax: record.Lon_Max,
+          latMin: clampLatitude(record.Lat_Min, record.Short_Name, 'latMin', clampingStats),
+          latMax: clampLatitude(record.Lat_Max, record.Short_Name, 'latMax', clampingStats),
+          lonMin: clampLongitude(record.Lon_Min, record.Short_Name, 'lonMin', clampingStats),
+          lonMax: clampLongitude(record.Lon_Max, record.Short_Name, 'lonMax', clampingStats),
           depthMin: record.Depth_Min,
           depthMax: record.Depth_Max,
           timeMin: record.Time_Min,
@@ -200,11 +276,36 @@ module.exports = async (req, res) => {
       excludedCount: result.recordset.length - catalogData.length,
     });
 
+    // Log summary of clamped coordinates if any were found
+    if (clampingStats.clampedCoordinates.length > 0) {
+      const affectedDatasets = [...new Set(clampingStats.clampedCoordinates.map((c) => c.dataset))];
+
+      log.warn('geographic coordinates clamped to valid range', {
+        totalCoordinatesClamped: clampingStats.clampedCoordinates.length,
+        affectedDatasets: affectedDatasets.length,
+        datasets: affectedDatasets,
+        details: clampingStats.clampedCoordinates,
+      });
+    } else {
+      log.debug('no coordinate clamping needed - all values within valid range');
+    }
+
     // Fetch regions data
     log.debug('fetching regions data');
     const regionsRequest = new sql.Request(pool);
     const regionsResult = await regionsRequest.query('SELECT Region_ID, Region_Name FROM tblRegions ORDER BY Region_Name');
     log.debug('regions data fetched', { regionCount: regionsResult.recordset.length });
+
+    // Fetch depth table data
+    log.debug('fetching darwin depth data');
+    const darwinDepthRequest = new sql.Request(pool);
+    const darwinDepthResult = await darwinDepthRequest.query('SELECT depth_level FROM tblDarwin_Depth ORDER BY depth_level');
+    log.debug('darwin depth data fetched', { depthCount: darwinDepthResult.recordset.length });
+
+    log.debug('fetching pisces depth data');
+    const piscesDepthRequest = new sql.Request(pool);
+    const piscesDepthResult = await piscesDepthRequest.query('SELECT depth_level FROM tblPisces_Depth ORDER BY depth_level');
+    log.debug('pisces depth data fetched', { depthCount: piscesDepthResult.recordset.length });
 
     // Create SQLite database
     const db = createCatalogDatabase(log);
@@ -214,6 +315,19 @@ module.exports = async (req, res) => {
 
     // Populate regions table
     populateRegionsTable(db, regionsResult.recordset, log);
+
+    // Create and populate estimation tables
+    log.debug('creating estimation tables');
+    createSpatialResolutionMappingsTable(db, log);
+    createTemporalResolutionMappingsTable(db, log);
+    createDepthTables(db, log);
+    createDatasetDepthModelsTable(db, log);
+
+    log.debug('populating estimation tables');
+    populateSpatialResolutionMappings(db, log);
+    populateTemporalResolutionMappings(db, log);
+    populateDepthTables(db, darwinDepthResult.recordset, piscesDepthResult.recordset, log);
+    populateDatasetDepthModels(db, catalogData, log);
 
     // Serialize database to buffer
     const dbBuffer = serializeDatabase(db, log);

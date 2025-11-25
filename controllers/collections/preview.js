@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const { getDatasetType } = require('../../utility/datasetType');
 
 const log = initializeLogger('controllers/collections/preview');
 
@@ -36,7 +37,7 @@ module.exports = async (req, res) => {
         ds.Description as description,
         JSON_VALUE(stats.JSON_stats, '$.time.min') as timeStart,
         JSON_VALUE(stats.JSON_stats, '$.time.max') as timeEnd,
-        CAST(JSON_VALUE(stats.JSON_stats, '$.lon.count') AS float) AS [Row_Count],
+        CAST(JSON_VALUE(stats.JSON_stats, '$.lat.count') AS float) AS [Row_Count],
         STRING_AGG(CAST(s.Sensor AS NVARCHAR(MAX)), ',') as sensors,
         STRING_AGG(CAST(m.Make AS NVARCHAR(MAX)), ',') as makes,
         (SELECT STRING_AGG(CAST(r.Region_Name AS NVARCHAR(MAX)), ',')
@@ -75,16 +76,19 @@ module.exports = async (req, res) => {
       };
 
       const isInvalid = row.isInvalid === 1;
+      const sensors = deduplicateList(row.sensors);
+      const makes = deduplicateList(row.makes);
 
       return {
         shortName: row.shortName,
         longName: row.longName || null,
         description: row.description || null,
+        type: getDatasetType(makes, sensors),
         timeStart: row.timeStart || null,
         timeEnd: row.timeEnd || null,
         rowCount: row.Row_Count || null,
-        sensors: deduplicateList(row.sensors),
-        makes: deduplicateList(row.makes),
+        sensors: sensors,
+        makes: makes,
         regions: deduplicateList(row.regions),
         isContinuouslyUpdated: row.isContinuouslyUpdated === 1,
         hasAncillaryData: row.hasAncillaryData === 1,
