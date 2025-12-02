@@ -28,7 +28,7 @@ const moduleLogger = initializeLogger('controllers/catalog/fullCatalogDb');
 
 const CACHE_KEY = 'full_catalog_db';
 const CACHE_TTL = 86400; // 24 hours in seconds
-const SCHEMA_VERSION = '4.0'; // Bump when schema changes (last change: standardized resolution tables to use resolution, value, units)
+const SCHEMA_VERSION = '4.2'; // Bump when schema changes (last change: added tableCount field)
 
 /**
  * Get a checksum representing the current state of the catalog data
@@ -260,7 +260,9 @@ module.exports = async (req, res) => {
           timeMax: record.Time_Max,
           sensors: sensors.length > 0 ? [...new Set(sensors)].join(', ') : null,
           visualize: record.Visualize,
+          hasDepth: record.Has_Depth === 1,
           rowCount: record.Row_Count,
+          tableCount: record.Table_Count,
           regions: record.Regions,
           references: record.References,
           datasetType: getDatasetType(makes, sensors),
@@ -307,6 +309,11 @@ module.exports = async (req, res) => {
     const piscesDepthResult = await piscesDepthRequest.query('SELECT depth_level FROM tblPisces_Depth ORDER BY depth_level');
     log.debug('pisces depth data fetched', { depthCount: piscesDepthResult.recordset.length });
 
+    log.debug('fetching woa depth data');
+    const woaDepthRequest = new sql.Request(pool);
+    const woaDepthResult = await woaDepthRequest.query('SELECT depth_level FROM tblWOA_Depth ORDER BY depth_level');
+    log.debug('woa depth data fetched', { depthCount: woaDepthResult.recordset.length });
+
     // Create SQLite database
     const db = createCatalogDatabase(log);
 
@@ -326,7 +333,7 @@ module.exports = async (req, res) => {
     log.debug('populating estimation tables');
     populateSpatialResolutionMappings(db, log);
     populateTemporalResolutionMappings(db, log);
-    populateDepthTables(db, darwinDepthResult.recordset, piscesDepthResult.recordset, log);
+    populateDepthTables(db, darwinDepthResult.recordset, piscesDepthResult.recordset, woaDepthResult.recordset, log);
     populateDatasetDepthModels(db, catalogData, log);
 
     // Serialize database to buffer

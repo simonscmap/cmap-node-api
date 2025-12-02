@@ -65,6 +65,12 @@ const createCatalogDatabase = (log) => {
       -- Row count for the dataset
       rowCount REAL,
 
+      -- Has depth flag
+      hasDepth INTEGER,
+
+      -- Table count (number of distinct tables for this dataset)
+      tableCount INTEGER,
+
       -- Full metadata as JSON blob
       metadataJson TEXT NOT NULL
     );
@@ -183,14 +189,14 @@ const populateCatalogDatabase = (db, catalogData, log) => {
       processLevel, studyDomain, keywords,
       latMin, latMax, lonMin, lonMax,
       timeMin, timeMax, depthMin, depthMax,
-      sensors, make, regions, datasetType, rowCount, metadataJson
+      sensors, make, regions, datasetType, rowCount, hasDepth, tableCount, metadataJson
     ) VALUES (
       @datasetId, @shortName, @longName, @description,
       @variableLongNames, @variableShortNames, @distributor, @dataSource,
       @processLevel, @studyDomain, @keywords,
       @latMin, @latMax, @lonMin, @lonMax,
       @timeMin, @timeMax, @depthMin, @depthMax,
-      @sensors, @make, @regions, @datasetType, @rowCount, @metadataJson
+      @sensors, @make, @regions, @datasetType, @rowCount, @hasDepth, @tableCount, @metadataJson
     )
   `);
 
@@ -222,6 +228,8 @@ const populateCatalogDatabase = (db, catalogData, log) => {
         regions: dataset.regions,
         datasetType: dataset.datasetType,
         rowCount: dataset.rowCount,
+        hasDepth: dataset.hasDepth ? 1 : 0,
+        tableCount: dataset.tableCount,
         metadataJson: JSON.stringify(dataset),
       });
     }
@@ -283,8 +291,8 @@ const serializeDatabase = (db, log) => {
  * Resolution string -> numeric degree value (or null for irregular) with units
  *
  * NOTE: Some datasets have kilometer labels but their actual data resolution is
- * degree-based. 
- * Confirmed values: 70km X 70km and 9km X 9km were verified by examining actual 
+ * degree-based.
+ * Confirmed values: 70km X 70km and 9km X 9km were verified by examining actual
  * data points and measuring differences in spatial values.
  * Estimated values: 4km X 4km and 25km X 25km are estimates as we do not have
  * datasets to confirm these resolutions.
@@ -294,18 +302,18 @@ const serializeDatabase = (db, log) => {
 const getSpatialResolutionMappings = () => {
   return [
     { resolution: 'Irregular', value: null, units: null },
-    { resolution: '15 arc-second interval grid', value: 0.004166667, units: 'degrees' }, // 15 ÷ 3600 = 0.004166
-    { resolution: '1/48° X 1/48°', value: 0.020833333, units: 'degrees' }, // 1 ÷ 48 = 0.020833
-    { resolution: '1/25° X 1/25°', value: 0.04, units: 'degrees' },        // 1 ÷ 25 = 0.04
-    { resolution: '1/12° X 1/12°', value: 0.083333, units: 'degrees' },    // 1 ÷ 12 = 0.083333
-    { resolution: '1/8° X 1/8°', value: 0.125, units: 'degrees' },         // 1 ÷ 8 = 0.125
-    { resolution: '1/4° X 1/4°', value: 0.25, units: 'degrees' },          // 1 ÷ 4 = 0.25
-    { resolution: '1/2° X 1/2°', value: 0.5, units: 'degrees' },           // 1 ÷ 2 = 0.5
-    { resolution: '1° X 1°', value: 1, units: 'degrees' },                 // 1 degree
-    { resolution: '4km X 4km', value: 0.041672, units: 'degrees' },        // Estimated 1/24°
-    { resolution: '9km X 9km', value: 0.083333, units: 'degrees' },        // 1/12°
-    { resolution: '25km X 25km', value: 0.125, units: 'degrees' },         // Estimated 1/8°
-    { resolution: '70km X 70km', value: 0.25, units: 'degrees' },          // 1/4°
+    { resolution: '15 arc-second interval grid', value: 0.004166666666667, units: 'degrees' }, // 15 ÷ 3600
+    { resolution: '1/48° X 1/48°', value: 0.020833333333333, units: 'degrees' }, // 1 ÷ 48
+    { resolution: '1/25° X 1/25°', value: 0.04, units: 'degrees' },              // 1 ÷ 25 = 0.04 (exact)
+    { resolution: '1/12° X 1/12°', value: 0.083333333333333, units: 'degrees' }, // 1 ÷ 12
+    { resolution: '1/8° X 1/8°', value: 0.125, units: 'degrees' },               // 1 ÷ 8 = 0.125 (exact)
+    { resolution: '1/4° X 1/4°', value: 0.25, units: 'degrees' },                // 1 ÷ 4 = 0.25 (exact)
+    { resolution: '1/2° X 1/2°', value: 0.5, units: 'degrees' },                 // 1 ÷ 2 = 0.5 (exact)
+    { resolution: '1° X 1°', value: 1, units: 'degrees' },                       // 1 degree (exact)
+    { resolution: '4km X 4km', value: 0.041666666666667, units: 'degrees' },     // Estimated 1/24°
+    { resolution: '9km X 9km', value: 0.083333333333333, units: 'degrees' },     // 1/12°
+    { resolution: '25km X 25km', value: 0.125, units: 'degrees' },               // Estimated 1/8°
+    { resolution: '70km X 70km', value: 0.25, units: 'degrees' },                // 1/4°
   ];
 };
 
@@ -330,7 +338,8 @@ const getTemporalResolutionMappings = () => {
     { resolution: 'Daily', value: 86400, units: 'seconds' },
     { resolution: 'Three Days', value: 259200, units: 'seconds' },
     { resolution: 'Weekly', value: 604800, units: 'seconds' },
-    { resolution: 'Eight Day Running', value: 691200, units: 'seconds' },
+    // Eight Day Running = 8-day moving average computed daily, so data has daily resolution
+    { resolution: 'Eight Day Running', value: 86400, units: 'seconds' },
     { resolution: 'Eight Days', value: 691200, units: 'seconds' },
     { resolution: 'Monthly', value: 2592000, units: 'seconds' },
     { resolution: 'Annual', value: 31536000, units: 'seconds' },
@@ -376,12 +385,12 @@ const createTemporalResolutionMappingsTable = (db, log) => {
 };
 
 /**
- * Creates depth tables (darwin_depth and pisces_depth) in SQLite database
+ * Creates depth tables (darwin_depth, pisces_depth, woa_depth) in SQLite database
  * @param {Database} db - SQLite database instance
  * @param {Object} log - Logger instance
  */
 const createDepthTables = (db, log) => {
-  log.debug('creating darwin_depth and pisces_depth tables');
+  log.debug('creating darwin_depth, pisces_depth, and woa_depth tables');
 
   db.exec(`
     CREATE TABLE darwin_depth (
@@ -391,6 +400,12 @@ const createDepthTables = (db, log) => {
 
   db.exec(`
     CREATE TABLE pisces_depth (
+      depth_level REAL
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE woa_depth (
       depth_level REAL
     );
   `);
@@ -481,12 +496,14 @@ const populateTemporalResolutionMappings = (db, log) => {
  * @param {Database} db - SQLite database instance
  * @param {Array} darwinDepthData - Array of {depth_level} objects from tblDarwin_Depth
  * @param {Array} piscesDepthData - Array of {depth_level} objects from tblPisces_Depth
+ * @param {Array} woaDepthData - Array of {depth_level} objects from tblWOA_Depth
  * @param {Object} log - Logger instance
  */
-const populateDepthTables = (db, darwinDepthData, piscesDepthData, log) => {
+const populateDepthTables = (db, darwinDepthData, piscesDepthData, woaDepthData, log) => {
   log.debug('populating depth tables', {
     darwinCount: darwinDepthData.length,
     piscesCount: piscesDepthData.length,
+    woaCount: woaDepthData.length,
   });
 
   const darwinInsert = db.prepare(`
@@ -496,6 +513,11 @@ const populateDepthTables = (db, darwinDepthData, piscesDepthData, log) => {
 
   const piscesInsert = db.prepare(`
     INSERT INTO pisces_depth (depth_level)
+    VALUES (@depth)
+  `);
+
+  const woaInsert = db.prepare(`
+    INSERT INTO woa_depth (depth_level)
     VALUES (@depth)
   `);
 
@@ -511,23 +533,31 @@ const populateDepthTables = (db, darwinDepthData, piscesDepthData, log) => {
     }
   });
 
+  const insertWoa = db.transaction((data) => {
+    for (const row of data) {
+      woaInsert.run({ depth: row.depth_level });
+    }
+  });
+
   insertDarwin(darwinDepthData);
   insertPisces(piscesDepthData);
+  insertWoa(woaDepthData);
 
   log.info('depth tables populated', {
     darwinCount: darwinDepthData.length,
     piscesCount: piscesDepthData.length,
+    woaCount: woaDepthData.length,
   });
 };
 
 /**
- * Populates dataset_depth_models table by searching catalog for Darwin/PISCES datasets
+ * Populates dataset_depth_models table by searching catalog for Darwin/PISCES/WOA datasets
  * @param {Database} db - SQLite database instance
  * @param {Array} catalogData - Array of dataset objects
  * @param {Object} log - Logger instance
  */
 const populateDatasetDepthModels = (db, catalogData, log) => {
-  log.debug('searching catalog for Darwin/PISCES datasets', {
+  log.debug('searching catalog for Darwin/PISCES/WOA datasets', {
     totalDatasets: catalogData.length,
   });
 
@@ -548,6 +578,11 @@ const populateDatasetDepthModels = (db, catalogData, log) => {
         shortName: dataset.shortName,
         depthModel: 'pisces',
       });
+    } else if (tableNameLower.includes('woa')) {
+      depthModelDatasets.push({
+        shortName: dataset.shortName,
+        depthModel: 'woa',
+      });
     }
   }
 
@@ -556,7 +591,7 @@ const populateDatasetDepthModels = (db, catalogData, log) => {
   });
 
   if (depthModelDatasets.length === 0) {
-    log.info('no Darwin/PISCES datasets found in catalog');
+    log.info('no Darwin/PISCES/WOA datasets found in catalog');
     return;
   }
 
