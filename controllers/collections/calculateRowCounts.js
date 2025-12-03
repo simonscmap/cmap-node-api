@@ -11,13 +11,36 @@ const { fetchDatasetLocationsWithCache } = require('../../utility/router/queries
 const log = initializeLogger('controllers/collections/calculateRowCounts');
 
 // Tunable retry parameters
-const MAX_RETRIES = process.env.MAX_ROW_COUNT_RETRIES || 3;
-const RETRY_DELAY = process.env.ROW_COUNT_RETRY_DELAY || 1000; // milliseconds
+const MAX_RETRIES = parseInt(process.env.MAX_ROW_COUNT_RETRIES, 10) || 3;
+const RETRY_DELAY = parseInt(process.env.ROW_COUNT_RETRY_DELAY, 10) || 1000; // milliseconds
+
+// Timeout for individual dataset row count calculation (default: 90 seconds)
+const DATASET_CALCULATION_TIMEOUT = parseInt(process.env.DATASET_ROW_COUNT_TIMEOUT, 10) || 90000;
 
 /**
  * Sleep utility for retry delays
  */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Wrap a promise with a timeout
+ * @param {Promise} promise - The promise to wrap
+ * @param {number} ms - Timeout in milliseconds
+ * @param {string} errorMessage - Error message if timeout occurs
+ * @returns {Promise} - Resolves with promise result or rejects with timeout error
+ */
+const withTimeout = (promise, ms, errorMessage) => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+};
 
 /**
  * Calculate row count for a single dataset with retry logic
@@ -282,17 +305,35 @@ module.exports = async (req, res) => {
         };
       }
 
-      const result = await calculateDatasetRowCount(
-        shortName,
-        parsedConstraints,
-        metadata,
-        requestId,
-      );
+      // Wrap the calculation in a timeout
+      try {
+        const result = await withTimeout(
+          calculateDatasetRowCount(
+            shortName,
+            parsedConstraints,
+            metadata,
+            requestId,
+          ),
+          DATASET_CALCULATION_TIMEOUT,
+          `Row count calculation timed out after ${DATASET_CALCULATION_TIMEOUT}ms`,
+        );
 
-      return {
-        shortName,
-        ...result,
-      };
+        return {
+          shortName,
+          ...result,
+        };
+      } catch (timeoutError) {
+        log.error('dataset row count calculation timed out', {
+          shortName,
+          timeout: DATASET_CALCULATION_TIMEOUT,
+          error: timeoutError.message,
+        });
+        return {
+          shortName,
+          success: false,
+          error: timeoutError.message,
+        };
+      }
     });
 
     // Wait for all calculations to complete
