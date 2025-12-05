@@ -18,7 +18,10 @@ const mapServerNameToPoolConnection = async (name) => {
     case SERVER_NAMES.rossby:
       return await pools.rossby;
 
-    // TEMPORARILY REMOVE MARIANA FOR MAINTENANCE
+    // MARIANA UNAVAILABLE: Temporarily removed for maintenance.
+    // When re-enabling, also update:
+    //   - /dbHandlers/dbPools.js (uncomment mariana pool)
+    //   - /utility/queryHandler/getPool.js (remove 'mariana' from unavailableServers)
     // case SERVER_NAMES.mariana:
     //   return await pools.mariana;
     default:

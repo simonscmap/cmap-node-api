@@ -95,9 +95,13 @@ app.use((req, res, next) => {
 });
 
 // start web server
-app.listen(port, () => {
+const server = app.listen(port, () => {
   log.info('api web server started', {
     port,
     nodeEnv: env.NODE_ENV,
   });
 });
+
+// Extend default 2-minute timeout for long-running requests (bulk downloads, row counts)
+// Node.js 12 defaults to 120000ms; set to 10 minutes
+server.timeout = 600000;

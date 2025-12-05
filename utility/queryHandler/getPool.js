@@ -11,6 +11,12 @@ const selectServerName = (candidateList, serverNameOverride) => {
   const overrideName = serverNameOverride.toLowerCase();
   let candidates = candidateList.slice(0).filter((c) => c !== 'cluster');
 
+  // TEST TOOL: Uncomment to force a specific server first i.e. mariana
+  // if (candidates.includes('mariana')) {
+  //   log.warn('TEST: Forcing mariana as first server');
+  //   return 'mariana';
+  // }
+
   if (serverNameOverride) {
     if (SERVER_NAMES[overrideName] && candidateList.includes(overrideName)) {
       log.info('server name override in use', {
@@ -48,11 +54,23 @@ const connectToPool = async (serverName, log) => {
 };
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
+  // MARIANA UNAVAILABLE: Filter out mariana since it's offline for maintenance.
+  // Without this filter, mariana would be selected but the pool mapper would
+  // silently fall back to rainier (which may not have the requested table),
+  // bypassing the retry logic with remaining candidates.
+  // Related files:
+  //   - /dbHandlers/dbPools.js (mariana pool commented out)
+  //   - /utility/router/serverPoolMapper.js (default fallback to rainier)
+  const unavailableServers = ['mariana'];
+  const filteredCandidates = candidateList.filter(
+    (c) => !unavailableServers.includes(c),
+  );
+
   const selectedServerName = selectServerName(
-    candidateList,
+    filteredCandidates,
     serverNameOverride,
   );
-  const remainingCandidates = candidateList.filter(
+  const remainingCandidates = filteredCandidates.filter(
     (c) => c !== selectedServerName,
   );
 
@@ -60,7 +78,7 @@ const getPool = async (candidateList = [], serverNameOverride = '') => {
 
   if (success) {
     log.info('get pool result', {
-      candidateList,
+      candidateList: filteredCandidates,
       selectedServerName,
     });
   }
