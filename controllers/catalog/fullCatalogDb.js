@@ -28,7 +28,7 @@ const moduleLogger = initializeLogger('controllers/catalog/fullCatalogDb');
 
 const CACHE_KEY = 'full_catalog_db';
 const CACHE_TTL = 86400; // 24 hours in seconds
-const SCHEMA_VERSION = '4.2'; // Bump when schema changes (last change: added tableCount field)
+const SCHEMA_VERSION = '4.3'; // Bump when schema changes (last change: added spatialResolution, temporalResolution columns)
 
 /**
  * Get a checksum representing the current state of the catalog data

@@ -6,6 +6,29 @@ const generateQueryFromConstraints = require('../generateQueryFromConstraints');
 const { routeQuery } = require('./routeQueryForBulkDownload');
 const sql = require('mssql');
 const { detectBulkDownloadSizeError } = require('./errorDetection');
+
+const VALID_BOUNDS = {
+  lat: { min: -90, max: 90 },
+  lon: { min: -180, max: 180 },
+};
+
+const clampLatitude = (lat) => {
+  if (lat == null) return null;
+  return Math.max(VALID_BOUNDS.lat.min, Math.min(VALID_BOUNDS.lat.max, lat));
+};
+
+const clampLongitude = (lon) => {
+  if (lon == null) return null;
+  return Math.max(VALID_BOUNDS.lon.min, Math.min(VALID_BOUNDS.lon.max, lon));
+};
+
+const clampDatasetMetadata = (dataset) => ({
+  ...dataset,
+  Lat_Min: clampLatitude(dataset.Lat_Min),
+  Lat_Max: clampLatitude(dataset.Lat_Max),
+  Lon_Min: clampLongitude(dataset.Lon_Min),
+  Lon_Max: clampLongitude(dataset.Lon_Max),
+});
 // Transform API filters to internal constraint format
 const parseFiltersToConstraints = (filters) => {
   if (!filters) {
@@ -311,7 +334,8 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
 
       if (keys.length > 0) {
         const parsedData = JSON.parse(firstRecord[keys[0]]);
-        const datasetsMetadata = parsedData.datasetsMetadata || [];
+        const rawMetadata = parsedData.datasetsMetadata || [];
+        const datasetsMetadata = rawMetadata.map(clampDatasetMetadata);
 
         return {
           success: true,
