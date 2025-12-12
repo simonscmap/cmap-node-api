@@ -114,6 +114,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
     } else {
       log.error(`unpiping accumulator from csvStream for ${tableName}`);
       csvStream.unpipe(accumulator);
+      targetFile.end();
     }
   });
 

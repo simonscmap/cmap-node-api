@@ -8,8 +8,6 @@ const apiCallsTable = 'tblApi_Calls';
 
 const log = createNewLogger().setModule('ApiCallDetail');
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 // Model for tblApi_Calls
 module.exports = class ApiCallDetail {
   constructor(req) {
@@ -46,30 +44,6 @@ module.exports = class ApiCallDetail {
     this.saved = true; // prevent double logging
 
     let requestDuration = new Date() - this.startTime;
-
-    let statusCode;
-    if (res) {
-      statusCode = res.statusCode;
-    }
-
-    if (!isDevelopment) {
-      log.info('api call detail', {
-        ip: this.ip,
-        clientHostName: this.clientHostName,
-        clientOS: this.clientOS,
-        userId: this.userID || 1,
-        routeId: this.routeID,
-        authMethod: this.authMethod || 0,
-        query: this.query,
-        queryString: this.queryString,
-        apiKeyId: this.apiKeyID || null,
-        requestDuration,
-        urlPath: this.requestPath,
-        requestId: this.requestId,
-        responseStatus: statusCode,
-        caller: (opt && opt.caller) || undefined,
-      });
-    }
 
     if (this.ignore) {
       return;

@@ -45,12 +45,14 @@ const bulkDownloadController = async (req, res, next) => {
     constraints,
   );
   if (!fetchResult.success) {
+    scheduleCleanup(pathToTmpDir, moduleLogger);
     return sendFetchError(res, next, fetchResult.error);
   }
 
   // 4. Create zip and pipe response
   const streamResult = await streamResponse(pathToTmpDir, res, log);
   if (!streamResult.success) {
+    scheduleCleanup(pathToTmpDir, moduleLogger);
     return sendStreamError(res, next);
   }
 

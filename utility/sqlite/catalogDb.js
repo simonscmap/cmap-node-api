@@ -65,6 +65,10 @@ const createCatalogDatabase = (log) => {
       -- Row count for the dataset
       rowCount REAL,
 
+      -- Resolution fields (for row count estimation eligibility)
+      spatialResolution TEXT,
+      temporalResolution TEXT,
+
       -- Has depth flag
       hasDepth INTEGER,
 
@@ -189,14 +193,18 @@ const populateCatalogDatabase = (db, catalogData, log) => {
       processLevel, studyDomain, keywords,
       latMin, latMax, lonMin, lonMax,
       timeMin, timeMax, depthMin, depthMax,
-      sensors, make, regions, datasetType, rowCount, hasDepth, tableCount, metadataJson
+      sensors, make, regions, datasetType, rowCount,
+      spatialResolution, temporalResolution,
+      hasDepth, tableCount, metadataJson
     ) VALUES (
       @datasetId, @shortName, @longName, @description,
       @variableLongNames, @variableShortNames, @distributor, @dataSource,
       @processLevel, @studyDomain, @keywords,
       @latMin, @latMax, @lonMin, @lonMax,
       @timeMin, @timeMax, @depthMin, @depthMax,
-      @sensors, @make, @regions, @datasetType, @rowCount, @hasDepth, @tableCount, @metadataJson
+      @sensors, @make, @regions, @datasetType, @rowCount,
+      @spatialResolution, @temporalResolution,
+      @hasDepth, @tableCount, @metadataJson
     )
   `);
 
@@ -228,6 +236,8 @@ const populateCatalogDatabase = (db, catalogData, log) => {
         regions: dataset.regions,
         datasetType: dataset.datasetType,
         rowCount: dataset.rowCount,
+        spatialResolution: dataset.spatialResolution,
+        temporalResolution: dataset.temporalResolution,
         hasDepth: dataset.hasDepth ? 1 : 0,
         tableCount: dataset.tableCount,
         metadataJson: JSON.stringify(dataset),
@@ -267,7 +277,9 @@ const populateRegionsTable = (db, regionsData, log) => {
 
   insertMany(regionsData);
 
-  log.info('regions table populated successfully', { regionCount: regionsData.length });
+  log.info('regions table populated successfully', {
+    regionCount: regionsData.length,
+  });
 };
 
 /**
