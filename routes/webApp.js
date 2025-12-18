@@ -43,6 +43,7 @@ router.get('/contact', sendSPA);
 router.get('/apikeymanagement', sendSPA);
 router.get('/choosepassword', sendSPA);
 router.get('/profile', sendSPA);
+router.get('/collections', sendSPA);
 router.get('/register', sendSPA);
 router.get('/forgotpass', sendSPA);
 router.get('/education', sendSPA);
