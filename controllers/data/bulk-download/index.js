@@ -12,9 +12,8 @@ const {
   validateShortNames,
   incrementCollectionDownloads,
 } = require('./bulkDownloadUtils');
-const fetchRowCountForQuery = require('../fetchRowCountForQuery');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
-const { fetchTableNames, fetchDatasetsMetadata } = require('./dataFetchHelpers');
+const { fetchDatasetsMetadata } = require('./dataFetchHelpers');
 
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.reqId);
@@ -49,6 +48,12 @@ const bulkDownloadController = async (req, res, next) => {
     return sendFetchError(res, next, fetchResult.error);
   }
 
+  scheduleCleanup(pathToTmpDir, moduleLogger);
+  if (shortNames.length !== 1) {
+    return res.status(400).json({ error: 'expected exactly one shortName' });
+  }
+  return res.json({ shortName: shortNames[0], rowCounts: fetchResult.result });
+
   // 4. Create zip and pipe response
   const streamResult = await streamResponse(pathToTmpDir, res, log);
   if (!streamResult.success) {
@@ -64,104 +69,6 @@ const bulkDownloadController = async (req, res, next) => {
   // 6. Schedule cleanup of temp directory
   scheduleCleanup(pathToTmpDir, moduleLogger);
   next();
-};
-
-const bulkRowCountController = async (req, res) => {
-  const requestId = 'bulk-row-count';
-  const log = moduleLogger.setReqId(requestId);
-
-  log.info('bulk row count request received', { body: req.body });
-
-  try {
-    // Use shared pre-query processing
-    const preQueryResult = await processPreQueryLogic(req, requestId);
-    if (!preQueryResult.success) {
-      log.error('request validation failed', {
-        validation: preQueryResult.validation,
-      });
-      return res.status(preQueryResult.validation.statusCode).json({
-        error: 'Failed to calculate row counts',
-        message: preQueryResult.validation.message,
-      });
-    }
-
-    const { constraints, datasetsMetadata } = preQueryResult;
-
-    // Continue with controller-specific logic (query execution and counting)
-    const datasetPromises = datasetsMetadata.map(
-      async ({ shortName, metadata }) => {
-        log.info('processing dataset for row count', { shortName });
-
-        // Get table names from database
-        const tableNames = await fetchTableNames(shortName, log);
-        if (tableNames.length === 0) {
-          log.warn('no tables found for dataset', { shortName });
-          return { shortName, rowCount: 0 };
-        }
-
-        // Process all tables for this dataset concurrently
-        const tablePromises = tableNames.map(async (tableName) => {
-          log.debug('executing count query', { shortName, tableName });
-
-          const [queryErr, count] = await fetchRowCountForQuery(
-            tableName,
-            constraints,
-            metadata,
-            requestId,
-          );
-
-          if (queryErr) {
-            log.error('query execution failed', {
-              shortName,
-              tableName,
-              error: queryErr,
-            });
-            throw new Error(
-              `Query failed for dataset ${shortName}: ${
-                queryErr.message || queryErr
-              }`,
-            );
-          }
-
-          const parsedCount = parseInt(count, 10) || 0;
-          log.debug('table row count result', {
-            shortName,
-            tableName,
-            count: parsedCount,
-          });
-          return parsedCount;
-        });
-
-        // Wait for all table counts for this dataset
-        const tableCounts = await Promise.all(tablePromises);
-        const totalRowCount = tableCounts.reduce(
-          (sum, count) => sum + count,
-          0,
-        );
-
-        log.info('dataset row count calculated', { shortName, totalRowCount });
-        return { shortName, rowCount: totalRowCount };
-      },
-    );
-
-    // Wait for all datasets to complete (all-or-nothing)
-    const datasetResults = await Promise.all(datasetPromises);
-
-    // Transform results to simple response format
-    const response = {};
-    datasetResults.forEach(({ shortName, rowCount }) => {
-      response[shortName] = rowCount;
-    });
-
-    log.info('bulk row count calculation completed', { response });
-    res.json(response);
-  } catch (error) {
-    log.error('bulk row count calculation failed', { error: error.message });
-    res.status(500).json({
-      error: 'Failed to calculate row counts',
-      message: error.message,
-    });
-  }
 };
 
 const bulkDownloadInitController = async (req, res) => {
@@ -210,6 +117,5 @@ const bulkDownloadInitController = async (req, res) => {
 
 module.exports = {
   bulkDownloadController,
-  bulkRowCountController,
   bulkDownloadInitController,
 };

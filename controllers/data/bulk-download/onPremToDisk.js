@@ -164,7 +164,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       if (!requestError || !retry) {
         log.trace('no request error or retry; returning null', { tableName });
         // targetFile.end ();
-        resolve(null);
+        resolve({ tableName, count });
       }
 
       // 5. SQL Request is now finished but did not succeed;

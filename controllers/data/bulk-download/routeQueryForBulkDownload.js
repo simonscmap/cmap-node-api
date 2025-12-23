@@ -22,7 +22,7 @@ const delegate = async (targetInfo, query, candidateLocations) => {
     return delegate(targetInfo, query, remainingCandidates);
   } else {
     // return targetInfo as token of what operation succeeded
-    return targetInfo;
+    return remainingCandidates;
   }
 };
 
