@@ -1,7 +1,5 @@
+const crypto = require('crypto');
 const Database = require('better-sqlite3');
-const initializeLogger = require('../../log-service');
-
-const moduleLogger = initializeLogger('utility/sqlite/catalogDb');
 
 /**
  * Creates and initializes an in-memory SQLite database for catalog search
@@ -628,11 +626,34 @@ const populateDatasetDepthModels = (db, catalogData, log) => {
   });
 };
 
+const computeSchemaHash = (db, log) => {
+  const schemaRows = db.prepare(`
+    SELECT type, name, sql FROM sqlite_master
+    WHERE sql IS NOT NULL
+    AND name NOT LIKE 'sqlite_%'
+    ORDER BY type, name
+  `).all();
+
+  // Hash the schema definitions
+  const schemaString = JSON.stringify(schemaRows);
+  const fullHash = crypto.createHash('md5').update(schemaString).digest('hex');
+  const shortHash = fullHash.substring(0, 8);
+
+  log.info('schema hash computed', {
+    schemaHash: shortHash,
+    tableCount: schemaRows.filter((r) => r.type === 'table').length,
+    indexCount: schemaRows.filter((r) => r.type === 'index').length,
+  });
+
+  return shortHash;
+};
+
 module.exports = {
   createCatalogDatabase,
   populateCatalogDatabase,
   populateRegionsTable,
   serializeDatabase,
+  computeSchemaHash,
   createSpatialResolutionMappingsTable,
   createTemporalResolutionMappingsTable,
   createDepthTables,

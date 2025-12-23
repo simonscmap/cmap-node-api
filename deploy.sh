@@ -29,8 +29,7 @@ export REACT_APP_SENTRY_RELEASE="$SENTRY_RELEASE"
 echo "⭐️ Setting REACT_APP_SENTRY_RELEASE: $REACT_APP_SENTRY_RELEASE"
 
 # For react, NODE_ENV is determined by the build command
-# export NODE_ENV=production
-export REACT_APP_SENTRY_DSN=https://235dc211fb6c038ff5713280b5172696@o4509317255004160.ingest.us.sentry.io/4509317256249344
+# Sentry DSN is now determined at runtime based on hostname (see index.js)
 
 echo "⭐️ starting deploy script";
  
@@ -58,12 +57,18 @@ cp "$SCRIPT_DIR/.sentryclirc" .
 
 npm run build
 
-# Upload source maps to Sentry
+# Upload source maps to Sentry (both production and staging projects)
 echo "⭐️ Uploading source maps to Sentry for release $SENTRY_RELEASE"
-npx @sentry/cli@^1.65.0 releases new "$SENTRY_RELEASE" || echo "⭐️ Release already exists"
-# npx @sentry/cli@^1.65.0 releases set-commits "$SENTRY_RELEASE" --auto
-npx @sentry/cli@^1.65.0 releases files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
-npx @sentry/cli@^1.65.0 releases finalize "$SENTRY_RELEASE"
+
+echo "⭐️ Uploading to production project (frontend)"
+npx @sentry/cli@^1.65.0 releases -p frontend new "$SENTRY_RELEASE" || echo "⭐️ Release already exists"
+npx @sentry/cli@^1.65.0 releases -p frontend files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
+npx @sentry/cli@^1.65.0 releases -p frontend finalize "$SENTRY_RELEASE"
+
+echo "⭐️ Uploading to staging/development project (frontend-staging-development)"
+npx @sentry/cli@^1.65.0 releases -p frontend-staging-development new "$SENTRY_RELEASE" || echo "⭐️ Release already exists"
+npx @sentry/cli@^1.65.0 releases -p frontend-staging-development files "$SENTRY_RELEASE" upload-sourcemaps build --rewrite
+npx @sentry/cli@^1.65.0 releases -p frontend-staging-development finalize "$SENTRY_RELEASE"
 
 # Clean up .sentryclirc file
 rm .sentryclirc
