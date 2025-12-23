@@ -41,7 +41,7 @@ app.use(
     exposedHeaders: [
       'X-CMAP-Request-Id',
       'X-Catalog-Checksum',
-      'X-Catalog-Version',
+      'X-Catalog-Schema-Hash',
       'X-Catalog-Dataset-Count',
       'X-Catalog-Generated-At',
     ],

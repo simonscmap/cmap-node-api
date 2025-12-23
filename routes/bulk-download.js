@@ -3,7 +3,6 @@ const passport = require('../middleware/passport');
 
 const {
   bulkDownloadController,
-  bulkRowCountController,
   bulkDownloadInitController,
 } = require('../controllers/data/bulk-download/');
 
@@ -58,37 +57,6 @@ router.post(
   '/bulk-download',
   passport.authenticate(['headerapikey', 'jwt', 'guest'], { session: false }),
   asyncControllerWrapper(bulkDownloadController),
-);
-
-/**
- * Calculates row counts for multiple datasets with optional filtering
- * 
- * @name POST /data/bulk-download-row-counts
- * @function
- * @memberof module:routes/bulk-download
- * @param {BulkDownloadRequest} req.body - Request body containing dataset short names and optional filters
- * @returns {Object} Object mapping dataset short names to their row counts
- * @example
- * // Request body (same as bulk-download):
- * {
- *   "shortNames": ["dataset1", "dataset2"],
- *   "filters": {
- *     "temporal": {
- *       "startDate": "2020-01-01", 
- *       "endDate": "2020-12-31"
- *     }
- *   }
- * }
- * 
- * // Response:
- * {
- *   "dataset1": 1250,
- *   "dataset2": 3400
- * }
- */
-router.post(
-  '/bulk-download-row-counts',
-  asyncControllerWrapper(bulkRowCountController),
 );
 
 /**
