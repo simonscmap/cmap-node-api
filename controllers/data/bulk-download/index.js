@@ -48,6 +48,12 @@ const bulkDownloadController = async (req, res, next) => {
     return sendFetchError(res, next, fetchResult.error);
   }
 
+  scheduleCleanup(pathToTmpDir, moduleLogger);
+  if (shortNames.length !== 1) {
+    return res.status(400).json({ error: 'expected exactly one shortName' });
+  }
+  return res.json({ shortName: shortNames[0], rowCounts: fetchResult.result });
+
   // 4. Create zip and pipe response
   const streamResult = await streamResponse(pathToTmpDir, res, log);
   if (!streamResult.success) {

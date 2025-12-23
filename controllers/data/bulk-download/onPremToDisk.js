@@ -43,54 +43,64 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
 
   // 3. create stream and define event handlers
 
-  let csvStream = stringify({
-    header: true,
-    cast: {
-      date: (dateObj) => formatDate(dateObj),
-    },
-  });
+  // TEMPORARILY COMMENTED OUT for estimation testing - just count rows, don't write to disk
+  // let csvStream = stringify({
+  //   header: true,
+  //   cast: {
+  //     date: (dateObj) => formatDate(dateObj),
+  //   },
+  // });
 
-  csvStream.on('error', (err) => {
-    log.error('CSV STREAM ERROR', { err });
-    requestError = true;
-  });
+  // csvStream.on('error', (err) => {
+  //   log.error('CSV STREAM ERROR', { err });
+  //   requestError = true;
+  // });
 
-  let accumulator = new Accumulator();
+  // let accumulator = new Accumulator();
 
   const { tempDir, tableName, shortName } = targetInfo;
-  const targetPath = `${tempDir}/${shortName}(${tableName}).csv`;
-  const targetFile = fs.createWriteStream(targetPath, {
-    autoClose: true,
-    emitClose: true,
-  });
+  // const targetPath = `${tempDir}/${shortName}(${tableName}).csv`;
+  // const targetFile = fs.createWriteStream(targetPath, {
+  //   autoClose: true,
+  //   emitClose: true,
+  // });
 
-  log.info('starting stream to file', { targetPath, query, poolName });
+  log.info('starting count query (file writing disabled)', { tableName, query, poolName });
 
-  csvStream.pipe(accumulator).pipe(targetFile);
+  // csvStream.pipe(accumulator).pipe(targetFile);
 
   let count = 0;
 
-  csvStream.on('drain', () => {
-    request.resume();
-  });
+  // TEMPORARILY COMMENTED OUT - no CSV stream
+  // csvStream.on('drain', () => {
+  //   request.resume();
+  // });
 
-  csvStream.on('finish', () => {
-    log.warn('row count', { tableName, count });
-  });
+  // csvStream.on('finish', () => {
+  //   log.warn('row count', { tableName, count });
+  // });
 
   request.on('row', (row) => {
     count++;
-
-    if (csvStream.write(row) === false) {
-      request.pause();
-    } else {
-      //
-    }
+    // TEMPORARILY COMMENTED OUT - just count, don't write
+    // if (csvStream.write(row) === false) {
+    //   request.pause();
+    // } else {
+    //   //
+    // }
   });
 
   let recordsetColumns = null;
   request.on('recordset', (r) => {
     recordsetColumns = r;
+  });
+
+  // TEMPORARILY MODIFIED - resolve promise on 'done' instead of file close
+  let resolvePromise;
+  let rejectPromise;
+  const resultPromise = new Promise((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
   });
 
   request.on('done', (data) => {
@@ -99,30 +109,37 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       rowCount: count,
     });
 
-    // For empty results, write a dummy row to trigger headers
-    if (count === 0 && recordsetColumns) {
-      const columnNames = Object.keys(recordsetColumns);
-      const dummyRow = {};
-      columnNames.forEach((colName) => {
-        dummyRow[colName] = '';
-      });
-      csvStream.write(dummyRow);
-    }
+    // TEMPORARILY COMMENTED OUT - no file writing
+    // // For empty results, write a dummy row to trigger headers
+    // if (count === 0 && recordsetColumns) {
+    //   const columnNames = Object.keys(recordsetColumns);
+    //   const dummyRow = {};
+    //   columnNames.forEach((colName) => {
+    //     dummyRow[colName] = '';
+    //   });
+    //   csvStream.write(dummyRow);
+    // }
 
+    // if (!requestError) {
+    //   csvStream.end();
+    // } else {
+    //   log.error(`unpiping accumulator from csvStream for ${tableName}`);
+    //   csvStream.unpipe(accumulator);
+    //   targetFile.end();
+    // }
+
+    // TEMPORARILY ADDED - resolve immediately on done
     if (!requestError) {
-      csvStream.end();
-    } else {
-      log.error(`unpiping accumulator from csvStream for ${tableName}`);
-      csvStream.unpipe(accumulator);
-      targetFile.end();
+      resolvePromise({ tableName, count });
     }
   });
 
-  // cancel sql request if file stream closes
-  targetFile.on('close', () => {
-    log.trace(`write file stream closed for ${tableName}`);
-    // request.cancel ();
-  });
+  // TEMPORARILY COMMENTED OUT - no file to close
+  // // cancel sql request if file stream closes
+  // targetFile.on('close', () => {
+  //   log.trace(`write file stream closed for ${tableName}`);
+  //   // request.cancel ();
+  // });
 
   let retry = false;
 
@@ -139,13 +156,17 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
       log.info('end response; no more candidates to try after error', {
         remainingCandidates,
       });
-      accumulator.unpipe(targetFile);
+      // TEMPORARILY COMMENTED OUT - no file to unpipe
+      // accumulator.unpipe(targetFile);
       // TODO clean up partially written file
+      rejectPromise(err);
     } else if (remainingCandidates.length > 0) {
       log.warn('an error was emitted from the sql request; flagging for retry');
       retry = true;
+      resolvePromise(remainingCandidates);
     } else {
       log.trace('on error catchall; no retry');
+      rejectPromise(err);
     }
   });
 
@@ -158,36 +179,40 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
     log.error('unexpected error executing query', { error: e });
   }
 
-  return new Promise((resolve, reject) => {
-    targetFile.on('close', (d) => {
-      log.info(`target file stream closed for ${tableName}`, d);
-      if (!requestError || !retry) {
-        log.trace('no request error or retry; returning null', { tableName });
-        // targetFile.end ();
-        resolve(null);
-      }
+  // TEMPORARILY MODIFIED - return the promise we created above instead of file-based one
+  return resultPromise;
 
-      // 5. SQL Request is now finished but did not succeed;
-      // Retry or send error
-      if (remainingCandidates.length > 0 && retry === true) {
-        log.warn('retrying query with remaining candidates', {
-          query,
-          remainingCandidates,
-        });
-        // TODO test whether an accumulator.unpipe for a partially written stream
-        // will allow a re-write attempt
-        // accumulator.unpipe(targetFile);
-        resolve(remainingCandidates);
-      } else {
-        log.warn(
-          'no request error, but no response sent; no remaining candidates servers to try',
-          { remainingCandidates },
-        );
-        targetFile.end();
-        reject();
-      }
-    });
-  });
+  // TEMPORARILY COMMENTED OUT - original file-based promise resolution
+  // return new Promise((resolve, reject) => {
+  //   targetFile.on('close', (d) => {
+  //     log.info(`target file stream closed for ${tableName}`, d);
+  //     if (!requestError || !retry) {
+  //       log.trace('no request error or retry; returning null', { tableName });
+  //       // targetFile.end ();
+  //       resolve({ tableName, count });
+  //     }
+
+  //     // 5. SQL Request is now finished but did not succeed;
+  //     // Retry or send error
+  //     if (remainingCandidates.length > 0 && retry === true) {
+  //       log.warn('retrying query with remaining candidates', {
+  //         query,
+  //         remainingCandidates,
+  //       });
+  //       // TODO test whether an accumulator.unpipe for a partially written stream
+  //       // will allow a re-write attempt
+  //       // accumulator.unpipe(targetFile);
+  //       resolve(remainingCandidates);
+  //     } else {
+  //       log.warn(
+  //         'no request error, but no response sent; no remaining candidates servers to try',
+  //         { remainingCandidates },
+  //       );
+  //       targetFile.end();
+  //       reject();
+  //     }
+  //   });
+  // });
 };
 
 module.exports = onPremToDisk;
