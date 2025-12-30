@@ -3,7 +3,9 @@ const moduleLogger = initLog('bulk-download');
 const {
   getCandidateList,
 } = require('../../../utility/router/queryToDatabaseTarget');
+const { assertPriority } = require('../../../utility/router/pure');
 const onPremToDisk = require('./onPremToDisk');
+const clusterToDisk = require('./clusterToDisk');
 const {
   logMessages,
   logErrors,
@@ -48,7 +50,18 @@ const routeQuery = async (targetInfo, query, reqId) => {
     return [respondWithErrorMessage];
   }
 
-  // 3. delegate execution of the query
+  let { priorityTargetType } = assertPriority(candidateLocations);
+  let targetIsCluster = priorityTargetType === 'cluster';
+
+  if (targetIsCluster) {
+    log.info('routing to cluster', { candidateLocations });
+    let error = await clusterToDisk(targetInfo, query, reqId);
+    if (error) {
+      return [error];
+    }
+    return targetInfo;
+  }
+
   return await delegate(targetInfo, query, candidateLocations, reqId);
 };
 
