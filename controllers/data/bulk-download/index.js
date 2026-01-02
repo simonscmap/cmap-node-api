@@ -16,10 +16,10 @@ const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 const { fetchDatasetsMetadata } = require('./dataFetchHelpers');
 
 const bulkDownloadController = async (req, res, next) => {
-  const log = moduleLogger.setReqId(req.reqId);
+  const log = moduleLogger.setReqId(req.requestId);
 
   // 1. Use shared pre-query processing for validation only
-  const preQueryResult = await processPreQueryLogic(req, req.reqId);
+  const preQueryResult = await processPreQueryLogic(req, req.requestId);
   if (!preQueryResult.success) {
     return sendValidationError(res, next, preQueryResult.validation);
   }
@@ -38,7 +38,7 @@ const bulkDownloadController = async (req, res, next) => {
   const fetchResult = await fetchAllDatasets(
     pathToTmpDir,
     shortNames,
-    req.reqId,
+    req.requestId,
     log,
     datasetsMetadata,
     constraints,
