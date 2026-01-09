@@ -90,6 +90,11 @@ const getLonConstraint = (constraints) => {
   } = constraints;
   let lonMin = parseFloatOrNull(min);
   let lonMax = parseFloatOrNull(max);
+
+  if (lonMin !== null && lonMax !== null && lonMin > lonMax) {
+    return `NOT (lon > ${lonMax} AND lon < ${lonMin})`;
+  }
+
   return makeClause('lon', lonMin, lonMax);
 };
 

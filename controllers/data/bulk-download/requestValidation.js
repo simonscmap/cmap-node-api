@@ -60,10 +60,6 @@ const validateSpatialBounds = (spatial) => {
       return { isValid: false, message: 'longitude must be between -180 and 180' };
     }
     
-    // Check min <= max constraint if both present
-    if (lonMin !== undefined && lonMax !== undefined && lonMin > lonMax) {
-      return { isValid: false, message: 'lonMin must be less than or equal to lonMax' };
-    }
   }
   
   // Validate depth constraints if present
