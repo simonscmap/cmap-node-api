@@ -158,6 +158,12 @@ const convertDatesToMonths = (startDate, endDate) => {
   return { months };
 };
 
+const normalizeEndDate = (dateStr) => {
+  if (!dateStr) return dateStr;
+  if (dateStr.includes('T')) return dateStr;
+  return dateStr + 'T23:59:59';
+};
+
 const getTimeConstraint = (constraints, metadata) => {
   if (!constraints.time) {
     return '';
@@ -177,7 +183,7 @@ const getTimeConstraint = (constraints, metadata) => {
     const { months } = convertDatesToMonths(min, max);
     return makeInClause('month', months);
   } else {
-    return makeClause('time', min, max);
+    return makeClause('time', min, normalizeEndDate(max));
   }
 };
 
