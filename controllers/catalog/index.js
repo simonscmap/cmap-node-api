@@ -302,6 +302,7 @@ module.exports.searchCatalog = async (req, res, next) => {
   try {
     result = await request.query(query);
   } catch (e) {
+    log.error('searchCatalog query failed', { error: e.message, stack: e.stack, query });
     res.status(500).json({ error: 'an error occurred executing the query' });
     return next();
   }
