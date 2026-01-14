@@ -322,7 +322,7 @@ const validateCollectionUpdate = (req, res, next) => {
   const {
     collectionName,
     description,
-    private: isPrivate,
+    isPublic,
     datasets,
   } = req.body;
 
@@ -349,11 +349,11 @@ const validateCollectionUpdate = (req, res, next) => {
     errors.push('description must be at most 500 characters');
   }
 
-  // Validate private flag
-  if (isPrivate === undefined || isPrivate === null) {
-    errors.push('private is required');
-  } else if (typeof isPrivate !== 'boolean') {
-    errors.push('private must be a boolean');
+  // Validate isPublic flag
+  if (isPublic === undefined || isPublic === null) {
+    errors.push('isPublic is required');
+  } else if (typeof isPublic !== 'boolean') {
+    errors.push('isPublic must be a boolean');
   }
 
   // Validate datasets
@@ -383,7 +383,7 @@ const validateCollectionUpdate = (req, res, next) => {
   req.validatedBody = {
     collectionName: collectionName.trim(),
     description,
-    private: isPrivate,
+    isPublic,
     datasets,
   };
 
@@ -434,15 +434,15 @@ const validateCollectionCreate = (req, res, next) => {
     validatedBody.description = null;
   }
 
-  // Validate private (optional, boolean, default true)
-  if (req.body.private !== undefined) {
-    if (typeof req.body.private !== 'boolean') {
-      errors.push('private must be a boolean');
+  // Validate isPublic (optional, boolean, default false)
+  if (req.body.isPublic !== undefined) {
+    if (typeof req.body.isPublic !== 'boolean') {
+      errors.push('isPublic must be a boolean');
     } else {
-      validatedBody.private = req.body.private;
+      validatedBody.isPublic = req.body.isPublic;
     }
   } else {
-    validatedBody.private = true;
+    validatedBody.isPublic = false;
   }
 
   // Validate datasets (optional, array of strings)
