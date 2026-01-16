@@ -43,6 +43,8 @@ specs/
 docs/
 # BMAD End
 
+CLAUDE.md
+
 # Test artifacts
 endpointTester/artifacts/
 
