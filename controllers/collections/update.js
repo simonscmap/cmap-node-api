@@ -194,6 +194,19 @@ module.exports = async (req, res) => {
         userId,
         collectionId
       });
+
+      const wasPublic = !currentCollection.Private;
+      const nowPrivate = !isPublic;
+      if (wasPublic && nowPrivate) {
+        const deleteFollowsRequest = new sql.Request(tx);
+        deleteFollowsRequest.input('collectionId', sql.Int, collectionId);
+
+        await deleteFollowsRequest.query(`
+          DELETE FROM dbo.tblCollection_Follows
+          WHERE Collection_ID = @collectionId
+        `);
+
+      }
     }
 
     // Step 5: Remove datasets no longer in collection
