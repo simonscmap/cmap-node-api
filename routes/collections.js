@@ -12,6 +12,7 @@ const {
   validateCollectionCopy,
   validateCollectionUpdate,
   validateCalculateRowCounts,
+  validateCollectionFollow,
 } = require('../middleware/collectionsValidation');
 
 const asyncControllerWrapper = require('../errorHandling/asyncControllerWrapper');
@@ -40,6 +41,12 @@ router.post(
   '/calculate-row-counts',
   validateCalculateRowCounts,
   asyncControllerWrapper(collectionsController.calculateRowCounts),
+);
+
+router.get(
+  '/followed',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  asyncControllerWrapper(collectionsController.listFollowed),
 );
 
 router.get(
@@ -75,6 +82,20 @@ router.post(
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
   validateCollectionCopy,
   asyncControllerWrapper(collectionsController.copy),
+);
+
+router.post(
+  '/:id/follow',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionFollow,
+  asyncControllerWrapper(collectionsController.follow),
+);
+
+router.delete(
+  '/:id/follow',
+  passport.authenticate(['jwt', 'headerapikey'], { session: false }),
+  validateCollectionFollow,
+  asyncControllerWrapper(collectionsController.unfollow),
 );
 
 module.exports = router;

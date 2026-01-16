@@ -11,4 +11,7 @@ module.exports = {
   preview: require('./preview'),
   update: require('./update'),
   calculateRowCounts: require('./calculateRowCounts'),
+  follow: require('./follow'),
+  unfollow: require('./unfollow'),
+  listFollowed: require('./listFollowed'),
 };

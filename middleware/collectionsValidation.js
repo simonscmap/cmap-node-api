@@ -577,6 +577,30 @@ const validateCalculateRowCounts = (req, res, next) => {
   next();
 };
 
+const validateCollectionFollow = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
+  const idValidation = validateCollectionId(req.params.id);
+  if (!idValidation.isValid) {
+    log.warn('invalid collection ID parameter for follow', {
+      id: req.params.id,
+      error: idValidation.message,
+    });
+    return res.status(400).json({
+      error: idValidation.message,
+    });
+  }
+
+  req.validatedParams = {
+    id: idValidation.id,
+  };
+
+  log.trace('collection follow validation passed', {
+    collectionId: idValidation.id,
+  });
+  next();
+};
+
 module.exports = {
   validateCollectionsList,
   validateCollectionDetail,
@@ -587,6 +611,7 @@ module.exports = {
   validateCollectionDelete,
   validateCollectionCopy,
   validateCalculateRowCounts,
+  validateCollectionFollow,
   // Export helper functions for testing
   validateCollectionId,
   validateListQueryParams,
