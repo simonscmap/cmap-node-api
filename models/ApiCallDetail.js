@@ -6,6 +6,7 @@ var pools = require('../dbHandlers/dbPools');
 const apiCallsTable = 'tblApi_Calls';
 // const apiCallDetailsTable = "tblApi_Call_Details";
 
+const { isDevelopment } = require('../config/environment');
 const log = createNewLogger().setModule('ApiCallDetail');
 
 // Model for tblApi_Calls
@@ -42,6 +43,10 @@ module.exports = class ApiCallDetail {
       return;
     }
     this.saved = true; // prevent double logging
+
+    if (isDevelopment) {
+      return;
+    }
 
     let requestDuration = new Date() - this.startTime;
 
