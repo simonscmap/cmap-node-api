@@ -51,6 +51,11 @@ module.exports = async (req, res) => {
       return res.status(404).end();
     }
 
+    await request.query(`
+      DELETE FROM dbo.tblCollection_Follows
+      WHERE Collection_ID = @id;
+    `);
+
     // Step 2: Delete child rows
     await request.query(`
       DELETE FROM dbo.tblCollection_Datasets
