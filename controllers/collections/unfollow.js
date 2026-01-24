@@ -1,6 +1,6 @@
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
-const { isUserFollowing, deleteFollow } = require('./helpers/followHelpers');
+const { deleteFollow } = require('./helpers/followHelpers');
 
 const log = initializeLogger('controllers/collections/unfollow');
 
@@ -34,9 +34,9 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const following = await isUserFollowing(pool, userId, collectionId);
+    const deleted = await deleteFollow(pool, userId, collectionId);
 
-    if (!following) {
+    if (!deleted) {
       log.warn('Not following collection', {
         userId,
         collectionId
@@ -45,8 +45,6 @@ module.exports = async (req, res) => {
         error: 'Not following this collection'
       });
     }
-
-    await deleteFollow(pool, userId, collectionId);
 
     log.info('Collection unfollowed successfully', {
       userId,

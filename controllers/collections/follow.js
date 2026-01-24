@@ -1,7 +1,6 @@
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
 const {
-  isUserFollowing,
   getCollectionForFollowValidation,
   createFollow
 } = require('./helpers/followHelpers');
@@ -70,8 +69,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    const alreadyFollowing = await isUserFollowing(pool, userId, collectionId);
-    if (alreadyFollowing) {
+    const followDate = await createFollow(pool, userId, collectionId);
+
+    if (!followDate) {
       log.warn('Already following collection', {
         userId,
         collectionId
@@ -80,8 +80,6 @@ module.exports = async (req, res) => {
         error: 'Already following this collection'
       });
     }
-
-    const followDate = await createFollow(pool, userId, collectionId);
 
     log.info('Collection followed successfully', {
       userId,
@@ -97,7 +95,7 @@ module.exports = async (req, res) => {
         name: collection.name,
         ownerName: collection.ownerName,
         datasetCount: collection.datasetCount,
-        follows: collection.follows + 1
+        followerCount: collection.followerCount + 1
       }
     });
   } catch (err) {

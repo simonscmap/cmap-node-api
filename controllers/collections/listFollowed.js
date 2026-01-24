@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         c.Modified_At as modifiedDate,
         c.Views as views,
         (SELECT COUNT(*) FROM tblCollection_Datasets WHERE Collection_ID = c.Collection_ID) as datasetCount,
-        (SELECT COUNT(*) FROM tblCollection_Follows WHERE Collection_ID = c.Collection_ID) as follows,
+        (SELECT COUNT(*) FROM tblCollection_Follows WHERE Collection_ID = c.Collection_ID) as followerCount,
         CAST(1 AS BIT) as isPublic
       FROM tblCollection_Follows cf
       INNER JOIN tblCollections c ON cf.Collection_ID = c.Collection_ID
@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
       modifiedDate: row.modifiedDate ? new Date(row.modifiedDate).toISOString() : null,
       views: row.views,
       datasetCount: row.datasetCount,
-      follows: row.follows,
+      followerCount: row.followerCount,
       isPublic: Boolean(row.isPublic)
     }));
 
