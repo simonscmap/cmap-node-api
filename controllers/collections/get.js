@@ -17,7 +17,9 @@ const anonymousQuery = `
          0 as isOwner,
          c.Downloads as downloads,
          c.Views as views,
-         c.Copies as copies
+         c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         0 as isFollowing
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -41,7 +43,9 @@ const authenticatedQuery = `
          CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
          c.Downloads as downloads,
          c.Views as views,
-         c.Copies as copies
+         c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         CASE WHEN EXISTS (SELECT 1 FROM tblCollection_Follows cf2 WHERE cf2.Collection_ID = c.Collection_ID AND cf2.User_ID = @userId) THEN 1 ELSE 0 END as isFollowing
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -65,6 +69,8 @@ const queryWithDatasets = `
          c.Downloads as downloads,
          c.Views as views,
          c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         CASE WHEN EXISTS (SELECT 1 FROM tblCollection_Follows cf2 WHERE cf2.Collection_ID = c.Collection_ID AND cf2.User_ID = @userId) THEN 1 ELSE 0 END as isFollowing,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
@@ -87,6 +93,8 @@ const anonymousQueryWithDatasets = `
          c.Downloads as downloads,
          c.Views as views,
          c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         0 as isFollowing,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
@@ -127,6 +135,8 @@ function transformResultsWithDatasets(results, includeDatasets) {
         downloads: row.downloads,
         views: row.views,
         copies: row.copies,
+        followerCount: row.followerCount,
+        isFollowing: Boolean(row.isFollowing),
         datasets: [],
       });
     }
@@ -233,6 +243,8 @@ module.exports = async (req, res) => {
         downloads: row.downloads,
         views: row.views,
         copies: row.copies,
+        followerCount: row.followerCount,
+        isFollowing: Boolean(row.isFollowing),
       }));
     }
 
