@@ -1,6 +1,7 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const { transformResultsWithDatasets } = require('./helpers/transformUtils');
 
 const log = initializeLogger('controllers/collections/listFollowed');
 
@@ -39,35 +40,31 @@ module.exports = async (req, res) => {
         c.Collection_ID as id,
         c.Collection_Name as name,
         c.Description as description,
+        1 as isPublic,
+        c.Created_At as createdDate,
+        c.Modified_At as modifiedDate,
         u.FirstName + ' ' + u.FamilyName as ownerName,
         u.Institute as ownerAffiliation,
-        cf.Follow_Date as followDate,
-        c.Modified_At as modifiedDate,
+        0 as isOwner,
+        1 as isFollowing,
+        c.Downloads as downloads,
         c.Views as views,
-        (SELECT COUNT(*) FROM tblCollection_Datasets WHERE Collection_ID = c.Collection_ID) as datasetCount,
+        c.Copies as copies,
         (SELECT COUNT(*) FROM tblCollection_Follows WHERE Collection_ID = c.Collection_ID) as followerCount,
-        CAST(1 AS BIT) as isPublic
+        cd.Dataset_Short_Name as datasetShortName,
+        d.Dataset_Long_Name as datasetLongName,
+        CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
       FROM tblCollection_Follows cf
       INNER JOIN tblCollections c ON cf.Collection_ID = c.Collection_ID
       INNER JOIN tblUsers u ON c.User_ID = u.UserID
+      LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
+      LEFT JOIN tblDatasets d ON cd.Dataset_Short_Name = d.Dataset_Name
       WHERE cf.User_ID = @userId
         AND c.Private = 0
-      ORDER BY cf.Follow_Date DESC
+      ORDER BY cf.Follow_Date DESC, cd.Dataset_Short_Name
     `);
 
-    const followedCollections = result.recordset.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      ownerName: row.ownerName,
-      ownerAffiliation: row.ownerAffiliation,
-      followDate: row.followDate ? new Date(row.followDate).toISOString() : null,
-      modifiedDate: row.modifiedDate ? new Date(row.modifiedDate).toISOString() : null,
-      views: row.views,
-      datasetCount: row.datasetCount,
-      followerCount: row.followerCount,
-      isPublic: Boolean(row.isPublic)
-    }));
+    const followedCollections = transformResultsWithDatasets(result.recordset);
 
     log.info('Followed collections retrieved', {
       userId,
