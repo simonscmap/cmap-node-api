@@ -1,6 +1,10 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const {
+  transformResultsWithDatasets,
+  mapCollectionFields,
+} = require('./helpers/transformUtils');
 
 const log = initializeLogger('controllers/collections/get');
 
@@ -106,57 +110,6 @@ const anonymousQueryWithDatasets = `
   ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name
 `;
 
-function transformResultsWithDatasets(results, includeDatasets) {
-  if (!includeDatasets) {
-    return results;
-  }
-
-  const collectionsMap = new Map();
-
-  results.forEach((row) => {
-    const collectionId = row.id;
-
-    if (!collectionsMap.has(collectionId)) {
-      collectionsMap.set(collectionId, {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate
-          ? new Date(row.createdDate).toISOString()
-          : null,
-        modifiedDate: row.modifiedDate
-          ? new Date(row.modifiedDate).toISOString()
-          : null,
-        ownerName: row.ownerName,
-        ownerAffiliation: row.ownerAffiliation,
-        datasetCount: 0,
-        isOwner: Boolean(row.isOwner),
-        downloads: row.downloads,
-        views: row.views,
-        copies: row.copies,
-        followerCount: row.followerCount,
-        isFollowing: Boolean(row.isFollowing),
-        datasets: [],
-      });
-    }
-
-    const collection = collectionsMap.get(collectionId);
-
-    if (row.datasetShortName) {
-      collection.datasets.push({
-        datasetShortName: row.datasetShortName,
-        datasetLongName: row.datasetLongName,
-        isInvalid: Boolean(row.isInvalid),
-      });
-    }
-
-    collection.datasetCount = collection.datasets.length;
-  });
-
-  return Array.from(collectionsMap.values());
-}
-
 module.exports = async (req, res) => {
   log.info('requesting collections list');
 
@@ -223,28 +176,11 @@ module.exports = async (req, res) => {
     let collections;
 
     if (includeDatasets) {
-      collections = transformResultsWithDatasets(result.recordset, true);
+      collections = transformResultsWithDatasets(result.recordset);
     } else {
       collections = result.recordset.map((row) => ({
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate
-          ? new Date(row.createdDate).toISOString()
-          : null,
-        modifiedDate: row.modifiedDate
-          ? new Date(row.modifiedDate).toISOString()
-          : null,
-        ownerName: row.ownerName,
-        ownerAffiliation: row.ownerAffiliation,
+        ...mapCollectionFields(row),
         datasetCount: row.datasetCount,
-        isOwner: Boolean(row.isOwner),
-        downloads: row.downloads,
-        views: row.views,
-        copies: row.copies,
-        followerCount: row.followerCount,
-        isFollowing: Boolean(row.isFollowing),
       }));
     }
 
