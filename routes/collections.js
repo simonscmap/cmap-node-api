@@ -6,7 +6,6 @@ const {
   validateCollectionsList,
   validateCollectionDetail,
   validateCollectionNameCheck,
-  validateCollectionPreview,
   validateCollectionCreate,
   validateCollectionDelete,
   validateCollectionCopy,
@@ -29,12 +28,6 @@ router.get(
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
   validateCollectionNameCheck,
   asyncControllerWrapper(collectionsController.verifyName),
-);
-
-router.get(
-  '/preview',
-  validateCollectionPreview,
-  asyncControllerWrapper(collectionsController.preview),
 );
 
 router.post(
@@ -96,6 +89,12 @@ router.delete(
   passport.authenticate(['jwt', 'headerapikey'], { session: false }),
   validateCollectionFollow,
   asyncControllerWrapper(collectionsController.unfollow),
+);
+
+router.post(
+  '/:id/view',
+  optionalAuth(),
+  asyncControllerWrapper(collectionsController.incrementView),
 );
 
 module.exports = router;
