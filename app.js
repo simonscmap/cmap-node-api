@@ -33,6 +33,23 @@ process.on('warning', ({ name, message, stack }) => {
   log.warn(message, { name, stack });
 });
 
+process.on('uncaughtException', (err) => {
+  log.error('uncaught exception — process will exit', {
+    error: err,
+    message: err.message,
+    stack: err.stack,
+  });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  log.error('unhandled promise rejection', {
+    reason: reason,
+    message: reason && reason.message,
+    stack: reason && reason.stack,
+  });
+});
+
 // Middleware
 app.use(
   cors({
