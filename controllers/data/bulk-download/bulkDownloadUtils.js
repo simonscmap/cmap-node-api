@@ -5,18 +5,24 @@ const { fetchAndWriteData } = require('./fetchAndWriteData');
 const sql = require('mssql');
 const pools = require('../../../dbHandlers/dbPools');
 
-// Batch operation to fetch all datasets
 const fetchAllDatasetFiles = async (
   dirTarget,
   shortNames,
   reqId,
+  log,
   datasetsMetadata = null,
   constraints = null,
 ) => {
+  let succeeded = 0;
+  let failed = 0;
+  let total = shortNames.length;
+  let batchStart = Date.now();
+
+  log.info('bulk download batch starting', { total, shortNames });
+
   try {
     const result = await Promise.all(
       shortNames.map((shortName) => {
-        // Extract the specific metadata for this dataset
         let metadata = null;
         if (Array.isArray(datasetsMetadata)) {
           const found = datasetsMetadata.find(
@@ -27,17 +33,52 @@ const fetchAllDatasetFiles = async (
           metadata = datasetsMetadata;
         }
 
+        let datasetStart = Date.now();
+        log.info('dataset fetch starting', { shortName });
+
         return fetchAndWriteData(
           dirTarget,
           shortName,
           reqId,
           metadata,
           constraints,
-        );
+        ).then((result) => {
+          succeeded++;
+          log.info('dataset fetch complete', {
+            shortName,
+            durationMs: Date.now() - datasetStart,
+            progress: (succeeded + failed) + '/' + total,
+          });
+          return result;
+        }).catch((err) => {
+          failed++;
+          log.error('dataset fetch failed', {
+            shortName,
+            durationMs: Date.now() - datasetStart,
+            progress: (succeeded + failed) + '/' + total,
+            error: err.message,
+          });
+          throw err;
+        });
       }),
     );
+
+    log.info('bulk download batch complete', {
+      total,
+      succeeded,
+      failed,
+      durationMs: Date.now() - batchStart,
+    });
+
     return [null, result];
   } catch (error) {
+    log.error('bulk download batch failed', {
+      total,
+      succeeded,
+      failed,
+      durationMs: Date.now() - batchStart,
+      error: error.message,
+    });
     return [error];
   }
 };
@@ -67,6 +108,7 @@ const fetchAllDatasets = async (
     pathToTmpDir,
     shortNames,
     reqId,
+    log,
     datasetsMetadata,
     constraints,
   );
