@@ -225,7 +225,6 @@ const validateShortNames = (shortNames, log) => {
 };
 
 const incrementCollectionDownloads = (collectionId, log) => {
-  // Fire-and-forget: don't block cleanup or response
   (async () => {
     try {
       const pool = await pools.userReadAndWritePool;
@@ -242,7 +241,6 @@ const incrementCollectionDownloads = (collectionId, log) => {
         collectionId: collectionId,
       });
     } catch (updateError) {
-      // Log error but don't fail the request
       log.error('failed to increment collection downloads count', {
         collectionId: collectionId,
         error: updateError.message,

@@ -99,6 +99,11 @@ const clusterToDisk = async (targetInfo, query, reqId) => {
       hasError = true;
     });
 
+    accumulator.on('error', (err) => {
+      log.error('ACCUMULATOR STREAM ERROR', { err });
+      hasError = true;
+    });
+
     let rowCount = 0;
     let pages = 0;
 
@@ -122,7 +127,10 @@ const clusterToDisk = async (targetInfo, query, reqId) => {
         log.trace(`writing chunk ${pages} with ${result.length} rows`);
 
         for (const row of result) {
-          csvStream.write(row);
+          let canContinue = csvStream.write(row);
+          if (!canContinue) {
+            await new Promise((resolve) => csvStream.once('drain', resolve));
+          }
         }
       }
 
@@ -147,10 +155,14 @@ const clusterToDisk = async (targetInfo, query, reqId) => {
 
     csvStream.end();
 
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       targetFile.on('close', () => {
         log.trace(`target file stream closed for ${tableName}`);
         resolve();
+      });
+      targetFile.on('error', (err) => {
+        log.error('TARGET FILE STREAM ERROR', { err });
+        reject(err);
       });
     });
 

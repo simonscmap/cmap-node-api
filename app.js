@@ -34,7 +34,7 @@ process.on('warning', ({ name, message, stack }) => {
 });
 
 process.on('uncaughtException', (err) => {
-  log.error('uncaught exception — process will exit', {
+  log.error('uncaught exception', {
     error: err,
     message: err.message,
     stack: err.stack,
@@ -48,6 +48,7 @@ process.on('unhandledRejection', (reason) => {
     message: reason && reason.message,
     stack: reason && reason.stack,
   });
+  process.exit(1);
 });
 
 // Middleware
