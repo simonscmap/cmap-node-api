@@ -48,7 +48,7 @@ const routeQuery = async (targetInfo, query, reqId) => {
   logWarnings(log)(warnings);
 
   if (respondWithErrorMessage) {
-    return [respondWithErrorMessage];
+    throw new Error(respondWithErrorMessage);
   }
 
   let { priorityTargetType } = assertPriority(candidateLocations);
@@ -60,7 +60,7 @@ const routeQuery = async (targetInfo, query, reqId) => {
     let result = await clusterToDisk(targetInfo, query, reqId);
     if (result instanceof Error) {
       log.error('cluster query failed', { error: result.message });
-      return [result.message];
+      throw result;
     }
     return targetInfo;
   } else {

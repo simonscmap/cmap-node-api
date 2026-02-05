@@ -209,7 +209,7 @@ const fetchAndWriteAllTables = async (
     }
 
     // Default to generic error for non-size-related issues
-    throw new Error('error fething and writing data');
+    throw new Error('error fetching and writing data');
   }
 };
 
