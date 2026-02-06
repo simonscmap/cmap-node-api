@@ -227,8 +227,10 @@ const populateCatalogDatabase = (db, catalogData, log) => {
         lonMax: dataset.lonMax,
         timeMin: dataset.timeMin,
         timeMax: dataset.timeMax,
-        depthMin: dataset.depthMin,
-        depthMax: dataset.depthMax,
+        // CMAP-1147: Treat null depth as surface data (0-5m)
+        // https://simonscmap.atlassian.net/browse/CMAP-1147?focusedCommentId=18486
+        depthMin: dataset.depthMin != null ? dataset.depthMin : 0,
+        depthMax: dataset.depthMax != null ? dataset.depthMax : 5,
         sensors: dataset.sensors,
         make: dataset.make,
         regions: dataset.regions,
