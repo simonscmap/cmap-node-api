@@ -296,7 +296,33 @@ module.exports = async (req, res) => {
     log.debug('fetching regions data');
     const regionsRequest = new sql.Request(pool);
     const regionsResult = await regionsRequest.query('SELECT Region_ID, Region_Name FROM tblRegions ORDER BY Region_Name');
-    log.debug('regions data fetched', { regionCount: regionsResult.recordset.length });
+
+    // Filter regions to only those actually used by datasets
+    let usedRegionNames = new Set();
+    for (let i = 0; i < catalogData.length; i++) {
+      let dataset = catalogData[i];
+      if (dataset.regions) {
+        let regionList = dataset.regions.split(',');
+        for (let j = 0; j < regionList.length; j++) {
+          usedRegionNames.add(regionList[j].trim());
+        }
+      }
+    }
+
+    let allRegions = regionsResult.recordset;
+    let usedRegions = allRegions.filter(function(r) {
+      return usedRegionNames.has(r.Region_Name);
+    });
+
+    let excludedRegions = allRegions
+      .filter(function(r) { return !usedRegionNames.has(r.Region_Name); })
+      .map(function(r) { return r.Region_Name; });
+
+    log.debug('regions data fetched and filtered', {
+      totalRegions: allRegions.length,
+      usedRegions: usedRegions.length,
+      excludedRegions: excludedRegions,
+    });
 
     const darwinDepthRequest = new sql.Request(pool);
     const darwinDepthResult = await darwinDepthRequest.query('SELECT depth_level FROM tblDarwin_Depth ORDER BY depth_level');
@@ -313,8 +339,8 @@ module.exports = async (req, res) => {
     // Populate database with catalog data
     populateCatalogDatabase(db, catalogData, log);
 
-    // Populate regions table
-    populateRegionsTable(db, regionsResult.recordset, log);
+    // Populate regions table (filtered to only regions used by datasets)
+    populateRegionsTable(db, usedRegions, log);
 
     // Create and populate estimation tables
     log.debug('creating estimation tables');
