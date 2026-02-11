@@ -53,7 +53,8 @@ module.exports = async (req, res) => {
         (SELECT COUNT(*) FROM tblCollection_Follows WHERE Collection_ID = c.Collection_ID) as followerCount,
         cd.Dataset_Short_Name as datasetShortName,
         d.Dataset_Long_Name as datasetLongName,
-        CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
+        CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid,
+        cf.Follow_Date as followDate
       FROM tblCollection_Follows cf
       INNER JOIN tblCollections c ON cf.Collection_ID = c.Collection_ID
       INNER JOIN tblUsers u ON c.User_ID = u.UserID

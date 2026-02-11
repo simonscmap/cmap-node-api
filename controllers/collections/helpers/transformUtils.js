@@ -5,6 +5,7 @@ const mapCollectionFields = (row) => ({
   isPublic: Boolean(row.isPublic),
   createdDate: row.createdDate ? new Date(row.createdDate).toISOString() : null,
   modifiedDate: row.modifiedDate ? new Date(row.modifiedDate).toISOString() : null,
+  followDate: row.followDate ? new Date(row.followDate).toISOString() : null,
   ownerName: row.ownerName,
   ownerAffiliation: row.ownerAffiliation,
   isOwner: Boolean(row.isOwner),
