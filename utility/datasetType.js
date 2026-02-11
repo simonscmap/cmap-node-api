@@ -2,7 +2,7 @@
  * Determine dataset type based on makes and sensors
  * @param {Array<string>} makes - Array of make values (e.g., ["Model"], ["Observation"])
  * @param {Array<string>} sensors - Array of sensor values (e.g., ["Satellite"], ["Ship"])
- * @returns {string} Dataset type: "Model", "Satellite", or "In-Situ"
+ * @returns {string} Dataset type: "Model", "Assimilation", "Satellite", or "In-Situ"
  */
 const getDatasetType = (makes = [], sensors = []) => {
   // Convert arrays to lowercase for case-insensitive comparison
@@ -12,6 +12,10 @@ const getDatasetType = (makes = [], sensors = []) => {
   // Make: Model -> Type: Model
   if (makesLower.includes('model')) {
     return 'Model';
+  }
+
+  if (makesLower.includes('assimilation')) {
+    return 'Assimilation';
   }
 
   // Make: Observation + Sensor: Satellite -> Type: Satellite
