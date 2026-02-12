@@ -36,11 +36,12 @@ async function getCollectionForFollowValidation(pool, collectionId) {
 
 async function createFollow(pool, userId, collectionId) {
   const request = new sql.Request(pool);
+  const now = new Date().toISOString();
   request.input('userId', sql.Int, userId);
   request.input('collectionId', sql.Int, collectionId);
+  request.input('now', sql.DateTime2, now);
 
   const result = await request.query(`
-    DECLARE @now DATETIME = GETDATE();
     DECLARE @inserted INT = 0;
 
     IF NOT EXISTS (
@@ -53,13 +54,13 @@ async function createFollow(pool, userId, collectionId) {
       SET @inserted = 1;
     END
 
-    SELECT @inserted as inserted, @now as followDate;
+    SELECT @inserted as inserted;
   `);
 
   if (result.recordset[0].inserted === 0) {
     return null;
   }
-  return result.recordset[0].followDate;
+  return now;
 }
 
 async function deleteFollow(pool, userId, collectionId) {
