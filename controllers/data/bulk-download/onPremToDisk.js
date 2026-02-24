@@ -18,7 +18,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
 
   // 1. determine pool
 
-  let { pool, poolName, hasError, remainingCandidates } = await getPool(
+  let { pool, selectedServerName: poolName, hasError, remainingCandidates } = await getPool(
     candidateList,
   );
 
