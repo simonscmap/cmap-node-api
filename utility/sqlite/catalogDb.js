@@ -73,6 +73,9 @@ const createCatalogDatabase = (log) => {
       -- Table count (number of distinct tables for this dataset)
       tableCount INTEGER,
 
+      -- Servers (comma-separated list of server aliases hosting this dataset)
+      servers TEXT,
+
       -- Full metadata as JSON blob
       metadataJson TEXT NOT NULL
     );
@@ -193,7 +196,7 @@ const populateCatalogDatabase = (db, catalogData, log) => {
       timeMin, timeMax, depthMin, depthMax,
       sensors, make, regions, datasetType, rowCount,
       spatialResolution, temporalResolution,
-      hasDepth, tableCount, metadataJson
+      hasDepth, tableCount, servers, metadataJson
     ) VALUES (
       @datasetId, @shortName, @longName, @description,
       @variableLongNames, @variableShortNames, @distributor, @dataSource,
@@ -202,7 +205,7 @@ const populateCatalogDatabase = (db, catalogData, log) => {
       @timeMin, @timeMax, @depthMin, @depthMax,
       @sensors, @make, @regions, @datasetType, @rowCount,
       @spatialResolution, @temporalResolution,
-      @hasDepth, @tableCount, @metadataJson
+      @hasDepth, @tableCount, @servers, @metadataJson
     )
   `);
 
@@ -240,6 +243,7 @@ const populateCatalogDatabase = (db, catalogData, log) => {
         temporalResolution: dataset.temporalResolution,
         hasDepth: dataset.hasDepth ? 1 : 0,
         tableCount: dataset.tableCount,
+        servers: dataset.servers,
         metadataJson: JSON.stringify(dataset),
       });
     }

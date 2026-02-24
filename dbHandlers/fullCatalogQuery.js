@@ -35,7 +35,8 @@ module.exports = `
     refs.[References],
     aggs.Variable_Long_Names,
     aggs.Variable_Short_Names,
-    aggs.Keywords
+    aggs.Keywords,
+    srvs.Servers
 
     FROM (
         SELECT
@@ -132,6 +133,15 @@ module.exports = `
         GROUP BY ds_reg.Dataset_ID
     ) as regs
     on ds.ID = regs.Dataset_ID
+
+    LEFT OUTER JOIN (
+        SELECT
+        Dataset_ID,
+        STRING_AGG(CAST(Server_Alias AS nvarchar(MAX)), ',') as Servers
+        FROM tblDataset_Servers
+        GROUP BY Dataset_ID
+    ) as srvs
+    on ds.ID = srvs.Dataset_ID
 
     WHERE cat.ID in (
         SELECT
