@@ -121,5 +121,5 @@ const server = app.listen(port, () => {
 });
 
 // Extend default 2-minute timeout for long-running requests (bulk downloads, row counts)
-// Node.js 12 defaults to 120000ms; set to 10 minutes
-server.timeout = 600000;
+// Must be >= ELB idle timeout (3600s) to avoid premature socket closure
+server.timeout = 3600000;
