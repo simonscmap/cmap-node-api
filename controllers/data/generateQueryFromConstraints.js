@@ -90,6 +90,11 @@ const getLonConstraint = (constraints) => {
   } = constraints;
   let lonMin = parseFloatOrNull(min);
   let lonMax = parseFloatOrNull(max);
+
+  if (lonMin !== null && lonMax !== null && lonMin > lonMax) {
+    return `NOT (lon > ${lonMax} AND lon < ${lonMin})`;
+  }
+
   return makeClause('lon', lonMin, lonMax);
 };
 
@@ -153,6 +158,13 @@ const convertDatesToMonths = (startDate, endDate) => {
   return { months };
 };
 
+// Normalize end date to end of day if no time component present.
+const normalizeEndDate = (dateStr) => {
+  if (!dateStr) return dateStr;
+  if (dateStr.includes('T')) return dateStr;
+  return dateStr + 'T23:59:59';
+};
+
 const getTimeConstraint = (constraints, metadata) => {
   if (!constraints.time) {
     return '';
@@ -172,7 +184,7 @@ const getTimeConstraint = (constraints, metadata) => {
     const { months } = convertDatesToMonths(min, max);
     return makeInClause('month', months);
   } else {
-    return makeClause('time', min, max);
+    return makeClause('time', min, normalizeEndDate(max));
   }
 };
 

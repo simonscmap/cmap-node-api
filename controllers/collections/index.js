@@ -8,7 +8,10 @@ module.exports = {
   verifyName: require('./verifyName'),
   create: require('./create'),
   copy: require('./copy'),
-  preview: require('./preview'),
   update: require('./update'),
   calculateRowCounts: require('./calculateRowCounts'),
+  follow: require('./follow'),
+  unfollow: require('./unfollow'),
+  listFollowed: require('./listFollowed'),
+  incrementView: require('./incrementView'),
 };

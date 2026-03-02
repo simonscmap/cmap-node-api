@@ -18,7 +18,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
 
   // 1. determine pool
 
-  let { pool, poolName, hasError, remainingCandidates } = await getPool(
+  let { pool, selectedServerName: poolName, hasError, remainingCandidates } = await getPool(
     candidateList,
   );
 
@@ -114,6 +114,7 @@ const onPremToDisk = async (targetInfo, query, candidateList = [], reqId) => {
     } else {
       log.error(`unpiping accumulator from csvStream for ${tableName}`);
       csvStream.unpipe(accumulator);
+      targetFile.end();
     }
   });
 

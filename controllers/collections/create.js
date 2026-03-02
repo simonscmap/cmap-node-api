@@ -33,14 +33,14 @@ module.exports = async (req, res) => {
   const {
     collectionName,
     description,
-    private: isPrivate,
+    isPublic,
     datasets,
   } = req.validatedBody;
 
   log.info('Creating collection', {
     userId,
     collectionName,
-    isPrivate,
+    isPublic,
     requestedDatasetCount: datasets.length,
   });
 
@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
     const insertRequest = new sql.Request(tx)
       .input('userId', sql.Int, userId)
       .input('name', sql.NVarChar(200), collectionName)
-      .input('private', sql.Bit, isPrivate)
+      .input('private', sql.Bit, !isPublic)
       .input('description', sql.NVarChar(500), description)
       .input('createdAt', sql.DateTime2, now)
       .input('modifiedAt', sql.DateTime2, now);

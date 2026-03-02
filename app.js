@@ -33,6 +33,24 @@ process.on('warning', ({ name, message, stack }) => {
   log.warn(message, { name, stack });
 });
 
+process.on('uncaughtException', (err) => {
+  log.error('uncaught exception', {
+    error: err,
+    message: err.message,
+    stack: err.stack,
+  });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  log.error('unhandled promise rejection', {
+    reason: reason,
+    message: reason && reason.message,
+    stack: reason && reason.stack,
+  });
+  process.exit(1);
+});
+
 // Middleware
 app.use(
   cors({
@@ -41,7 +59,7 @@ app.use(
     exposedHeaders: [
       'X-CMAP-Request-Id',
       'X-Catalog-Checksum',
-      'X-Catalog-Version',
+      'X-Catalog-Schema-Hash',
       'X-Catalog-Dataset-Count',
       'X-Catalog-Generated-At',
     ],
@@ -95,9 +113,13 @@ app.use((req, res, next) => {
 });
 
 // start web server
-app.listen(port, () => {
+const server = app.listen(port, () => {
   log.info('api web server started', {
     port,
     nodeEnv: env.NODE_ENV,
   });
 });
+
+// Extend default 2-minute timeout for long-running requests (bulk downloads, row counts)
+// Must be >= ELB idle timeout (3600s) to avoid premature socket closure
+server.timeout = 3600000;

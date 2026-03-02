@@ -1,6 +1,10 @@
 const sql = require('mssql');
 const pools = require('../../dbHandlers/dbPools');
 const initializeLogger = require('../../log-service');
+const {
+  transformResultsWithDatasets,
+  mapCollectionFields,
+} = require('./helpers/transformUtils');
 
 const log = initializeLogger('controllers/collections/get');
 
@@ -17,7 +21,9 @@ const anonymousQuery = `
          0 as isOwner,
          c.Downloads as downloads,
          c.Views as views,
-         c.Copies as copies
+         c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         0 as isFollowing
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -41,7 +47,9 @@ const authenticatedQuery = `
          CASE WHEN c.User_ID = @userId THEN 1 ELSE 0 END as isOwner,
          c.Downloads as downloads,
          c.Views as views,
-         c.Copies as copies
+         c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         CASE WHEN EXISTS (SELECT 1 FROM tblCollection_Follows cf2 WHERE cf2.Collection_ID = c.Collection_ID AND cf2.User_ID = @userId) THEN 1 ELSE 0 END as isFollowing
   FROM tblCollections c
   INNER JOIN tblUsers u ON c.User_ID = u.UserID
   LEFT JOIN tblCollection_Datasets cd ON c.Collection_ID = cd.Collection_ID
@@ -65,6 +73,8 @@ const queryWithDatasets = `
          c.Downloads as downloads,
          c.Views as views,
          c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         CASE WHEN EXISTS (SELECT 1 FROM tblCollection_Follows cf2 WHERE cf2.Collection_ID = c.Collection_ID AND cf2.User_ID = @userId) THEN 1 ELSE 0 END as isFollowing,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
@@ -87,6 +97,8 @@ const anonymousQueryWithDatasets = `
          c.Downloads as downloads,
          c.Views as views,
          c.Copies as copies,
+         (SELECT COUNT(*) FROM tblCollection_Follows cf WHERE cf.Collection_ID = c.Collection_ID) as followerCount,
+         0 as isFollowing,
          cd.Dataset_Short_Name as datasetShortName,
          d.Dataset_Long_Name as datasetLongName,
          CASE WHEN d.Dataset_Name IS NULL THEN 1 ELSE 0 END as isInvalid
@@ -97,55 +109,6 @@ const anonymousQueryWithDatasets = `
   WHERE c.Private = 0
   ORDER BY c.Modified_At DESC, cd.Dataset_Short_Name
 `;
-
-function transformResultsWithDatasets(results, includeDatasets) {
-  if (!includeDatasets) {
-    return results;
-  }
-
-  const collectionsMap = new Map();
-
-  results.forEach((row) => {
-    const collectionId = row.id;
-
-    if (!collectionsMap.has(collectionId)) {
-      collectionsMap.set(collectionId, {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate
-          ? new Date(row.createdDate).toISOString()
-          : null,
-        modifiedDate: row.modifiedDate
-          ? new Date(row.modifiedDate).toISOString()
-          : null,
-        ownerName: row.ownerName,
-        ownerAffiliation: row.ownerAffiliation,
-        datasetCount: 0,
-        isOwner: Boolean(row.isOwner),
-        downloads: row.downloads,
-        views: row.views,
-        copies: row.copies,
-        datasets: [],
-      });
-    }
-
-    const collection = collectionsMap.get(collectionId);
-
-    if (row.datasetShortName) {
-      collection.datasets.push({
-        datasetShortName: row.datasetShortName,
-        datasetLongName: row.datasetLongName,
-        isInvalid: Boolean(row.isInvalid),
-      });
-    }
-
-    collection.datasetCount = collection.datasets.length;
-  });
-
-  return Array.from(collectionsMap.values());
-}
 
 module.exports = async (req, res) => {
   log.info('requesting collections list');
@@ -213,26 +176,11 @@ module.exports = async (req, res) => {
     let collections;
 
     if (includeDatasets) {
-      collections = transformResultsWithDatasets(result.recordset, true);
+      collections = transformResultsWithDatasets(result.recordset);
     } else {
       collections = result.recordset.map((row) => ({
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        isPublic: Boolean(row.isPublic),
-        createdDate: row.createdDate
-          ? new Date(row.createdDate).toISOString()
-          : null,
-        modifiedDate: row.modifiedDate
-          ? new Date(row.modifiedDate).toISOString()
-          : null,
-        ownerName: row.ownerName,
-        ownerAffiliation: row.ownerAffiliation,
+        ...mapCollectionFields(row),
         datasetCount: row.datasetCount,
-        isOwner: Boolean(row.isOwner),
-        downloads: row.downloads,
-        views: row.views,
-        copies: row.copies,
       }));
     }
 

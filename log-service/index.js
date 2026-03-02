@@ -27,6 +27,8 @@ const DEBUG_USAGE_THROTTLE_MS = parseInt(
   ? parseInt(process.env.DEBUG_USAGE_THROTTLE_MS, 10)
   : 100;
 
+const util = require('util');
+
 let chalk;
 if (isDevelopment) {
   chalk = require('chalk');
@@ -154,7 +156,7 @@ function writeLogInDevelopment(payload) {
 
   // log
   console.log(header);
-  console.log(abbreviatedPayload);
+  console.log(util.inspect(abbreviatedPayload, { depth: 6, colors: true }));
 }
 
 function log(level, tags, context, message, isError, data) {

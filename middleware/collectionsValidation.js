@@ -236,71 +236,6 @@ const validateCollectionNameCheck = (req, res, next) => {
   next();
 };
 
-// Middleware for validating collection preview endpoint
-const validateCollectionPreview = (req, res, next) => {
-  const log = moduleLogger.setReqId(req.requestId);
-
-  const datasetsParam = req.query.datasets;
-
-  if (!datasetsParam) {
-    log.warn('missing datasets parameter');
-    return res.status(400).json({
-      error: 'validation_error',
-      message: 'datasets parameter is required',
-    });
-  }
-
-  // Parse datasets - supports both comma-separated and repeated params
-  let datasetsList = [];
-  if (Array.isArray(datasetsParam)) {
-    // Repeated params: ?datasets=A&datasets=B
-    datasetsList = datasetsParam;
-  } else {
-    // Comma-separated: ?datasets=A,B,C
-    datasetsList = datasetsParam.split(',');
-  }
-
-  // Trim whitespace from each dataset name and filter out empty strings
-  const cleanedDatasets = datasetsList
-    .map((name) => (typeof name === 'string' ? name.trim() : ''))
-    .filter((name) => name.length > 0);
-
-  if (cleanedDatasets.length === 0) {
-    log.warn('no valid dataset names provided');
-    return res.status(400).json({
-      error: 'validation_error',
-      message: 'at least one valid dataset name is required',
-    });
-  }
-
-  // Attach validated datasets array to request
-  req.validatedQuery = {
-    datasets: cleanedDatasets,
-  };
-
-  // Optionally validate and attach collectionId if provided
-  if (req.query.collectionId !== undefined) {
-    const collectionIdValidation = validateCollectionId(req.query.collectionId);
-    if (!collectionIdValidation.isValid) {
-      log.warn('invalid collectionId parameter', {
-        collectionId: req.query.collectionId,
-        error: collectionIdValidation.message,
-      });
-      return res.status(400).json({
-        error: 'validation_error',
-        message: collectionIdValidation.message,
-      });
-    }
-    req.validatedQuery.collectionId = collectionIdValidation.id;
-  }
-
-  log.trace('collection preview validation passed', {
-    datasetCount: cleanedDatasets.length,
-    collectionId: req.validatedQuery.collectionId,
-  });
-  next();
-};
-
 // Middleware for validating collection update endpoint
 const validateCollectionUpdate = (req, res, next) => {
   const log = moduleLogger.setReqId(req.requestId);
@@ -322,7 +257,7 @@ const validateCollectionUpdate = (req, res, next) => {
   const {
     collectionName,
     description,
-    private: isPrivate,
+    isPublic,
     datasets,
   } = req.body;
 
@@ -349,11 +284,11 @@ const validateCollectionUpdate = (req, res, next) => {
     errors.push('description must be at most 500 characters');
   }
 
-  // Validate private flag
-  if (isPrivate === undefined || isPrivate === null) {
-    errors.push('private is required');
-  } else if (typeof isPrivate !== 'boolean') {
-    errors.push('private must be a boolean');
+  // Validate isPublic flag
+  if (isPublic === undefined || isPublic === null) {
+    errors.push('isPublic is required');
+  } else if (typeof isPublic !== 'boolean') {
+    errors.push('isPublic must be a boolean');
   }
 
   // Validate datasets
@@ -383,7 +318,7 @@ const validateCollectionUpdate = (req, res, next) => {
   req.validatedBody = {
     collectionName: collectionName.trim(),
     description,
-    private: isPrivate,
+    isPublic,
     datasets,
   };
 
@@ -434,15 +369,15 @@ const validateCollectionCreate = (req, res, next) => {
     validatedBody.description = null;
   }
 
-  // Validate private (optional, boolean, default true)
-  if (req.body.private !== undefined) {
-    if (typeof req.body.private !== 'boolean') {
-      errors.push('private must be a boolean');
+  // Validate isPublic (optional, boolean, default false)
+  if (req.body.isPublic !== undefined) {
+    if (typeof req.body.isPublic !== 'boolean') {
+      errors.push('isPublic must be a boolean');
     } else {
-      validatedBody.private = req.body.private;
+      validatedBody.isPublic = req.body.isPublic;
     }
   } else {
-    validatedBody.private = true;
+    validatedBody.isPublic = false;
   }
 
   // Validate datasets (optional, array of strings)
@@ -577,17 +512,40 @@ const validateCalculateRowCounts = (req, res, next) => {
   next();
 };
 
+const validateCollectionFollow = (req, res, next) => {
+  const log = moduleLogger.setReqId(req.requestId);
+
+  const idValidation = validateCollectionId(req.params.id);
+  if (!idValidation.isValid) {
+    log.warn('invalid collection ID parameter for follow', {
+      id: req.params.id,
+      error: idValidation.message,
+    });
+    return res.status(400).json({
+      error: idValidation.message,
+    });
+  }
+
+  req.validatedParams = {
+    id: idValidation.id,
+  };
+
+  log.trace('collection follow validation passed', {
+    collectionId: idValidation.id,
+  });
+  next();
+};
+
 module.exports = {
   validateCollectionsList,
   validateCollectionDetail,
   validateCollectionNameCheck,
-  validateCollectionPreview,
   validateCollectionUpdate,
   validateCollectionCreate,
   validateCollectionDelete,
   validateCollectionCopy,
   validateCalculateRowCounts,
-  // Export helper functions for testing
+  validateCollectionFollow,
   validateCollectionId,
   validateListQueryParams,
   validateDetailQueryParams,

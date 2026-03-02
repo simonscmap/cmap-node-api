@@ -38,13 +38,13 @@ module.exports = async (req, res) => {
 
   const userId = req.user.id;
   const collectionId = req.validatedParams.id;
-  const { collectionName, description, private: isPrivate, datasets } = req.validatedBody;
+  const { collectionName, description, isPublic, datasets } = req.validatedBody;
 
   log.info('updating collection', {
     userId,
     collectionId,
     collectionName,
-    isPrivate,
+    isPublic,
     datasetCount: datasets.length
   });
 
@@ -157,7 +157,7 @@ module.exports = async (req, res) => {
     // Determine if metadata changed
     const metadataChanged = nameChanged ||
       currentCollection.Description !== description ||
-      currentCollection.Private !== isPrivate;
+      Boolean(currentCollection.Private) !== !isPublic;
 
     const anyChanges = metadataChanged || datasetsToAdd.length > 0 || datasetsToRemove.length > 0;
 
@@ -178,7 +178,7 @@ module.exports = async (req, res) => {
       updateRequest.input('collectionId', sql.Int, collectionId);
       updateRequest.input('name', sql.NVarChar(200), collectionName);
       updateRequest.input('description', sql.NVarChar(500), description);
-      updateRequest.input('private', sql.Bit, isPrivate);
+      updateRequest.input('private', sql.Bit, !isPublic);
       updateRequest.input('modifiedAt', sql.DateTime2, now);
 
       await updateRequest.query(`
@@ -194,6 +194,19 @@ module.exports = async (req, res) => {
         userId,
         collectionId
       });
+
+      const wasPublic = !currentCollection.Private;
+      const nowPrivate = !isPublic;
+      if (wasPublic && nowPrivate) {
+        const deleteFollowsRequest = new sql.Request(tx);
+        deleteFollowsRequest.input('collectionId', sql.Int, collectionId);
+
+        await deleteFollowsRequest.query(`
+          DELETE FROM dbo.tblCollection_Follows
+          WHERE Collection_ID = @collectionId
+        `);
+
+      }
     }
 
     // Step 5: Remove datasets no longer in collection

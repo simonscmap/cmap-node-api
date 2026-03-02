@@ -4,6 +4,8 @@ const {
   getCandidateList,
 } = require('../../../utility/router/queryToDatabaseTarget');
 const onPremToDisk = require('./onPremToDisk');
+const clusterToDisk = require('./clusterToDisk');
+const { assertPriority, isSproc } = require('../../../utility/router/pure');
 const {
   logMessages,
   logErrors,
@@ -11,15 +13,16 @@ const {
 } = require('../../../log-service/log-helpers');
 
 // with retries
-const delegate = async (targetInfo, query, candidateLocations) => {
+const delegate = async (targetInfo, query, candidateLocations, reqId) => {
   let remainingCandidates = await onPremToDisk(
     targetInfo,
     query,
     candidateLocations,
+    reqId,
   );
 
   if (Array.isArray(remainingCandidates)) {
-    return delegate(targetInfo, query, remainingCandidates);
+    return delegate(targetInfo, query, remainingCandidates, reqId);
   } else {
     // return targetInfo as token of what operation succeeded
     return targetInfo;
@@ -45,11 +48,24 @@ const routeQuery = async (targetInfo, query, reqId) => {
   logWarnings(log)(warnings);
 
   if (respondWithErrorMessage) {
-    return [respondWithErrorMessage];
+    throw new Error(respondWithErrorMessage);
   }
 
-  // 3. delegate execution of the query
-  return await delegate(targetInfo, query, candidateLocations, reqId);
+  let { priorityTargetType } = assertPriority(candidateLocations);
+  let targetIsCluster = priorityTargetType === 'cluster';
+  let queryIsExecutingSproc = isSproc(query);
+
+  if (targetIsCluster && !queryIsExecutingSproc) {
+    log.info('routing to cluster', { candidateLocations });
+    let result = await clusterToDisk(targetInfo, query, reqId);
+    if (result instanceof Error) {
+      log.error('cluster query failed', { error: result.message });
+      throw result;
+    }
+    return targetInfo;
+  } else {
+    return await delegate(targetInfo, query, candidateLocations, reqId);
+  }
 };
 
 module.exports = {

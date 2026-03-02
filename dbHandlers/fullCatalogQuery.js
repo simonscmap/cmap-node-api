@@ -28,12 +28,15 @@ module.exports = `
     aggs.Time_Max,
     aggs.Sensors,
     aggs.Visualize,
+    aggs.Has_Depth,
     aggs.Row_Count,
+    aggs.Table_Count,
     regs.Regions,
     refs.[References],
     aggs.Variable_Long_Names,
     aggs.Variable_Short_Names,
-    aggs.Keywords
+    aggs.Keywords,
+    srvs.Servers
 
     FROM (
         SELECT
@@ -78,6 +81,8 @@ module.exports = `
         STRING_AGG(CAST(Keywords AS nvarchar(MAX)), ',') as Keywords,
         STRING_AGG(CAST(Sensor AS nvarchar(MAX)), ',') as Sensors,
         MAX(CAST(Visualize as [int])) as Visualize,
+        MAX(CAST(Has_Depth as [int])) as Has_Depth,
+        COUNT(DISTINCT Table_Name) as Table_Count,
         Dataset_ID
         FROM (
             SELECT
@@ -93,8 +98,10 @@ module.exports = `
             CAST(JSON_VALUE(JSON_stats,'$.depth.max') AS float) AS [Depth_Max],
             RTRIM(LTRIM(Sensor)) AS [Sensor],
             [tblVariables].Visualize,
+            [tblVariables].Has_Depth,
             [tblVariables].Dataset_ID,
             [tblVariables].Short_Name,
+            [tblVariables].Table_Name,
             [keywords_agg].Keywords AS [Keywords]
             FROM tblVariables
             JOIN tblDataset_Stats ON [tblVariables].Dataset_ID = [tblDataset_Stats].Dataset_ID
@@ -126,6 +133,15 @@ module.exports = `
         GROUP BY ds_reg.Dataset_ID
     ) as regs
     on ds.ID = regs.Dataset_ID
+
+    LEFT OUTER JOIN (
+        SELECT
+        Dataset_ID,
+        STRING_AGG(CAST(Server_Alias AS nvarchar(MAX)), ',') as Servers
+        FROM tblDataset_Servers
+        GROUP BY Dataset_ID
+    ) as srvs
+    on ds.ID = srvs.Dataset_ID
 
     WHERE cat.ID in (
         SELECT

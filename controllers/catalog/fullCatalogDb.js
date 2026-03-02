@@ -12,6 +12,7 @@ const {
   populateCatalogDatabase,
   populateRegionsTable,
   serializeDatabase,
+  computeSchemaHash,
   createSpatialResolutionMappingsTable,
   createTemporalResolutionMappingsTable,
   createDepthTables,
@@ -28,7 +29,6 @@ const moduleLogger = initializeLogger('controllers/catalog/fullCatalogDb');
 
 const CACHE_KEY = 'full_catalog_db';
 const CACHE_TTL = 86400; // 24 hours in seconds
-const SCHEMA_VERSION = '4.0'; // Bump when schema changes (last change: standardized resolution tables to use resolution, value, units)
 
 /**
  * Get a checksum representing the current state of the catalog data
@@ -127,14 +127,14 @@ module.exports = async (req, res) => {
       if (cached && cached.checksum === currentChecksum) {
         log.info('head request - returning cached metadata', {
           checksum: currentChecksum,
-          schemaVersion: SCHEMA_VERSION,
+          schemaHash: cached.schemaHash,
         });
         res.writeHead(200, {
           'Cache-Control': `max-age=${CACHE_TTL}`,
           'Content-Type': 'application/x-sqlite3',
           'Content-Encoding': 'gzip',
           'X-Catalog-Checksum': cached.checksum,
-          'X-Catalog-Version': SCHEMA_VERSION,
+          'X-Catalog-Schema-Hash': cached.schemaHash,
           'X-Catalog-Dataset-Count': cached.datasetCount.toString(),
           'X-Catalog-Generated-At': cached.generatedAt,
         });
@@ -142,7 +142,7 @@ module.exports = async (req, res) => {
       }
 
       // No cache or stale cache - query dataset count for HEAD response
-      log.info('head request - querying current dataset count');
+      log.info('head request - no valid cache, returning checksum only');
       const request = new sql.Request(pool);
       const countResult = await request.query(
         "SELECT COUNT(*) as count FROM tblDatasets WHERE Dataset_Name <> 'z33P4nA1Raj'",
@@ -154,7 +154,6 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/x-sqlite3',
         'Content-Encoding': 'gzip',
         'X-Catalog-Checksum': currentChecksum,
-        'X-Catalog-Version': SCHEMA_VERSION,
         'X-Catalog-Dataset-Count': datasetCount.toString(),
         'X-Catalog-Generated-At': new Date().toISOString(),
       });
@@ -166,6 +165,7 @@ module.exports = async (req, res) => {
     if (cached && cached.checksum === currentChecksum) {
       log.info('serving full catalog db from cache', {
         checksum: currentChecksum,
+        schemaHash: cached.schemaHash,
         datasetCount: cached.datasetCount,
         compressedSize: cached.buffer.length,
         uncompressedSize: cached.uncompressedSize,
@@ -176,7 +176,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/x-sqlite3',
         'Content-Encoding': 'gzip',
         'X-Catalog-Checksum': cached.checksum,
-        'X-Catalog-Version': SCHEMA_VERSION,
+        'X-Catalog-Schema-Hash': cached.schemaHash,
         'X-Catalog-Dataset-Count': cached.datasetCount.toString(),
         'X-Catalog-Generated-At': cached.generatedAt,
       });
@@ -260,7 +260,9 @@ module.exports = async (req, res) => {
           timeMax: record.Time_Max,
           sensors: sensors.length > 0 ? [...new Set(sensors)].join(', ') : null,
           visualize: record.Visualize,
+          hasDepth: record.Has_Depth === 1,
           rowCount: record.Row_Count,
+          tableCount: record.Table_Count,
           regions: record.Regions,
           references: record.References,
           datasetType: getDatasetType(makes, sensors),
@@ -268,6 +270,7 @@ module.exports = async (req, res) => {
           variableLongNames: deduplicateCommaSeparated(record.Variable_Long_Names),
           variableShortNames: deduplicateCommaSeparated(record.Variable_Short_Names),
           keywords: deduplicateCommaSeparated(record.Keywords),
+          servers: record.Servers,
         };
       });
 
@@ -294,18 +297,42 @@ module.exports = async (req, res) => {
     log.debug('fetching regions data');
     const regionsRequest = new sql.Request(pool);
     const regionsResult = await regionsRequest.query('SELECT Region_ID, Region_Name FROM tblRegions ORDER BY Region_Name');
-    log.debug('regions data fetched', { regionCount: regionsResult.recordset.length });
 
-    // Fetch depth table data
-    log.debug('fetching darwin depth data');
+    // Filter regions to only those actually used by datasets
+    let usedRegionNames = new Set();
+    for (let i = 0; i < catalogData.length; i++) {
+      let dataset = catalogData[i];
+      if (dataset.regions) {
+        let regionList = dataset.regions.split(',');
+        for (let j = 0; j < regionList.length; j++) {
+          usedRegionNames.add(regionList[j].trim());
+        }
+      }
+    }
+
+    let allRegions = regionsResult.recordset;
+    let usedRegions = allRegions.filter(function(r) {
+      return usedRegionNames.has(r.Region_Name);
+    });
+
+    let excludedRegions = allRegions
+      .filter(function(r) { return !usedRegionNames.has(r.Region_Name); })
+      .map(function(r) { return r.Region_Name; });
+
+    log.debug('regions data fetched and filtered', {
+      totalRegions: allRegions.length,
+      usedRegions: usedRegions.length,
+      excludedRegions: excludedRegions,
+    });
+
     const darwinDepthRequest = new sql.Request(pool);
     const darwinDepthResult = await darwinDepthRequest.query('SELECT depth_level FROM tblDarwin_Depth ORDER BY depth_level');
-    log.debug('darwin depth data fetched', { depthCount: darwinDepthResult.recordset.length });
 
-    log.debug('fetching pisces depth data');
     const piscesDepthRequest = new sql.Request(pool);
     const piscesDepthResult = await piscesDepthRequest.query('SELECT depth_level FROM tblPisces_Depth ORDER BY depth_level');
-    log.debug('pisces depth data fetched', { depthCount: piscesDepthResult.recordset.length });
+
+    const woaDepthRequest = new sql.Request(pool);
+    const woaDepthResult = await woaDepthRequest.query('SELECT depth_level FROM tblWOA_Depth ORDER BY depth_level');
 
     // Create SQLite database
     const db = createCatalogDatabase(log);
@@ -313,8 +340,8 @@ module.exports = async (req, res) => {
     // Populate database with catalog data
     populateCatalogDatabase(db, catalogData, log);
 
-    // Populate regions table
-    populateRegionsTable(db, regionsResult.recordset, log);
+    // Populate regions table (filtered to only regions used by datasets)
+    populateRegionsTable(db, usedRegions, log);
 
     // Create and populate estimation tables
     log.debug('creating estimation tables');
@@ -326,8 +353,10 @@ module.exports = async (req, res) => {
     log.debug('populating estimation tables');
     populateSpatialResolutionMappings(db, log);
     populateTemporalResolutionMappings(db, log);
-    populateDepthTables(db, darwinDepthResult.recordset, piscesDepthResult.recordset, log);
+    populateDepthTables(db, darwinDepthResult.recordset, piscesDepthResult.recordset, woaDepthResult.recordset, log);
     populateDatasetDepthModels(db, catalogData, log);
+
+    const schemaHash = computeSchemaHash(db, log);
 
     // Serialize database to buffer
     const dbBuffer = serializeDatabase(db, log);
@@ -350,6 +379,7 @@ module.exports = async (req, res) => {
         ((1 - compressedSize / uncompressedSize) * 100).toFixed(2) + '%',
       datasetCount: catalogData.length,
       checksum: currentChecksum,
+      schemaHash,
     });
 
     // Cache the gzipped buffer with version metadata
@@ -358,10 +388,10 @@ module.exports = async (req, res) => {
       {
         buffer: gzippedBuffer,
         checksum: currentChecksum,
+        schemaHash,
         datasetCount: catalogData.length,
         uncompressedSize,
         generatedAt,
-        schemaVersion: SCHEMA_VERSION,
       },
       CACHE_TTL,
     );
@@ -369,6 +399,7 @@ module.exports = async (req, res) => {
     log.info('full catalog db cached', {
       cacheKey: CACHE_KEY,
       checksum: currentChecksum,
+      schemaHash,
       ttl: CACHE_TTL,
     });
 
@@ -378,7 +409,7 @@ module.exports = async (req, res) => {
       'Content-Type': 'application/x-sqlite3',
       'Content-Encoding': 'gzip',
       'X-Catalog-Checksum': currentChecksum,
-      'X-Catalog-Version': SCHEMA_VERSION,
+      'X-Catalog-Schema-Hash': schemaHash,
       'X-Catalog-Dataset-Count': catalogData.length.toString(),
       'X-Catalog-Generated-At': generatedAt,
     });
