@@ -50,7 +50,7 @@ let reapStaleTempDirs = (maxAgeMs) => {
   }
 };
 
-let startReaper = (maxAgeMs, intervalMs) => {
+let startBulkDownloadTempDirReaper = (maxAgeMs, intervalMs) => {
   log.info('starting temp dir reaper', {
     maxAgeMinutes: Math.round(maxAgeMs / 60000),
     intervalMinutes: Math.round(intervalMs / 60000),
@@ -61,4 +61,4 @@ let startReaper = (maxAgeMs, intervalMs) => {
   return setInterval(() => reapStaleTempDirs(maxAgeMs), intervalMs);
 };
 
-module.exports = { startReaper, reapStaleTempDirs };
+module.exports = { startBulkDownloadTempDirReaper, reapStaleTempDirs };

@@ -102,7 +102,7 @@ const getAllTempFolders = async () => {
 
 // Staggered scheduler that captures folder list and schedules individual deletions
 // This prevents rate limiting by spacing deletions 90 seconds apart
-const scheduleCleanup = async () => {
+const scheduleDropboxTempFolderCleanup = async () => {
   const log = moduleLogger;
   try {
     // Capture snapshot of current temp folders immediately
@@ -146,6 +146,6 @@ const scheduleCleanup = async () => {
 
 module.exports = {
   safeDropboxDelete,
-  scheduleCleanup,
+  scheduleDropboxTempFolderCleanup,
   getAllTempFolders, // Export for testing/debugging
 };

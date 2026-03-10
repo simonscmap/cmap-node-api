@@ -1,13 +1,13 @@
 const initLog = require('../log-service');
 const { monitor } = require('../mail-service/checkBouncedMail');
 const {
-  scheduleCleanup,
+  scheduleDropboxTempFolderCleanup,
 } = require('../controllers/data/dropbox-vault/tempCleanup');
 const {
-  checkStaleBreadcrumbs,
+  checkBulkDownloadCrashBreadcrumbs,
 } = require('../controllers/data/bulk-download/breadcrumb');
 const {
-  startReaper,
+  startBulkDownloadTempDirReaper,
 } = require('../controllers/data/bulk-download/tempDirReaper');
 
 const log = initLog('startup');
@@ -27,17 +27,17 @@ const runStartupTasks = async () => {
     },
     {
       name: 'Schedule cleanup of temp-download folders',
-      task: () => scheduleCleanup(),
+      task: () => scheduleDropboxTempFolderCleanup(),
       critical: false,
     },
     {
       name: 'Check for OOM breadcrumbs from prior crash',
-      task: () => checkStaleBreadcrumbs(),
+      task: () => checkBulkDownloadCrashBreadcrumbs(),
       critical: false,
     },
     {
       name: 'Start bulk-download temp dir reaper',
-      task: () => startReaper(30 * 60 * 1000, 5 * 60 * 1000),
+      task: () => startBulkDownloadTempDirReaper(30 * 60 * 1000, 5 * 60 * 1000),
       critical: false,
     },
   ];

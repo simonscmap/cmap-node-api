@@ -4,7 +4,7 @@ const {
   createWorkspace,
   fetchAllDatasets,
   streamResponse,
-  scheduleCleanup,
+  cleanupBulkDownloadTempDir,
   sendValidationError,
   sendWorkspaceError,
   sendFetchError,
@@ -77,7 +77,7 @@ const bulkDownloadController = async (req, res, next) => {
     removeBreadcrumb(req.requestId);
 
     try {
-      await scheduleCleanup(pathToTmpDir, moduleLogger);
+      await cleanupBulkDownloadTempDir(pathToTmpDir, moduleLogger);
     } catch (cleanupErr) {
       log.error('cleanup failed in finally block', { error: cleanupErr, pathToTmpDir });
     }
