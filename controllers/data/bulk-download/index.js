@@ -14,6 +14,7 @@ const {
 } = require('./bulkDownloadUtils');
 const { processPreQueryLogic } = require('./sharedPreQueryProcessor');
 const { fetchDatasetsMetadata } = require('./dataFetchHelpers');
+const { writeBreadcrumb, removeBreadcrumb } = require('./breadcrumb');
 
 const bulkDownloadController = async (req, res, next) => {
   const log = moduleLogger.setReqId(req.requestId);
@@ -27,42 +28,60 @@ const bulkDownloadController = async (req, res, next) => {
   // Extract shortNames, constraints, original filters, datasetsMetadata, and collectionId from validation
   const { shortNames, constraints, datasetsMetadata, collectionId } = preQueryResult;
 
-  // 2. Create workspace directory
+  let mem = process.memoryUsage();
+  log.info('bulk-download memory at start', {
+    rssMB: Math.round(mem.rss / 1024 / 1024),
+    heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+    datasetCount: shortNames.length,
+    datasets: shortNames,
+  });
+
+  writeBreadcrumb(req.requestId, shortNames);
+
   const workspaceResult = await createWorkspace(log);
   if (!workspaceResult.success) {
     return sendWorkspaceError(res, next);
   }
   const { pathToTmpDir } = workspaceResult;
 
-  // 3. Fetch and write data using existing function
-  const fetchResult = await fetchAllDatasets(
-    pathToTmpDir,
-    shortNames,
-    req.requestId,
-    log,
-    datasetsMetadata,
-    constraints,
-  );
-  if (!fetchResult.success) {
-    scheduleCleanup(pathToTmpDir, moduleLogger);
-    return sendFetchError(res, next, fetchResult.error);
-  }
+  try {
+    const fetchResult = await fetchAllDatasets(
+      pathToTmpDir,
+      shortNames,
+      req.requestId,
+      log,
+      datasetsMetadata,
+      constraints,
+    );
+    if (!fetchResult.success) {
+      return sendFetchError(res, next, fetchResult.error);
+    }
 
-  // 4. Create zip and pipe response
-  const streamResult = await streamResponse(pathToTmpDir, res, log);
-  if (!streamResult.success) {
-    scheduleCleanup(pathToTmpDir, moduleLogger);
-    return sendStreamError(res, next);
-  }
+    const streamResult = await streamResponse(pathToTmpDir, res, req, log);
+    if (!streamResult.success) {
+      return sendStreamError(res, next);
+    }
 
-  // 5. Increment downloads count if collection_id is provided
-  if (collectionId) {
-    incrementCollectionDownloads(collectionId, log);
-  }
+    if (collectionId) {
+      incrementCollectionDownloads(collectionId, log);
+    }
 
-  // 6. Schedule cleanup of temp directory
-  scheduleCleanup(pathToTmpDir, moduleLogger);
-  next();
+    next();
+  } finally {
+    let memAfter = process.memoryUsage();
+    log.info('bulk-download memory at end', {
+      rssMB: Math.round(memAfter.rss / 1024 / 1024),
+      heapUsedMB: Math.round(memAfter.heapUsed / 1024 / 1024),
+    });
+
+    removeBreadcrumb(req.requestId);
+
+    try {
+      await scheduleCleanup(pathToTmpDir, moduleLogger);
+    } catch (cleanupErr) {
+      log.error('cleanup failed in finally block', { error: cleanupErr, pathToTmpDir });
+    }
+  }
 };
 
 const bulkDownloadInitController = async (req, res) => {

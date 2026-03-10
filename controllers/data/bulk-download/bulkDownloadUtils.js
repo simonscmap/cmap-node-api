@@ -142,13 +142,14 @@ const fetchAllDatasets = async (
   return { success: true, result };
 };
 
-const streamResponse = async (pathToTmpDir, res, log) => {
+const streamResponse = async (pathToTmpDir, res, req, log) => {
   const safeStreamArchive = safePromise(streamArchive);
   log.info('starting stream response');
 
   const [streamError, streamResolve] = await safeStreamArchive(
     pathToTmpDir,
     res,
+    req,
   );
 
   if (streamError) {

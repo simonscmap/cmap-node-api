@@ -3,47 +3,66 @@ const initLog = require('../../../log-service');
 const moduleLogger = initLog('bulk-download');
 const path = require('path');
 
-const streamArchive = (pathToTmpDir, res) =>
+const streamArchive = (pathToTmpDir, res, req) =>
   new Promise((resolve, reject) => {
-    /* Create Zip Archive */
-    // options: https://www.archiverjs.com/docs/archiver
+    let settled = false;
+    const safeResolve = (val) => { if (!settled) { settled = true; resolve(val); } };
+    const safeReject = (err) => { if (!settled) { settled = true; reject(err); } };
+
     const archive = archiver('zip', {
-      zlib: { level: 9 }, // compression level
+      zlib: { level: 9 },
     });
 
     const isTest = res.locals.test;
 
-    /* Event Handlers for destination stream */
     res.on('close', () => {
       moduleLogger.info('response stream closed', { bytes: archive.pointer() });
-      moduleLogger.info(
-        'archiver has been finalized and the output file descriptor has closed.',
-        null,
-      );
-      return resolve({ bytes: archive.pointer() });
+      safeResolve({ bytes: archive.pointer() });
     });
 
     res.on('end', () => {
       moduleLogger.info('Data has been drained', null);
     });
 
-    /* Event Handlers for source stream */
+    res.on('error', (err) => {
+      moduleLogger.error('response stream error', { error: err });
+      safeReject(err);
+    });
+
+    req.on('aborted', () => {
+      moduleLogger.warn('request aborted by client');
+      safeReject(new Error('request aborted'));
+    });
+
     archive.on('warning', (err) => {
       moduleLogger.error('error in archiving stream', { error: err });
       if (err.code !== 'ENOENT') {
-        return reject(err);
+        safeReject(err);
       }
     });
 
     archive.on('error', (err) => {
       moduleLogger.error('error streaming archive', { error: err });
-      reject(err);
+      safeReject(err);
     });
 
-    /* Pipe Response */
+    let lastMemLog = 0;
+    let memLogInterval = 30000;
+    archive.on('data', () => {
+      let now = Date.now();
+      if (now - lastMemLog > memLogInterval) {
+        lastMemLog = now;
+        let mem = process.memoryUsage();
+        moduleLogger.info('bulk-download memory during stream', {
+          rssMB: Math.round(mem.rss / 1024 / 1024),
+          heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+          archiveBytes: archive.pointer(),
+        });
+      }
+    });
+
     archive.pipe(res);
 
-    //append files from a sub-directory and naming it `new-subdir` within the archive
     moduleLogger.info('archiving dir', pathToTmpDir);
 
     const options = {
@@ -56,7 +75,6 @@ const streamArchive = (pathToTmpDir, res) =>
 
     archive.directory(pathToTmpDir, 'CMAP-Bulk-Download', options);
 
-    // end
     archive.finalize();
   });
 
