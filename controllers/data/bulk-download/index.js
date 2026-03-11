@@ -59,7 +59,11 @@ const bulkDownloadController = async (req, res, next) => {
 
     const streamResult = await streamResponse(pathToTmpDir, res, req, log);
     if (!streamResult.success) {
-      return sendStreamError(res, next);
+      if (!res.headersSent) {
+        return sendStreamError(res, next);
+      }
+      log.warn('stream failed after headers sent (likely client disconnect)');
+      return;
     }
 
     if (collectionId) {
