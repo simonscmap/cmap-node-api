@@ -6,6 +6,7 @@ const path = require('path');
 const streamArchive = (pathToTmpDir, res, req) =>
   new Promise((resolve, reject) => {
     let settled = false;
+    let archiveFinalized = false;
     const safeResolve = (val) => { if (!settled) { settled = true; resolve(val); } };
     const safeReject = (err) => { if (!settled) { settled = true; reject(err); } };
 
@@ -15,22 +16,32 @@ const streamArchive = (pathToTmpDir, res, req) =>
 
     const isTest = res.locals.test;
 
-    res.on('close', () => {
-      moduleLogger.info('response stream closed', { bytes: archive.pointer() });
-      safeResolve({ bytes: archive.pointer() });
+    archive.on('end', () => {
+      archiveFinalized = true;
     });
 
-    res.on('end', () => {
-      moduleLogger.info('Data has been drained', null);
+    res.on('close', () => {
+      if (archiveFinalized) {
+        moduleLogger.info('response stream closed', { bytes: archive.pointer() });
+        safeResolve({ bytes: archive.pointer() });
+      } else {
+        moduleLogger.warn('client disconnected before archive complete', {
+          bytes: archive.pointer(),
+        });
+        archive.destroy();
+        safeReject(new Error('client disconnected'));
+      }
     });
 
     res.on('error', (err) => {
       moduleLogger.error('response stream error', { error: err });
+      archive.destroy();
       safeReject(err);
     });
 
     req.on('aborted', () => {
       moduleLogger.warn('request aborted by client');
+      archive.destroy();
       safeReject(new Error('request aborted'));
     });
 
@@ -61,6 +72,7 @@ const streamArchive = (pathToTmpDir, res, req) =>
       }
     });
 
+    res.set('X-Accel-Buffering', 'no');
     archive.pipe(res);
 
     moduleLogger.info('archiving dir', pathToTmpDir);

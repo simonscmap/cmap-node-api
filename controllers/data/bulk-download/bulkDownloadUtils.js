@@ -164,7 +164,7 @@ const streamResponse = async (pathToTmpDir, res, req, log) => {
   }
 };
 
-const scheduleCleanup = async (pathToTmpDir, moduleLogger) => {
+const cleanupBulkDownloadTempDir = async (pathToTmpDir, moduleLogger) => {
   const msg = await cleanup(pathToTmpDir);
   moduleLogger.info('cleanup', { msg });
 };
@@ -254,7 +254,7 @@ module.exports = {
   createWorkspace,
   fetchAllDatasets,
   streamResponse,
-  scheduleCleanup,
+  cleanupBulkDownloadTempDir,
   sendValidationError,
   sendWorkspaceError,
   sendFetchError,

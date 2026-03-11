@@ -58,7 +58,7 @@ let removeBreadcrumb = (requestId) => {
   }
 };
 
-let checkStaleBreadcrumbs = () => {
+let checkBulkDownloadCrashBreadcrumbs = () => {
   try {
     if (!fs.existsSync(BREADCRUMB_DIR)) {
       return;
@@ -96,5 +96,5 @@ let checkStaleBreadcrumbs = () => {
 module.exports = {
   writeBreadcrumb,
   removeBreadcrumb,
-  checkStaleBreadcrumbs,
+  checkBulkDownloadCrashBreadcrumbs,
 };
