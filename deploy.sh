@@ -15,6 +15,22 @@
 SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# Switch to the correct Node version if nvm is available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+cd "$SCRIPT_DIR"
+if command -v nvm > /dev/null 2>&1; then
+    nvm use
+fi
+EXPECTED_NODE="$(cat "$SCRIPT_DIR/.nvmrc")"
+ACTUAL_NODE="$(node -v)"
+echo "⭐️ Using Node $ACTUAL_NODE"
+if [ "$ACTUAL_NODE" != "$EXPECTED_NODE" ]; then
+    echo "🔴 Node version mismatch: expected $EXPECTED_NODE but got $ACTUAL_NODE"
+    echo "🔴 Install the correct version with: nvm install $EXPECTED_NODE"
+    exit 1
+fi
+
 # Change to cmap-react directory to get the correct git commit hash
 cd "$PARENT_DIR/cmap-react"
 GIT_COMMIT="$(git rev-parse --short HEAD)"
