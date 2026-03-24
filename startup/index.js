@@ -1,8 +1,14 @@
 const initLog = require('../log-service');
 const { monitor } = require('../mail-service/checkBouncedMail');
 const {
-  scheduleCleanup,
+  scheduleDropboxTempFolderCleanup,
 } = require('../controllers/data/dropbox-vault/tempCleanup');
+const {
+  checkBulkDownloadCrashBreadcrumbs,
+} = require('../controllers/data/bulk-download/breadcrumb');
+const {
+  startBulkDownloadTempDirReaper,
+} = require('../controllers/data/bulk-download/tempDirReaper');
 
 const log = initLog('startup');
 
@@ -21,10 +27,19 @@ const runStartupTasks = async () => {
     },
     {
       name: 'Schedule cleanup of temp-download folders',
-      task: () => scheduleCleanup(),
+      task: () => scheduleDropboxTempFolderCleanup(),
       critical: false,
     },
-    // Add more startup tasks here as needed
+    {
+      name: 'Check for OOM breadcrumbs from prior crash',
+      task: () => checkBulkDownloadCrashBreadcrumbs(),
+      critical: false,
+    },
+    {
+      name: 'Start bulk-download temp dir reaper',
+      task: () => startBulkDownloadTempDirReaper(30 * 60 * 1000, 5 * 60 * 1000),
+      critical: false,
+    },
   ];
 
   const results = await Promise.allSettled(

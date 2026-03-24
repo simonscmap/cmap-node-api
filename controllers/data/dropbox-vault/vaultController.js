@@ -10,7 +10,7 @@ const initLog = require('../../../log-service');
 const { getCurrentConfig } = require('./batchConfig');
 const { executeStagedParallelBatches } = require('./stagedParallelExecutor');
 const { logDropboxVaultDownload } = require('./vaultLogger');
-const { safeDropboxDelete, scheduleCleanup } = require('./tempCleanup');
+const { safeDropboxDelete, scheduleDropboxTempFolderCleanup } = require('./tempCleanup');
 
 const {
   getTotalFileCount,
@@ -453,7 +453,7 @@ const handleSelectiveFileDownload = async (shortName, files, log) => {
     const downloadLink = await createDownloadLink(tempFolderPath, log);
 
     // Schedule cleanup (runs async in background)
-    scheduleCleanup();
+    scheduleDropboxTempFolderCleanup();
 
     return {
       success: true,
