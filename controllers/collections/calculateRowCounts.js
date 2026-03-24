@@ -15,7 +15,7 @@ const MAX_RETRIES = parseInt(process.env.MAX_ROW_COUNT_RETRIES, 10) || 3;
 const RETRY_DELAY = parseInt(process.env.ROW_COUNT_RETRY_DELAY, 10) || 1000; // milliseconds
 
 // Timeout for individual dataset row count calculation (default: 90 seconds)
-const DATASET_CALCULATION_TIMEOUT = parseInt(process.env.DATASET_ROW_COUNT_TIMEOUT, 10) || 90000;
+const DATASET_CALCULATION_TIMEOUT = parseInt(process.env.DATASET_ROW_COUNT_TIMEOUT, 10) || 300000;
 
 /**
  * Sleep utility for retry delays
