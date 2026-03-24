@@ -271,6 +271,7 @@ module.exports = async (req, res) => {
           variableShortNames: deduplicateCommaSeparated(record.Variable_Short_Names),
           keywords: deduplicateCommaSeparated(record.Keywords),
           servers: record.Servers,
+          programs: record.Programs || null,
         };
       });
 
