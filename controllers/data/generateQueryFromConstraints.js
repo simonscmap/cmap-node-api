@@ -133,8 +133,8 @@ const convertDatesToMonths = (startDate, endDate) => {
   }
 
   // If the range is < 1 year, extract the specific months in the range
-  const startMonth = start.getMonth() + 1; // 1-12
-  const endMonth = end.getMonth() + 1; // 1-12
+  const startMonth = start.getUTCMonth() + 1; // 1-12
+  const endMonth = end.getUTCMonth() + 1; // 1-12
 
   // Generate array of months in the range
   const months = [];

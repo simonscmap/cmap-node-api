@@ -142,13 +142,14 @@ const fetchAllDatasets = async (
   return { success: true, result };
 };
 
-const streamResponse = async (pathToTmpDir, res, log) => {
+const streamResponse = async (pathToTmpDir, res, req, log) => {
   const safeStreamArchive = safePromise(streamArchive);
   log.info('starting stream response');
 
   const [streamError, streamResolve] = await safeStreamArchive(
     pathToTmpDir,
     res,
+    req,
   );
 
   if (streamError) {
@@ -163,7 +164,7 @@ const streamResponse = async (pathToTmpDir, res, log) => {
   }
 };
 
-const scheduleCleanup = async (pathToTmpDir, moduleLogger) => {
+const cleanupBulkDownloadTempDir = async (pathToTmpDir, moduleLogger) => {
   const msg = await cleanup(pathToTmpDir);
   moduleLogger.info('cleanup', { msg });
 };
@@ -253,7 +254,7 @@ module.exports = {
   createWorkspace,
   fetchAllDatasets,
   streamResponse,
-  scheduleCleanup,
+  cleanupBulkDownloadTempDir,
   sendValidationError,
   sendWorkspaceError,
   sendFetchError,

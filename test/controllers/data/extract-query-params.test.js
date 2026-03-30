@@ -70,6 +70,30 @@ test('works with exact time (an equals comparator) and no depth constraint', (t)
   t.is(cq, expectedGeneratedQuery);
 });
 
+test('convertDatesToMonths uses UTC month extraction (not local time)', (t) => {
+  let constraints = {
+    time: { min: '2025-05-01', max: '2025-09-01' },
+    lat: { min: -90, max: 90 },
+    lon: { min: -180, max: 180 },
+    depth: {},
+  };
+  let mockDataset = { Temporal_Resolution: 'Monthly Climatology' };
+  let cq = generateQuery('myTable', constraints, mockDataset);
+  t.is(cq, 'select count(month) as c from myTable where month IN (5, 6, 7, 8, 9) AND lat between -90 and 90 AND lon between -180 and 180');
+});
+
+test('convertDatesToMonths handles cross-year range with UTC dates', (t) => {
+  let constraints = {
+    time: { min: '2025-11-01', max: '2025-02-01' },
+    lat: { min: -90, max: 90 },
+    lon: { min: -180, max: 180 },
+    depth: {},
+  };
+  let mockDataset = { Temporal_Resolution: 'Monthly Climatology' };
+  let cq = generateQuery('myTable', constraints, mockDataset);
+  t.is(cq, 'select count(month) as c from myTable where month IN (11, 12, 1, 2) AND lat between -90 and 90 AND lon between -180 and 180');
+});
+
 test('works with monthly climatology (month saved as time)', (t) => {
   let monthlyClimatologyQuery = `select * from tblWOA_2018_qrtdeg_Climatology where month between '2' and '3' and lat between -89.9 and 89.9 and lon between -179.9 and 179.9 and depth between 0 and 1500`;
   let r = extractQueryConstraints(monthlyClimatologyQuery);

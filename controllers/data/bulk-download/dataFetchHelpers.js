@@ -267,12 +267,12 @@ const fetchDatasetsMetadata = async (shortNames, log) => {
             CASE 
                 WHEN JSON_VALUE(j.JSON_stats, '$.depth.min') IS NOT NULL 
                 THEN CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.depth.min')), 3) AS decimal(18,3))
-                ELSE NULL 
+                ELSE 0
             END AS [Depth_Min],
-            CASE 
-                WHEN JSON_VALUE(j.JSON_stats, '$.depth.max') IS NOT NULL 
+            CASE
+                WHEN JSON_VALUE(j.JSON_stats, '$.depth.max') IS NOT NULL
                 THEN CAST(ROUND(TRY_CONVERT(float, JSON_VALUE(j.JSON_stats, '$.depth.max')), 3) AS decimal(18,3))
-                ELSE NULL 
+                ELSE 5
             END AS [Depth_Max],
             JSON_VALUE(j.JSON_stats, '$.time.min') AS [Time_Min],
             JSON_VALUE(j.JSON_stats, '$.time.max') AS [Time_Max],

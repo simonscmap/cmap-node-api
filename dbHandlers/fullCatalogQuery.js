@@ -36,7 +36,8 @@ module.exports = `
     aggs.Variable_Long_Names,
     aggs.Variable_Short_Names,
     aggs.Keywords,
-    srvs.Servers
+    srvs.Servers,
+    progs.Programs
 
     FROM (
         SELECT
@@ -142,6 +143,16 @@ module.exports = `
         GROUP BY Dataset_ID
     ) as srvs
     on ds.ID = srvs.Dataset_ID
+
+    LEFT OUTER JOIN (
+        SELECT
+        dp.Dataset_ID,
+        STRING_AGG(CAST(p.Program_Name AS nvarchar(MAX)), ',') as Programs
+        FROM tblDataset_Programs dp
+        JOIN tblPrograms p ON dp.Program_ID = p.Program_ID
+        GROUP BY dp.Dataset_ID
+    ) as progs
+    on ds.ID = progs.Dataset_ID
 
     WHERE cat.ID in (
         SELECT
