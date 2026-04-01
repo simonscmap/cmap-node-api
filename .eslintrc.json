@@ -6,7 +6,11 @@
   "rules": {
     "no-unused-vars": "error",
     "no-undef": "error",
-    "no-unexpected-multiline": "off"
+    "no-unexpected-multiline": "off",
+    "curly": ["error", "multi-line", "consistent"],
+    "no-nested-ternary": "off", 
+    "indent": ["error", 2, { "offsetTernaryExpressions": true }]
+    
   },
   "globals": {
     "module": "readonly",
