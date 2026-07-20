@@ -17,6 +17,8 @@ const mapServerNameToPoolConnection = async (name) => {
       return await pools.rainier;
     case SERVER_NAMES.rossby:
       return await pools.rossby;
+    case SERVER_NAMES.carson:
+      return await pools.carson;
 
     // MARIANA UNAVAILABLE: Temporarily removed for maintenance.
     // When re-enabling, also update:

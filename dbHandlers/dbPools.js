@@ -27,6 +27,13 @@ const rossby = new sql.ConnectionPool(dbConfig.rossby)
     return null;
   });
 
+const carson = new sql.ConnectionPool(dbConfig.carson)
+  .connect()
+  .catch((error) => {
+    log.error('Failed to connect to carson pool', { error });
+    return null;
+  });
+
 const pools = {
   // This connects as a user that has no access to user details and can only read.
   dataReadOnlyPool: rainierReadOnly,
@@ -42,6 +49,8 @@ const pools = {
   //
   // Rossby
   [SERVER_NAMES.rossby]: rossby,
+  // Carson
+  [SERVER_NAMES.carson]: carson,
   [SERVER_NAMES.rainier]: rainierReadOnly,
   rainierReadWrite: rainierReadWrite,
 };

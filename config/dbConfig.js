@@ -114,3 +114,22 @@ module.exports.rossby = Object.assign(
     },
   },
 );
+
+// 5. Carson
+// Read-only data server, same credentials and port as rossby/mariana.
+// Requires the CARSON_SERVER environment variable (host name or IP).
+module.exports.carson = Object.assign(
+  {},
+  baseConfig,
+  readerConfig,
+  connectionTimeout50Seconds,
+  requestTimeoutVeryLong,
+  {
+    server: process.env.CARSON_SERVER,
+    pool: {
+      idleTimeoutMillis: 50000,
+      min: 3,
+      max: 500,
+    },
+  },
+);

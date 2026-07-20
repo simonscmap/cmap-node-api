@@ -2,6 +2,7 @@ const SERVER_NAMES = Object.freeze({
   mariana: 'mariana',
   rossby: 'rossby',
   rainier: 'rainier',
+  carson: 'carson',
 });
 
 const CLUSTER_CHUNK_MAX_ROWS = 100000;
