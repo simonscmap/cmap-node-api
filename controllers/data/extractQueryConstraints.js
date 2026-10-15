@@ -91,21 +91,13 @@ const getValue = (node) => {
   return null;
 };
 
-// Extract Query Constraints
-// :: QueryString -> Constraint
-
-// MinMax k :: { min: any k, max: any k }
-// Constraints :: { time: MinMax, lat: MinMax, lon: MinMax, depth: MinMax }
-function extractQueryConstraints(queryString = '') {
+const getAst = (queryString) => {
   let result = queryToAST(queryString);
 
-  let ast;
-  if (result && result.parserResult && result.parserResult.ast) {
-    ast = result.parserResult.ast;
-  } else {
-    return null;
-  }
+  return result && result.parserResult && result.parserResult.ast;
+};
 
+const extractConstraintsFromSelect = (ast) => {
   let { type: queryType, where: whereRoot } = ast;
 
   if (queryType !== 'select') {
@@ -209,8 +201,61 @@ function extractQueryConstraints(queryString = '') {
   moduleLogger.debug('CONSTRAINTS', constraints);
 
   return constraints;
+};
+
+const findUnionSelect = (ast) => {
+  if (!ast || ast.type !== 'select') {
+    return null;
+  }
+
+  if (ast.set_op && ast._next) {
+    return ast;
+  }
+
+  for (const fromItem of ast.from || []) {
+    const nestedSelect = fromItem.expr && fromItem.expr.ast;
+    const unionSelect = findUnionSelect(nestedSelect);
+    if (unionSelect) {
+      return unionSelect;
+    }
+  }
+
+  return null;
+};
+
+// MinMax k :: { min: any k, max: any k }
+// Constraints :: { time: MinMax, lat: MinMax, lon: MinMax, depth: MinMax }
+function extractQueryConstraints(queryString = '') {
+  const ast = getAst(queryString);
+  return ast ? extractConstraintsFromSelect(ast) : null;
+}
+
+function extractQueryConstraintGroups(queryString = '') {
+  const ast = getAst(queryString);
+  const unionSelect = findUnionSelect(ast);
+  if (!unionSelect) {
+    return null;
+  }
+
+  const branches = [];
+  let branch = unionSelect;
+  while (branch) {
+    if (branch.type !== 'select') {
+      return null;
+    }
+    branches.push(branch);
+    branch = branch._next;
+  }
+
+  if (branches.length < 2) {
+    return null;
+  }
+
+  const groups = branches.map(extractConstraintsFromSelect);
+  return groups.every((constraints) => constraints !== null) ? groups : null;
 }
 
 module.exports = {
   extractQueryConstraints,
+  extractQueryConstraintGroups,
 };
