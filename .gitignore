@@ -40,7 +40,6 @@ config/UNSAFE_jwtConfig.js
 .specify
 .claude
 specs/
-docs/
 # BMAD End
 
 CLAUDE.md
