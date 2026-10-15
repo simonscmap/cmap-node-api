@@ -247,8 +247,29 @@ function calculateSize(constraints, dataset, depths, log = moduleLogger) {
   return [result, messages, datasetSummary];
 }
 
+function calculateSizeForConstraintGroups(
+  constraintGroups,
+  dataset,
+  depths,
+  log = moduleLogger,
+) {
+  return constraintGroups.reduce(
+    ([totalSize, messages], constraints) => {
+      const [size, groupMessages] = calculateSize(
+        constraints,
+        dataset,
+        depths,
+        log,
+      );
+      return [totalSize + size, messages.concat(groupMessages || [])];
+    },
+    [0, []],
+  );
+}
+
 module.exports = {
   calculateSize,
+  calculateSizeForConstraintGroups,
   calculateFactors,
   getRatio,
   getDateRatio,

@@ -11,8 +11,11 @@ const reconstructDatasetRowCount = require('../controllers/data/reconstructDatas
 const getRowCountForQuery = require('../controllers/data/fetchRowCountForQuery');
 const {
   extractQueryConstraints,
+  extractQueryConstraintGroups,
 } = require('../controllers/data/extractQueryConstraints');
-const { calculateSize } = require('../controllers/data/calculateQuerySize');
+const {
+  calculateSizeForConstraintGroups,
+} = require('../controllers/data/calculateQuerySize');
 const getDataset = require('../controllers/catalog/fetchDataset');
 
 const moduleLogger = createLogger('checkQuerySize');
@@ -46,6 +49,10 @@ const getRowCountProjection = async (
   query,
   log = moduleLogger,
 ) => {
+  const constraintGroups = Array.isArray(constraints)
+    ? constraints
+    : [constraints];
+
   // get dataset
   let [fetchError, dataset] = await getDataset({ tablename });
   if (fetchError) {
@@ -78,16 +85,16 @@ const getRowCountProjection = async (
         return [error];
       } else {
         dataset.Row_Count = reconstructedRowCount;
-        if (!constraints) {
-        } else {
-          constraints.deltas = deltas;
-        }
+        constraintGroups.forEach((group) => {
+          if (group) {
+            group.deltas = deltas;
+          }
+        });
       }
     }
 
-    // calculate size of query
-    let [size, messages, datasetSummary] = calculateSize(
-      constraints,
+    const [size, messages] = calculateSizeForConstraintGroups(
+      constraintGroups,
       dataset,
       depths,
       log,
@@ -96,18 +103,21 @@ const getRowCountProjection = async (
   }
 
   // (d) dataset is irregular
-  // query a count of matching rows
-  let [queryError, count] = await getRowCountForQuery(
-    tablename,
-    constraints,
-    dataset,
-    log.getReqId(),
-  );
-  if (queryError) {
-    return [queryError];
-  } else {
-    return [null, makeProjection(count, 'query')];
+  // query each matching branch and sum for a conservative UNION estimate
+  let count = 0;
+  for (const group of constraintGroups) {
+    let [queryError, groupCount] = await getRowCountForQuery(
+      tablename,
+      group,
+      dataset,
+      log.getReqId(),
+    );
+    if (queryError) {
+      return [queryError];
+    }
+    count += groupCount;
   }
+  return [null, makeProjection(count, 'query')];
 };
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -130,7 +140,8 @@ const checkQuerySize = async (args, logger) => {
     queryAnalysis: analysis,
   } = args;
 
-  let constraints = extractQueryConstraints(query);
+  let constraints =
+    extractQueryConstraintGroups(query) || extractQueryConstraints(query);
 
   const { allow, prohibit } = makeResponders({
     modifiedQuery: query,
@@ -147,7 +158,7 @@ const checkQuerySize = async (args, logger) => {
 
   // (2) multiple tables were identified
   if (matchingDatasetTables.length > 1) {
-    log.info('allowing query that visits multiple tables', {
+    logger.info('allowing query that visits multiple tables', {
       matchingDatasetTables,
     });
     return allow(null, [
