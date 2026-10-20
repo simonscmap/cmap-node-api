@@ -126,6 +126,20 @@ const extractConstraintsFromSelect = (ast) => {
       return [getConstraints(col)(min, max)];
     }
 
+    if (
+      nodeType === 'unary_expr' &&
+      operator === 'NOT' &&
+      node.expr &&
+      node.expr.type === binary_expr &&
+      node.expr.operator === BETWEEN &&
+      getCol(node.expr.left) === 'lon'
+    ) {
+      const [min, max] = getValues(node.expr.right);
+      if (typeof min === 'number' && typeof max === 'number') {
+        return [{ name: 'lon', notBetween: { min, max } }];
+      }
+    }
+
     if (nodeType === binary_expr && comparisonOperators.includes(operator)) {
       let col = getCol(left);
       let value = getValue(right);
@@ -172,7 +186,7 @@ const extractConstraintsFromSelect = (ast) => {
     depth: {},
   };
   let constraints = constraintsList.reduce((acc, curr) => {
-    let { name, min, max } = curr;
+    let { name, min, max, notBetween } = curr;
 
     if (!['time', 'lat', 'lon', 'depth', 'month'].includes(name)) {
       // don't accumulate non-geospatial constraints
@@ -181,6 +195,10 @@ const extractConstraintsFromSelect = (ast) => {
 
     if (!acc[name]) {
       acc[name] = {};
+    }
+    if (notBetween) {
+      acc[name].notBetween = notBetween;
+      return acc;
     }
     // min can be 0
     if (typeof min === 'number' || typeof min === 'string') {

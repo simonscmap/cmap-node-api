@@ -107,6 +107,47 @@ const getLonRatio = (Lon_Min, Lon_Max, lon1, lon2) => {
   return getRatio(Lon_Min, Lon_Max, lon1, lon2, 'lon');
 };
 
+const getWrappedLonRatio = (Lon_Min, Lon_Max, delta, excludedMin, excludedMax) => {
+  const values = [Lon_Min, Lon_Max, delta, excludedMin, excludedMax];
+  if (
+    !values.every(Number.isFinite) ||
+    delta <= 0 ||
+    Lon_Max < Lon_Min ||
+    excludedMax < excludedMin
+  ) {
+    moduleLogger.warn('unable to calculate wrapped longitude ratio', {
+      Lon_Min,
+      Lon_Max,
+      delta,
+      excludedMin,
+      excludedMax,
+    });
+    return ['Unable to calculate wrapped longitude ratio', 1];
+  }
+
+  const epsilon = 1e-10;
+  const totalCoordinates =
+    Math.floor((Lon_Max - Lon_Min) / delta + epsilon) + 1;
+  const getCoordinateIndex = (longitude) => (longitude - Lon_Min) / delta;
+  const countLessThan = (longitude) =>
+    Math.min(
+      totalCoordinates,
+      Math.max(0, Math.ceil(getCoordinateIndex(longitude) - epsilon)),
+    );
+  const countLessThanOrEqual = (longitude) =>
+    Math.min(
+      totalCoordinates,
+      Math.max(0, Math.floor(getCoordinateIndex(longitude) + epsilon) + 1),
+    );
+
+  const selectedCoordinates =
+    countLessThan(excludedMin) +
+    totalCoordinates -
+    countLessThanOrEqual(excludedMax);
+
+  return [null, selectedCoordinates / totalCoordinates];
+};
+
 // Get Depth Ratio
 // getDepthRatio :: Subset Depth Min -> Subset Depth Max -> [ Sorted Depths ] -> [Error?, Ratio]
 const getDepthRatio = (depth1, depth2, depths) => {
@@ -174,13 +215,16 @@ const calculateFactors = (constraints, dataset, depths) => {
     lat.max,
     deltas.lat,
   );
-  let [lonRatioWarning, lonRatio] = getLonRatio(
-    Lon_Min,
-    Lon_Max,
-    lon.min,
-    lon.max,
-    deltas.lon,
-  );
+  let [lonRatioWarning, lonRatio] =
+    lon.notBetween && lon.min === undefined && lon.max === undefined
+      ? getWrappedLonRatio(
+          Lon_Min,
+          Lon_Max,
+          deltas.lon,
+          lon.notBetween.min,
+          lon.notBetween.max,
+        )
+      : getLonRatio(Lon_Min, Lon_Max, lon.min, lon.max);
 
   let [depthRatioWarning, depthRatio] = getDepthRatio(
     depth.min,
@@ -275,5 +319,6 @@ module.exports = {
   getDateRatio,
   getLatRatio,
   getLonRatio,
+  getWrappedLonRatio,
   getDepthRatio,
 };
