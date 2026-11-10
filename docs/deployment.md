@@ -15,8 +15,7 @@ megabytes; a size very different from that is worth investigating before upload.
 
 ## The build and packaging pipeline
 
-Building and packaging is done by moving the `simpleBuildRelease.sh` script into the parent repository and executing it.  
-It assumes both repositories are checked out side by side under the common parent directory:
+The `build-release.sh` script assumes both repositories are checked out side by side under the common parent directory:
 
 ```
 parent/
@@ -38,13 +37,11 @@ At a high level the script:
 
 ## Build the deployment
 
-1. From the parent directory, move to the React app directory: `cd cmap-react`  
-2. Use the node version specified in the .nvmrc file: `nvm use`
-3. Build the app: `npm run build`
-4. Move back to the parent directory `cd ../`
-5. Copy the build script from the Node app into the parent directory: `cp cmap-node-api/simpleBuildRelease.sh .`
-6. Make sure the script is executable: `chmod +x simpleBuildRelease.sh`
-7. Run the script: `./simpleBuildRelease.sh`
+1. From the cmap-node-api project root:
+   chmod +x build-release.sh (first time only)
+   ./build-release.sh
+2. The resulting archive is written to:
+   parent/deployments/<timestamp>_api-<apiVer>_web-<webVer>.zip
 
 The script builds and packages only. It does not contact AWS or any external
 service. Uploading is a separate, manual console step, so an archive can be
