@@ -34,14 +34,13 @@ const pools = {
   // This connects as a user that has read and write access. Be careful with requests that use this pool
   userReadAndWritePool: rainierReadWrite,
 
-  // MARIANA UNAVAILABLE: Temporarily removed for maintenance.
-  // When re-enabling, also update:
-  //   - /utility/queryHandler/getPool.js (remove 'mariana' from unavailableServers)
-  //   - /utility/router/serverPoolMapper.js (mariana case should work automatically)
-  // [SERVER_NAMES.mariana]: new sql.ConnectionPool(dbConfig.mariana).connect(),
-  //
+  // Carson
+  [SERVER_NAMES.carson]: new sql.ConnectionPool(dbConfig.carson).connect(),
+
   // Rossby
   [SERVER_NAMES.rossby]: rossby,
+
+  // Rainier
   [SERVER_NAMES.rainier]: rainierReadOnly,
   rainierReadWrite: rainierReadWrite,
 };

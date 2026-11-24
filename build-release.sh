@@ -47,7 +47,7 @@
 #       ./build-release.sh
 #
 # The resulting archive is written to:
-#       parent/deployments/<timestamp>_back-<apiVer>_front-<webVer>.zip
+#       parent/deployments/<timestamp>_api-<apiVer>_web-<webVer>.zip
 #
 # Exit codes:
 #   0  success
@@ -143,13 +143,13 @@ cd "$REACT_DIR"
 
 # Install dependencies to match the lockfile, then build.
 # npm ci is preferred for a clean, reproducible install; if the lockfile
-# and package.json are out of sync it will fail, in which case use npm install.
-# This is commented out because it is not necessary for the build to succeed if the dependencies are already installed.
-# if [ -f package-lock.json ]; then
-#   npm ci
-# else
-#   npm install
-# fi
+# and package.json are out of sync it will fail.
+if [ -f package-lock.json ]; then
+  npm ci --legacy-peer-deps
+else
+  echo "Refusing to build because package-lock.json and package.json are out of sync."
+  exit 1
+fi
 
 # The build script writes build info, runs the production build, writes
 # build/web-app-version-tag.json, and renames build/index.html to
@@ -205,8 +205,8 @@ echo "Web app version: $webVer"
 DEPLOY_DIR="$PARENT_DIR/deployments"
 mkdir -p "$DEPLOY_DIR"
 
-STAMP="$(date +%Y%m%d-%H%M)"
-ARCHIVE="$DEPLOY_DIR/${STAMP}_back-${apiVer}_front-${webVer}.zip"
+ARCHIVE="$DEPLOY_DIR/cmapDeployment_$(date +%F)_api("$apiVer")_web("$webVer").zip"
+#7z a -tzip "../cmapDeployment_$(date +%F)_api("$apiVer")_web("$webAppVer").zip" ./ -xr@exclusionList
 
 echo "--- creating archive ---"
 echo "Archive: $ARCHIVE"
