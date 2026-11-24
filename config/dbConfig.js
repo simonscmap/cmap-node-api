@@ -81,15 +81,15 @@ module.exports.userTableConfig = Object.assign(
   },
 );
 
-// 3. Mariana
-module.exports.mariana = Object.assign(
+// 3. Carson
+module.exports.carson = Object.assign(
   {},
   baseConfig,
   readerConfig,
   connectionTimeout50Seconds,
   requestTimeoutVeryLong,
   {
-    server: process.env.MARIANA_SERVER,
+    server: process.env.CARSON_SERVER,
     pool: {
       idleTimeoutMillis: 50000,
       min: 3,
