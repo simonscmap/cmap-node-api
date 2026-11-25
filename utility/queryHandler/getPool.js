@@ -54,7 +54,7 @@ const connectToPool = async (serverName, log) => {
 };
 
 const getPool = async (candidateList = [], serverNameOverride = '') => {
-  const unavailableServers = [''];
+  const unavailableServers = ['mariana']; // temporarily unavailable for maintenance
   const filteredCandidates = candidateList.filter(
     (c) => !unavailableServers.includes(c),
   );

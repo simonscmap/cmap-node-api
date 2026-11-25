@@ -114,3 +114,20 @@ module.exports.rossby = Object.assign(
     },
   },
 );
+
+// 5. Mariana
+module.exports.mariana = Object.assign(
+  {},
+  baseConfig,
+  readerConfig,
+  connectionTimeout50Seconds,
+  requestTimeoutVeryLong,
+  {
+    server: process.env.MARIANA_SERVER,
+    pool: {
+      idleTimeoutMillis: 50000,
+      min: 3,
+      max: 500,
+    },
+  },
+);

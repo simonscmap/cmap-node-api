@@ -1,5 +1,6 @@
 const SERVER_NAMES = Object.freeze({
   carson: 'carson',
+  mariana: 'mariana',
   rossby: 'rossby',
   rainier: 'rainier',
 });

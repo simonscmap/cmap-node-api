@@ -37,6 +37,9 @@ const pools = {
   // Carson
   [SERVER_NAMES.carson]: new sql.ConnectionPool(dbConfig.carson).connect(),
 
+   // Mariana
+  //[SERVER_NAMES.mariana]: new sql.ConnectionPool(dbConfig.mariana).connect(),
+
   // Rossby
   [SERVER_NAMES.rossby]: rossby,
 

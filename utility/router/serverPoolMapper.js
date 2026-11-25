@@ -19,6 +19,8 @@ const mapServerNameToPoolConnection = async (name) => {
       return await pools.rossby;
     case SERVER_NAMES.carson:
       return await pools.carson;
+    // case SERVER_NAMES.mariana:
+    //   return await pools.mariana;
     default:
       log.warn(`defaulting to ${SERVER_NAMES.rainier}`, { name });
       return await pools.rainier;
