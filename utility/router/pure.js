@@ -306,13 +306,11 @@ const transformDatasetServersListToMap = (recordset) => {
   let map = new Map();
 
   recordset.forEach(({ Dataset_ID, Server_Alias }) => {
-    const serverName =
-      Server_Alias === 'mariana' ? SERVER_NAMES.carson : Server_Alias;
     let existingEntry = map.get(Dataset_ID);
     if (!existingEntry) {
-      map.set(Dataset_ID, [serverName]);
+      map.set(Dataset_ID, [Server_Alias]);
     } else {
-      map.set(Dataset_ID, [...existingEntry, serverName]);
+      map.set(Dataset_ID, [...existingEntry, Server_Alias]);
     }
   });
 

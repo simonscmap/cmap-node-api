@@ -9,6 +9,7 @@ test('produces expected Map object', (t) => {
     { Dataset_ID: 8, Server_Alias: 'carson' },
     { Dataset_ID: 8, Server_Alias: 'ranier' },
     { Dataset_ID: 8, Server_Alias: 'rossby' },
+    { Dataset_ID: 8, Server_Alias: 'mariana' },
   ];
 
   let r = transformDatasetServersListToMap(recordset);
@@ -22,6 +23,6 @@ test('produces expected Map object', (t) => {
 
   // check values stored in Map under the key 8
   let mg8 = r.get(8);
-  t.is(mg8.length, 3);
-  t.truthy(['rossby', 'ranier', 'carson'].every((n) => mg8.includes(n)));
+  t.is(mg8.length, 4);
+  t.truthy(['rossby', 'ranier', 'carson', 'mariana'].every((n) => mg8.includes(n)));
 });
